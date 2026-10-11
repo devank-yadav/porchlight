@@ -1,5 +1,9 @@
 # TASKS
 
+## Name and logo — October 11, 2026
+
+- [x] N1 — Devank (Claude Code), `claude/project-thread-0exria`, PR #80: implemented. Devank renamed the product to Tella (23:37 UTC) with the older-woman-on-a-call logo (option B). Every user-facing "Porchlight" is now "Tella": app.json name, UI copy, voice greeting and prompts, texts, docs. Kept on purpose: bundle id com.porchlight.app, slug, URL scheme, the 'porchlight' transcript role and audit actor, the repo name. New icon, splash, Android adaptive icon and favicon from mobile/assets/brand/tella-icon.svg. Checked: 30/30 server voice/care tests, iOS export. Next: the laptop pulls and restarts; the old-UI app the laptop runs gets the same string rename in its own PR.
+
 ## App UI v3 ("evening porch") — October 11, 2026
 
 - [x] U3 — Devank (Claude Code), `claude/project-thread-cwsvbd`; implemented, merged to main via [PR #84](https://github.com/devank-yadav/porchlight/pull/84). Owner notice: `mobile/*` only, no server, API or route-contract changes. Warm paper palette, night porch-light hero card, floating tab bar, slim header, new ui.js components (HeroCard, Tile, ListGroup/ListRow, Avatar, SectionHeader, LargeTitle, Chip, IconTile, Screen). Every Peggy and family screen rebuilt with all features kept. The volunteer desk is removed from the app at Devank's request (server endpoints untouched). Medications (M1) and the Uber tap fix (N1) mounted in the new layout; the family hero shows today's pills from the reminders. Checked: lint, iOS export, every route loads with no errors at 390x844 on the web preview. Next: phone check in Expo Go (Devank reviewing).

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Porchlight",
+    "name": "Tella",
     "slug": "porchlight",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -33,7 +33,7 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "Porchlight reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you."
+          "calendarPermission": "Tella reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you."
         }
       ]
     ],

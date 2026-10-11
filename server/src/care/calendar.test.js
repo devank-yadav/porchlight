@@ -13,7 +13,7 @@ test('phone calendar events become appointments, update in place, and disappear 
     { id: 'e1', title: 'Dentist', startsAt: inDays(2), endsAt: inDays(2, 11), location: 'Main St Dental', calendar: 'Home', notes: 'secret' },
     { id: 'e2', title: 'Telehealth with Dr. Kim', startsAt: inDays(3), calendar: 'Home' },
     { id: 'e3', title: "Mark's birthday", startsAt: inDays(4, 0), allDay: true, calendar: 'Home' },
-    { id: 'p1', title: 'Porchlight: ride', startsAt: inDays(2), calendar: 'Porchlight' },
+    { id: 'p1', title: 'Tella: ride', startsAt: inDays(2), calendar: 'Tella' },
   ];
   const r = await syncCalendar('peggy', { events });
   assert.equal(r.added, 2);

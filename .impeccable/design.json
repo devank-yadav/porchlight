@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-10-11T21:41:39.341Z",
-  "title": "Design System: Porchlight",
+  "title": "Design System: Tella",
   "extensions": {
     "colorMeta": {
       "family-bg": {
@@ -560,7 +560,7 @@
   ],
   "narrative": {
     "northStar": "The daily page",
-    "overview": "Porchlight reads like a familiar daily agenda: a quiet paper ground, white task surfaces, charcoal text and clearly dated plans. The lamp gives status a recognizable visual presence. Plain words state the status and the next action.\n\nThe older person's experience makes reading and acting spacious; the family experience fits more coordination into compact rows. They share materials and appointments while retaining different type and control sizes. This document records the implemented consumer system; the retained dark palette and volunteer desk are outside this redesign.",
+    "overview": "Tella reads like a familiar daily agenda: a quiet paper ground, white task surfaces, charcoal text and clearly dated plans. The lamp gives status a recognizable visual presence. Plain words state the status and the next action.\n\nThe older person's experience makes reading and acting spacious; the family experience fits more coordination into compact rows. They share materials and appointments while retaining different type and control sizes. This document records the implemented consumer system; the retained dark palette and volunteer desk are outside this redesign.",
     "keyCharacteristics": [
       "Quiet paper grounds, white surfaces and hairline separation.",
       "Atkinson Hyperlegible for the older person; native system type for family.",

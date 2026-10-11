@@ -56,7 +56,7 @@ export function openRoleSheet({ role, setRole }) {
   ), { theme: role?.id === 'senior' ? 'senior' : 'light' });
 }
 
-// Demo controls for presenting. Reached from the ••• button, or a long press on the Porchlight name.
+// Demo controls for presenting. Reached from the ••• button, or a long press on the Tella name.
 export function openDemoMenu({ state, run, role }) {
   const cfg = state?.config;
   const status = cfg
@@ -73,7 +73,7 @@ export function openDemoMenu({ state, run, role }) {
         <MenuRow icon="phone.fill" title="Call Peggy’s phone now" sub="A real call through Twilio" onPress={go(() => api.phoneCall('peggy'), ['Calling Peggy', 'Her phone is ringing now.'])} />
       ) : null}
       {role?.id === 'senior' ? (
-        <MenuRow icon="calendar" title="Sync this phone’s calendar" sub="Her events in, Porchlight’s rides and reminders out" onPress={go(() => syncCalendarNow(state?.seniors?.find((s) => s._id === 'peggy'), state), 'Calendar synced')} />
+        <MenuRow icon="calendar" title="Sync this phone’s calendar" sub="Her events in, Tella’s rides and reminders out" onPress={go(() => syncCalendarNow(state?.seniors?.find((s) => s._id === 'peggy'), state), 'Calendar synced')} />
       ) : null}
       <MenuRow icon="arrow.counterclockwise" tone="red" title="Reset demo data" sub="Back to the start of the story" onPress={go(() => api.reset(), 'Demo data reset')} />
     </View>

@@ -9,7 +9,7 @@
 // is slow, rate-limited or finds nothing. Both are asked at once and the first answer wins, so a call
 // never waits more than about 3 s. Best effort: cached, null if neither finds it.
 const geoCache = new Map();
-const UA = { 'User-Agent': 'Porchlight-hackathon-demo/1.0 (senior check-in app)' };
+const UA = { 'User-Agent': 'Tella-hackathon-demo/1.0 (senior check-in app)' };
 
 async function nominatim(q, hlat, hlng) {
   const near = hlat && hlng ? `&viewbox=${hlng - 0.3},${hlat + 0.3},${hlng + 0.3},${hlat - 0.3}` : '';

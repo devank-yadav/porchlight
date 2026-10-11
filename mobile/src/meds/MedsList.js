@@ -1,7 +1,7 @@
 // Peggy's medicines: the list (name, dose, times of day) with today's taken / not yet marked status,
 // and an editor sheet to add or change one. Used on Peggy's My plans and on the family side.
 // Family members who can't see medicine details (seesMeds: false, e.g. Mark) get a "private" note.
-// Porchlight only keeps the list and reminds; it never suggests doses or changes.
+// Tella only keeps the list and reminds; it never suggests doses or changes.
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { BigButton, Badge, Button, Card, Divider, Press, Section, T } from '../design/ui';
@@ -47,7 +47,7 @@ export function MedsSummary({ senior, state, viewer, onOpen }) {
           <Badge label={g.state === 'taken' ? 'Taken' : g.doses.some((d) => d.status === 'missed') ? 'Not marked' : g.state === 'now' ? 'Due now' : 'Later'} tone={g.state === 'taken' ? 'green' : g.state === 'now' ? 'lamp' : 'neutral'} />
         </View>
       </View>)}
-      <T v="footnote" muted>{name} marks pills from her phone’s reminder or on her call. Porchlight reminds her again 30 minutes later.</T>
+      <T v="footnote" muted>{name} marks pills from her phone’s reminder or on her call. Tella reminds her again 30 minutes later.</T>
     </Card>
   </Section>;
 }
@@ -80,14 +80,14 @@ export default function MedsList({ senior, state, viewer, refresh }) {
     return <View style={{ gap: 12 }}>
       <T v="readHeadline">My medicines</T>
       {meds.length ? <Card style={{ gap: 4 }}>{rows.map((r, i) => <View key={i}>{i > 0 && <Divider />}{r}</View>)}</Card> : <T v="read" muted>No medicines on your list yet.</T>}
-      <BigButton icon="plus" title="Add a medicine" sub="Porchlight reminds you each day" onPress={() => open(null)} />
+      <BigButton icon="plus" title="Add a medicine" sub="Tella reminds you each day" onPress={() => open(null)} />
     </View>;
   }
   return <Section title="Medicines" action={<Button size="sm" variant="ghost" icon="plus" label="Add" accessibilityLabel={`Add a medicine for ${name}`} onPress={() => open(null)} />}>
     <Card style={{ gap: 4, paddingVertical: 6 }}>
       {meds.length ? rows.map((r, i) => <View key={i}>{i > 0 && <Divider />}{r}</View>) : <View style={{ paddingVertical: 12, gap: 4 }}><T v="headline">No medicines yet</T><T v="callout" muted>Add one and {name}’s phone reminds her at each time.</T></View>}
     </Card>
-    <T v="footnote" muted>Reminders ring on {name}’s phone at each time, with a gentle repeat if she hasn’t marked it. Porchlight never gives dosing advice; check changes with her doctor or pharmacist.</T>
+    <T v="footnote" muted>Reminders ring on {name}’s phone at each time, with a gentle repeat if she hasn’t marked it. Tella never gives dosing advice; check changes with her doctor or pharmacist.</T>
   </Section>;
 }
 
@@ -149,7 +149,7 @@ function MedEditor({ senior, med, memberId, refresh, close }) {
     </View>
     <Button variant="primary" label={busy ? 'Saving…' : med ? 'Save changes' : 'Add medicine'} disabled={!nameText.trim()} busy={busy} onPress={save} />
     {med && <Button variant="ghost" label="Remove this medicine" accessibilityHint="Turns off its reminders" onPress={remove} />}
-    <T v="footnote" muted>Enter it exactly as the doctor or pharmacist prescribed. Porchlight only reminds; it never gives dosing advice.</T>
+    <T v="footnote" muted>Enter it exactly as the doctor or pharmacist prescribed. Tella only reminds; it never gives dosing advice.</T>
   </View>;
 }
 

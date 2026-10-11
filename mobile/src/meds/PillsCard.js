@@ -43,7 +43,7 @@ export default function PillsCard({ senior, state, refresh }) {
   const undo = async (g) => {
     try {
       await Promise.all(g.doses.map((d) => api.undoDose(senior._id, d.medId, g.time, g.date)));
-      toast.info('Okay, not taken yet', { description: 'Porchlight will remind you again.' });
+      toast.info('Okay, not taken yet', { description: 'Tella will remind you again.' });
       await refresh?.();
     } catch (e) { toast.error('Please try again', { description: e.message }); }
   };

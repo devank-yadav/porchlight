@@ -7,10 +7,10 @@ import { accent } from './design/tokens';
 // Peggy's own iPhone calendar: iCloud, plus any Google or Outlook account she added in Settings.
 // 1. Read: her next two weeks go to the server as appointments, so calls, "what do I have this week?"
 //    and ride offers use her real events. Only title, place and times leave the phone, never notes.
-// 2. Write: rides, reminders and call-backs Porchlight set up go into a "Porchlight" calendar on her
+// 2. Write: rides, reminders and call-backs Tella set up go into a "Tella" calendar on her
 //    phone, so they show next to everything else and ring an alert.
 
-const OURS = 'Porchlight';
+const OURS = 'Tella';
 const DAYS = 14;
 const supported = Platform.OS === 'ios' || Platform.OS === 'android';
 
@@ -77,7 +77,7 @@ function localDay(yyyyMmDd) {
   return new Date(y, m - 1, d);
 }
 
-// What Porchlight has set up for her, as calendar entries. key → event.
+// What Tella has set up for her, as calendar entries. key → event.
 export function plannedEntries(state, senior) {
   const now = Date.now();
   const out = [];
@@ -86,8 +86,8 @@ export function plannedEntries(state, senior) {
     if (a.seniorId !== senior._id || a.kind !== 'ride' || !OPEN_RIDE.includes(a.status) || !at) continue;
     if (new Date(at).getTime() < now - 3600000) continue;
     const to = noSample(a.details.to) || 'your appointment';
-    const how = a.details.uberLink && !a.simulated ? 'Book it with the Book with Uber button in Porchlight.'
-      : a.status === 'CONFIRMED' ? 'Simulated booking in Porchlight, not a real ride.' : 'Your family is sorting out this ride.';
+    const how = a.details.uberLink && !a.simulated ? 'Book it with the Book with Uber button in Tella.'
+      : a.status === 'CONFIRMED' ? 'Simulated booking in Tella, not a real ride.' : 'Your family is sorting out this ride.';
     out.push({
       key: `ride:${a._id}`,
       title: `Ride to ${to}${a.simulated ? ' (simulated)' : ''}`,
@@ -103,16 +103,16 @@ export function plannedEntries(state, senior) {
       key: `reminder:${r.createdAt || r.what}`,
       title: `Reminder: ${r.what}`,
       startDate: day, endDate: new Date(day.getTime() + 86400000 - 60000), allDay: true,
-      notes: 'You asked Porchlight to remind you.', alarms: [{ relativeOffset: 9 * 60 }], // 9 AM that day
+      notes: 'You asked Tella to remind you.', alarms: [{ relativeOffset: 9 * 60 }], // 9 AM that day
     });
   }
   if (senior.callbackAt && new Date(senior.callbackAt).getTime() > now) {
     const at = new Date(senior.callbackAt);
     out.push({
       key: `callback:${senior.callbackAt}`,
-      title: 'Porchlight calls you back',
+      title: 'Tella calls you back',
       startDate: at, endDate: new Date(at.getTime() + 15 * 60000),
-      notes: 'You asked Porchlight to call you back.', alarms: [{ relativeOffset: 0 }],
+      notes: 'You asked Tella to call you back.', alarms: [{ relativeOffset: 0 }],
     });
   }
   return out;
@@ -144,14 +144,14 @@ async function writeNow(entries) {
     if (!old) await Calendar.createEventAsync(calId, details);
     else if (old.title !== e.title || new Date(old.startDate).getTime() !== e.startDate.getTime()) await Calendar.updateEventAsync(old.id, details);
   }
-  // Something cancelled or done: take it off her calendar. Only touches events Porchlight made.
+  // Something cancelled or done: take it off her calendar. Only touches events Tella made.
   for (const [key, e] of byKey) {
     if (key && !want.has(key) && new Date(e.startDate).getTime() > Date.now()) await Calendar.deleteEventAsync(e.id).catch(() => {});
   }
 }
 
 let running = null;
-// One full round: read her calendar → server, then Porchlight's plans → her calendar.
+// One full round: read her calendar → server, then Tella's plans → her calendar.
 export function syncCalendar(senior, state) {
   if (running) return running;
   running = (async () => {

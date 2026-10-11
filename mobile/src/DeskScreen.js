@@ -32,7 +32,7 @@ export default function DeskScreen() {
     <ScrollView contentContainerStyle={[st.pad, { paddingTop: 24, paddingBottom: insets.bottom + 40 }]}>
       <View style={{ gap: 6, paddingHorizontal: 4 }}>
         <T v="largeTitle">Today’s calls</T>
-        <T v="callout" muted>Sample reassurance program. Porchlight makes the routine calls; you take the ones that need a person.</T>
+        <T v="callout" muted>Sample reassurance program. Tella makes the routine calls; you take the ones that need a person.</T>
       </View>
 
       <View style={st.stats}>
@@ -43,11 +43,11 @@ export default function DeskScreen() {
 
       <Section title="Needs a person">
         {needYou.length === 0
-          ? <Card><T v="callout" muted>Nobody needs a call right now. Porchlight will flag anyone who does.</T></Card>
+          ? <Card><T v="callout" muted>Nobody needs a call right now. Tella will flag anyone who does.</T></Card>
           : needYou.map((s) => <Appear key={s._id} on={settled}><SeniorRow senior={s} run={run} /></Appear>)}
       </Section>
 
-      <Section title="Porchlight has it">
+      <Section title="Tella has it">
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           {handled.map((s, i) => (
             <Appear key={s._id} on={settled}>

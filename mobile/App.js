@@ -22,7 +22,7 @@ export default function App({ children }) {
   const [loaded, fontError] = useFonts({ AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold, AtkinsonHyperlegible_400Regular_Italic });
   return <GestureHandlerRootView style={{ flex: 1, backgroundColor: light.bg }}>
     <SafeAreaProvider><SheetProgressProvider>
-      {loaded || fontError ? <Main>{children}</Main> : <View style={st.loading}><ActivityIndicator color={light.ink} accessibilityLabel="Loading Porchlight" /></View>}
+      {loaded || fontError ? <Main>{children}</Main> : <View style={st.loading}><ActivityIndicator color={light.ink} accessibilityLabel="Loading Tella" /></View>}
     </SheetProgressProvider></SafeAreaProvider>
   </GestureHandlerRootView>;
 }
@@ -59,9 +59,9 @@ function Header({ senior }) {
   const ctx = useAppContext();
   return <View style={[st.header, { paddingTop: insets.top + 4, backgroundColor: senior ? seniorPalette.bg : light.bg }]}>
     <View style={st.headerRow}>
-      {senior ? <Text onLongPress={() => openDemoMenu(ctx)} style={[st.brand, { fontFamily: font.readBold }]}>Porchlight</Text> :
-        <Press onPress={() => openRoleSheet(ctx)} onLongPress={() => openDemoMenu(ctx)} accessibilityLabel={'Using Porchlight as ' + ctx.role.title + '. Switch person'} style={st.brandButton}>
-          <Text style={st.brand}>Porchlight</Text><Icon name="chevron.down" size={12} color={light.muted} />
+      {senior ? <Text onLongPress={() => openDemoMenu(ctx)} style={[st.brand, { fontFamily: font.readBold }]}>Tella</Text> :
+        <Press onPress={() => openRoleSheet(ctx)} onLongPress={() => openDemoMenu(ctx)} accessibilityLabel={'Using Tella as ' + ctx.role.title + '. Switch person'} style={st.brandButton}>
+          <Text style={st.brand}>Tella</Text><Icon name="chevron.down" size={12} color={light.muted} />
         </Press>}
       <Text style={[st.sample, senior && { fontFamily: font.read, fontSize: 20 }]}>Sample</Text>
     </View>
@@ -77,7 +77,7 @@ export function DataGate({ children }) {
   return <View style={st.loading}>
     <Lamp state="dim" size={80} />
     <T v={role?.id === 'senior' ? 'readHeadline' : 'title'} center>{error ? 'Let’s reconnect' : 'Opening your day…'}</T>
-    {error ? <><T muted center>We can’t reach Porchlight. Check your connection and try again.</T><Retry title="Try again" label="Try again" onPress={refresh} /></> : <ActivityIndicator color={light.ink} />}
+    {error ? <><T muted center>We can’t reach Tella. Check your connection and try again.</T><Retry title="Try again" label="Try again" onPress={refresh} /></> : <ActivityIndicator color={light.ink} />}
   </View>;
 }
 
