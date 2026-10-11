@@ -13,5 +13,4 @@ export const PEOPLE = [
   { id: 'family', who: 'anne', title: 'Anne', sub: 'Daughter, primary contact. Approves rides', icon: 'person.fill' },
   { id: 'family', who: 'mark', title: 'Mark', sub: 'Son', icon: 'person.fill' },
   { id: 'family', who: 'dolores', title: 'Dolores', sub: 'Neighbor, next door', icon: 'person.fill' },
-  { id: 'desk', who: 'sam', title: 'Sam', sub: 'Volunteer, reassurance program', icon: 'headphones' },
 ];

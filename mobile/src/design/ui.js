@@ -384,7 +384,7 @@ export function SectionHeader({ title, action, onAction, style }) {
   );
 }
 
-// The iOS large title block for the top of family and desk screens. (Peggy's side: T v="readTitle".)
+// The iOS large title block for the top of family screens. (Peggy's side: T v="readTitle".)
 export function LargeTitle({ title, subtitle, right, style }) {
   return (
     <View style={[{ gap: 4, paddingTop: 4 }, style]}>

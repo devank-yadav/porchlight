@@ -5,7 +5,7 @@ import { Easing } from 'react-native-reanimated';
 // accent; red is reserved for help and scams, green for "confirmed". The one dark, bold surface on a
 // screen is the night hero card, where the lamp glows.
 
-// Family and desk: warm paper.
+// Family: warm paper.
 export const light = {
   bg: '#F6F2EC',
   surface: '#FFFFFF',

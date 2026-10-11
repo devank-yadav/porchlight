@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react';
 import { dark, light, night, seniorPalette } from './tokens';
 
-// Modes: 'light' (family, desk), 'senior' (Peggy), 'dark' (dark sheets),
+// Modes: 'light' (family), 'senior' (Peggy), 'dark' (dark sheets),
 // 'night' / 'senior-night' (inside a HeroCard; text and controls switch to the night palette).
 const ThemeContext = createContext('light');
 export const ThemeProvider = ThemeContext.Provider;

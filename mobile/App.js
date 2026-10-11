@@ -28,9 +28,9 @@ export default function App({ children }) {
 function Main({ children }) {
   const path = usePathname();
   const { viewer } = useGlobalSearchParams();
-  const role = path.startsWith('/senior') ? PEOPLE[0] : path.startsWith('/family') ? PEOPLE.find((p) => p.who === viewer && p.id === 'family') ?? PEOPLE[1] : path.startsWith('/desk') ? PEOPLE.find((p) => p.id === 'desk') : null;
+  const role = path.startsWith('/senior') ? PEOPLE[0] : path.startsWith('/family') ? PEOPLE.find((p) => p.who === viewer && p.id === 'family') ?? PEOPLE[1] : null;
   const { state, error, refresh } = useAppState(role?.id === 'family' ? role.who : null);
-  const setRole = useCallback((person) => router.replace(!person ? '/' : person.id === 'family' ? '/family/' + person.who + '/today' : person.id === 'senior' ? '/senior/today' : '/desk'), []);
+  const setRole = useCallback((person) => router.replace(!person ? '/' : person.id === 'family' ? '/family/' + person.who + '/today' : '/senior/today'), []);
   const run = useCallback((fn, success) => async () => {
     try {
       const result = await fn();

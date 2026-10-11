@@ -44,8 +44,8 @@ export function openRoleSheet({ role, setRole }) {
         <MenuRow
           key={p.who}
           icon={p.icon}
-          avatar={p.id === 'desk' ? undefined : p.title}
-          title={p.id === 'desk' ? `${p.title}, volunteer desk` : p.title}
+          avatar={p.title}
+          title={p.title}
           sub={p.sub}
           checked={role?.who === p.who}
           tone={p.id === 'senior' ? 'lamp' : undefined}

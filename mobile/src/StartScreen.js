@@ -43,11 +43,6 @@ export default function StartScreen({ onPick }) {
         <BigButton title="I’m family" sub="Stay in the loop" icon="person.2.fill" chevron onPress={() => setFamily(true)} />
       </Appear>
       <Appear on index={4} style={{ gap: 12, alignItems: 'center' }}>
-        <Press onPress={() => onPick(PEOPLE.find((p) => p.id === 'desk'))} accessibilityLabel="Volunteer desk" accessibilityHint="For the nonprofit’s reassurance volunteers" style={st.desk} scaleTo={0.96}>
-          <Icon name="headphones" size={20} color={seniorPalette.ink2} />
-          <Text style={st.deskText}>Volunteer desk</Text>
-          <Icon name="chevron.right" size={14} color={seniorPalette.muted} weight="bold" />
-        </Press>
         <T v="readSmall" muted center style={{ paddingHorizontal: 12 }}>Sample experience. All people and organizations shown are fictional.</T>
       </Appear>
     </>}
@@ -62,8 +57,6 @@ const st = StyleSheet.create({
   heroText: { alignItems: 'center', gap: 10 },
   wordmark: { fontFamily: font.readBold, fontSize: 20, lineHeight: 24, letterSpacing: 1.6, textTransform: 'uppercase', color: accent.lamp },
   doors: { gap: 14 },
-  desk: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, borderRadius: 999, backgroundColor: 'rgba(30,25,21,0.05)' },
-  deskText: { fontFamily: font.readBold, fontSize: 20, lineHeight: 26, color: seniorPalette.ink2 },
   back: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingRight: 12 },
   backText: { fontFamily: font.readBold, fontSize: 20, color: seniorPalette.ink },
 });
