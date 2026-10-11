@@ -1,37 +1,69 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Children, Fragment, createContext, useContext, useEffect, useId, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, LinearTransition, useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
-import { accent, ease, font, radius, shadow } from './tokens';
-import { useTheme } from './theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { accent, ease, font, night, radius, shadow } from './tokens';
+import { ThemeProvider, useTheme } from './theme';
 import { haptic } from './haptics';
 import Icon from './Icon';
+
+// Where a component sits: on the page, inside a card, or inside an inset-grouped list.
+// Rows (ListRow, PlanRow) use it to draw their own card on the page, or sit flush inside one.
+export const SurfaceContext = createContext('page');
+export const useSurface = () => useContext(SurfaceContext);
+
+// Set by AppTabs so Screen knows to clear the floating tab bar.
+export const TabBarContext = createContext(null);
+
+// Bottom padding that clears the floating tab bar (bar + its offset + breathing room).
+export const TAB_CLEARANCE = 112;
+export const TAB_CLEARANCE_SENIOR = 132;
+
+// SVG ids must be unique per instance (the web preview shares one DOM).
+export function useSvgId(prefix) {
+  return prefix + useId().replace(/[^a-zA-Z0-9_-]/g, '');
+}
 
 // ── Type ────────────────────────────────────────────────────────────────────
 // Hierarchy from size + weight + leading together. Large text gets negative tracking, small text none.
 const TYPE = {
   display: { fontSize: 40, lineHeight: 44, fontWeight: '700', letterSpacing: -1.2 },
-  largeTitle: { fontSize: 32, lineHeight: 38, fontWeight: '700', letterSpacing: -0.9 },
+  largeTitle: { fontSize: 34, lineHeight: 41, fontWeight: '700', letterSpacing: -0.8 },
   title: { fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.5 },
+  section: { fontSize: 20, lineHeight: 25, fontWeight: '600', letterSpacing: -0.4 },
   headline: { fontSize: 17, lineHeight: 22, fontWeight: '600', letterSpacing: -0.2 },
   body: { fontSize: 17, lineHeight: 24, fontWeight: '400', letterSpacing: -0.1 },
-  callout: { fontSize: 15, lineHeight: 21, fontWeight: '400' },
+  callout: { fontSize: 15, lineHeight: 21, fontWeight: '400', letterSpacing: -0.1 },
   footnote: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
   label: { fontSize: 13, lineHeight: 16, fontWeight: '600', letterSpacing: 0.1 },
+  eyebrow: { fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 0.6, textTransform: 'uppercase' },
   // Peggy's side: Atkinson Hyperlegible, never under 20pt.
+  readDisplay: { fontFamily: font.readBold, fontSize: 42, lineHeight: 48, letterSpacing: -0.8 },
   readTitle: { fontFamily: font.readBold, fontSize: 38, lineHeight: 44, letterSpacing: -0.6 },
   readHeadline: { fontFamily: font.readBold, fontSize: 26, lineHeight: 32, letterSpacing: -0.2 },
   read: { fontFamily: font.read, fontSize: 22, lineHeight: 31 },
   readSmall: { fontFamily: font.read, fontSize: 20, lineHeight: 27 },
 };
+export { TYPE };
+const HEADERS = ['display', 'largeTitle', 'title', 'section', 'readDisplay', 'readTitle', 'readHeadline'];
+
+// On Peggy's side every non-"read" variant still renders in Atkinson at 20pt or more.
+function seniorize(t) {
+  const bold = Number(t.fontWeight) >= 600;
+  return { fontFamily: bold ? font.readBold : font.read, fontWeight: 'normal', fontSize: Math.max(20, t.fontSize), lineHeight: Math.max(27, t.lineHeight), letterSpacing: Math.min(0, t.letterSpacing ?? 0), textTransform: 'none' };
+}
+
+const SENIOR_SECTION = { fontFamily: font.readBold, fontWeight: 'normal', fontSize: 24, lineHeight: 30, letterSpacing: -0.2 };
 
 export function T({ v = 'body', color, muted, center, style, children, ...rest }) {
   const { c, isSenior } = useTheme();
-  const header = ['display', 'largeTitle', 'title', 'readTitle', 'readHeadline'].includes(v);
+  const t = TYPE[v] ?? TYPE.body;
   return (
     <Text
-      accessibilityRole={header ? 'header' : undefined}
+      accessibilityRole={HEADERS.includes(v) ? 'header' : undefined}
       {...rest}
-      style={[TYPE[v], isSenior && !v.startsWith('read') && { fontFamily: font.read, fontSize: Math.max(20, TYPE[v].fontSize), lineHeight: Math.max(28, TYPE[v].lineHeight) }, { color: color ?? (muted ? c.muted : c.ink) }, center && { textAlign: 'center' }, style]}
+      style={[t, isSenior && !v.startsWith('read') && (v === 'section' ? SENIOR_SECTION : seniorize(t)), { color: color ?? (muted ? c.muted : c.ink) }, center && { textAlign: 'center' }, style]}
     >
       {children}
     </Text>
@@ -76,43 +108,71 @@ function splitLayout(style) {
 }
 
 // ── Buttons ─────────────────────────────────────────────────────────────────
-// variant: primary | secondary | ghost | danger | lamp. Labels say what happens.
+// variant: primary | secondary | ghost | danger | lamp | soft. Labels say what happens.
 export function Button({ label, icon, onPress, variant = 'secondary', size = 'md', disabled, busy, style, accessibilityHint, accessibilityLabel }) {
   const { c, isDark, isSenior } = useTheme();
   const V = {
-    primary: { bg: isDark ? '#FAFAFA' : c.primary, fg: isDark ? '#0C0C0E' : '#fff', border: 'transparent' },
-    secondary: { bg: c.surface, fg: c.ink, border: c.lineStrong },
+    primary: { bg: c.primary, fg: c.onPrimary, border: 'transparent' },
+    secondary: { bg: c.surface, fg: c.ink, border: isDark ? c.lineStrong : c.line },
     ghost: { bg: 'transparent', fg: c.ink, border: 'transparent' },
     danger: { bg: accent.red, fg: '#fff', border: 'transparent' },
     lamp: { bg: accent.lamp, fg: accent.lampInk, border: 'transparent' },
-  }[variant];
-  const h = isSenior ? 104 : size === 'sm' ? 44 : size === 'lg' ? 56 : 48;
+    soft: { bg: c.sunken, fg: c.ink, border: 'transparent' },
+  }[variant] ?? { bg: c.surface, fg: c.ink, border: c.line };
+  const h = isSenior ? 104 : size === 'sm' ? 44 : size === 'lg' ? 56 : 50;
+  const r = isSenior ? radius.lg : size === 'sm' ? radius.pill : radius.md;
   return (
     <Press
       onPress={busy ? undefined : onPress}
       disabled={disabled || busy}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
-      style={[st.btn, { minHeight: h, backgroundColor: V.bg, borderColor: V.border, paddingHorizontal: size === 'sm' ? 14 : 18 }, variant === 'secondary' && !isDark && shadow.card, style]}
+      style={[st.btn, { minHeight: h, borderRadius: r, backgroundColor: V.bg, borderColor: V.border, paddingHorizontal: isSenior ? 18 : size === 'sm' ? 16 : 16 }, variant === 'secondary' && !isDark && shadow.card, variant === 'ghost' && size === 'sm' && { paddingHorizontal: 10 }, style]}
     >
       {busy ? <ActivityIndicator color={V.fg} /> : (
         <>
-          {icon ? <Icon name={icon} size={size === 'sm' ? 15 : 17} color={V.fg} /> : null}
-          <Text style={[st.btnText, { color: V.fg, fontSize: isSenior ? 22 : size === 'sm' ? 15 : 16, flexShrink: 1, textAlign: 'center' }, isSenior && { fontFamily: font.readBold }]}>{label}</Text>
+          {icon ? <Icon name={icon} size={isSenior ? 24 : size === 'sm' ? 15 : 17} color={V.fg} /> : null}
+          <Text style={[st.btnText, { color: V.fg, fontSize: isSenior ? 22 : size === 'sm' ? 15 : 16, flexShrink: 1, textAlign: 'center' }, isSenior && { fontFamily: font.readBold, fontWeight: 'normal', lineHeight: 28 }]}>{label}</Text>
         </>
       )}
     </Press>
   );
 }
 
-// Peggy's big buttons: ≥104pt tall, an icon, a title and what happens. tone: lamp | plain | help
-export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', disabled, style }) {
-  const { c } = useTheme();
+// A small rounded-square icon tile. tone: plain | lamp | amber | green | red | ink | night
+export function IconTile({ icon, tone = 'plain', size = 40, iconSize, style }) {
+  const { c, isNight } = useTheme();
+  const [bg, fg] = TILE[tone]?.(c, isNight) ?? TILE.plain(c, isNight);
+  return (
+    <View style={[{ width: size, height: size, borderRadius: Math.round(size * 0.3), backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }, style]}>
+      <Icon name={icon} size={iconSize ?? Math.round(size * 0.5)} color={fg} />
+    </View>
+  );
+}
+const TILE = {
+  plain: (c, n) => [n ? 'rgba(255,247,236,0.10)' : c.sunken, c.ink],
+  lamp: (c, n) => [n ? 'rgba(245,165,36,0.18)' : accent.lampSoft, n ? '#FFC566' : accent.lampText],
+  amber: () => [accent.lamp, accent.lampInk],
+  green: (c, n) => [n ? 'rgba(80,190,120,0.16)' : accent.greenSoft, n ? '#8FE0AA' : accent.greenText],
+  red: (c, n) => [n ? 'rgba(240,100,80,0.18)' : accent.redSoft, n ? '#FFAB9C' : accent.red],
+  redSolid: () => [accent.red, '#FFFFFF'],
+  ink: (c) => [c.primary, c.onPrimary],
+  night: () => ['rgba(255,247,236,0.10)', night.ink],
+  glass: () => ['rgba(255,255,255,0.42)', accent.lampInk],
+};
+
+// Peggy's big buttons: ≥112pt tall, an icon tile, a title and what happens. tone: lamp | plain | help
+export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', disabled, style, chevron = false }) {
+  const { c, isNight } = useTheme();
+  const gid = useSvgId('bb');
+  const plainNight = tone === 'plain' && isNight;
   const T_ = {
-    lamp: { bg: c.primary, fg: c.onPrimary, sub: '#E5EAE7', chip: 'transparent' },
-    help: { bg: accent.redSoft, fg: accent.redText, sub: accent.redText, chip: 'transparent' },
-    plain: { bg: c.surface, fg: c.ink, sub: c.muted, chip: c.raised ?? c.sunken },
-  }[tone];
+    lamp: { bg: accent.lamp, fg: accent.lampInk, sub: '#4F3200', tile: 'glass', border: 'transparent' },
+    help: { bg: accent.redSoft, fg: accent.redText, sub: accent.redText, tile: 'redSolid', border: 'rgba(217,63,43,0.16)' },
+    plain: plainNight
+      ? { bg: 'rgba(255,247,236,0.07)', fg: night.ink, sub: night.muted, tile: 'night', border: night.line }
+      : { bg: c.surface, fg: c.ink, sub: c.muted, tile: 'plain', border: c.line },
+  }[tone] ?? { bg: c.surface, fg: c.ink, sub: c.muted, tile: 'plain', border: c.line };
   return (
     <Press
       onPress={onPress}
@@ -121,34 +181,273 @@ export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', dis
       scaleTo={0.97}
       accessibilityLabel={sub ? `${title}. ${sub}` : title}
       accessibilityHint={hint}
-      style={[st.big, { backgroundColor: T_.bg, borderColor: tone === 'plain' ? c.line : 'transparent' }, style]}
+      style={[st.big, { backgroundColor: T_.bg, borderColor: T_.border }, tone === 'plain' && !isNight && shadow.card, tone === 'lamp' && st.lampLift, style]}
     >
-      {icon ? (
-        <View style={[st.bigIcon, { backgroundColor: T_.chip }]}>
-          <Icon name={icon} size={28} color={T_.fg} />
-        </View>
+      {tone === 'lamp' ? (
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
+          <Defs>
+            <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#FFBD4A" />
+              <Stop offset="1" stopColor="#F29A15" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" rx={radius.lg} ry={radius.lg} fill={`url(#${gid})`} />
+        </Svg>
       ) : null}
-      <View style={{ flex: 1, gap: 2 }}>
+      {icon ? <IconTile icon={icon} tone={T_.tile} size={60} iconSize={30} style={{ borderRadius: 18 }} /> : null}
+      <View style={{ flex: 1, gap: 3 }}>
         <Text style={[TYPE.readHeadline, { color: T_.fg }]}>{title}</Text>
         {sub ? <Text style={[TYPE.readSmall, { color: T_.sub }]}>{sub}</Text> : null}
       </View>
+      {chevron ? <View><Icon name="chevron.right" size={20} color={T_.sub} weight="bold" /></View> : null}
     </Press>
   );
 }
 
 // ── Surfaces ────────────────────────────────────────────────────────────────
 export function Card({ children, style, tone, ...rest }) {
-  const { c } = useTheme();
-  const tint = tone === 'lamp' ? { borderColor: '#F3D08A' } : tone === 'red' ? { borderColor: '#F2B8AF' } : null;
-  return <View {...rest} style={[st.card, { backgroundColor: c.surface, borderColor: c.line }, tint, style]}>{children}</View>;
+  const { c, isNight } = useTheme();
+  const tint = tone === 'lamp' ? { backgroundColor: isNight ? c.surface : '#FFFBF4', borderColor: 'rgba(224,138,18,0.30)' } : tone === 'red' ? { backgroundColor: isNight ? c.surface : '#FFF9F7', borderColor: 'rgba(217,63,43,0.28)' } : null;
+  return (
+    <View {...rest} style={[st.card, { backgroundColor: c.surface, borderColor: c.line }, !isNight && shadow.card, tint, style]}>
+      <SurfaceContext.Provider value="card">{children}</SurfaceContext.Provider>
+    </View>
+  );
 }
 
+// The night porch-light card: the one dark, bold surface on a screen, with an amber glow.
+// Children render in the night palette (T, Button, Chip, Lamp adapt). glowAt: left | center | right
+export function HeroCard({ children, style, glow = true, glowAt = 'left', ...rest }) {
+  const { isSenior } = useTheme();
+  const [box, setBox] = useState(null);
+  const id = useSvgId('hero');
+  let gx = 0, gy = 0, gr = 0;
+  if (box) {
+    gx = glowAt === 'center' ? box.w / 2 : glowAt === 'right' ? box.w - Math.min(84, box.w * 0.22) : Math.min(84, box.w * 0.22);
+    gy = glowAt === 'center' ? Math.min(box.h * 0.34, 140) : Math.min(78, box.h * 0.32);
+    gr = Math.max(box.w, box.h) * (glowAt === 'center' ? 0.75 : 0.9);
+  }
+  return (
+    <View
+      {...rest}
+      onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; setBox((b) => (b && b.w === w && b.h === h ? b : { w, h })); }}
+      style={[st.hero, style]}
+    >
+      <View style={st.heroClip} pointerEvents="none">
+        {glow && box ? (
+          <Svg width={box.w} height={box.h}>
+            <Defs>
+              <RadialGradient id={id} cx={gx} cy={gy} r={gr} fx={gx} fy={gy} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor="#FFB547" stopOpacity="0.50" />
+                <Stop offset="0.28" stopColor="#F5A524" stopOpacity="0.20" />
+                <Stop offset="0.62" stopColor="#E08A12" stopOpacity="0.06" />
+                <Stop offset="1" stopColor="#E08A12" stopOpacity="0" />
+              </RadialGradient>
+              <RadialGradient id={id + 'e'} cx={box.w * 0.96} cy={box.h * 1.08} r={Math.max(box.w, box.h) * 0.6} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor="#B4560F" stopOpacity="0.16" />
+                <Stop offset="1" stopColor="#B4560F" stopOpacity="0" />
+              </RadialGradient>
+            </Defs>
+            <Rect x="0" y="0" width={box.w} height={box.h} fill={`url(#${id}e)`} />
+            <Rect x="0" y="0" width={box.w} height={box.h} fill={`url(#${id})`} />
+          </Svg>
+        ) : null}
+      </View>
+      <ThemeProvider value={isSenior ? 'senior-night' : 'night'}>
+        <SurfaceContext.Provider value="card">{children}</SurfaceContext.Provider>
+      </ThemeProvider>
+    </View>
+  );
+}
+
+// A square-ish grid tile for 2-column grids: icon tile on top, title below. tone: plain | lamp | help
+export function Tile({ icon, title, sub, onPress, tone = 'plain', hint, style, senior, disabled, accessibilityLabel }) {
+  const { c, isSenior, isNight } = useTheme();
+  const S = senior ?? isSenior;
+  const T_ = {
+    lamp: { bg: accent.lamp, fg: accent.lampInk, sub: '#4F3200', tile: 'glass', border: 'transparent' },
+    help: { bg: accent.redSoft, fg: accent.redText, sub: accent.redText, tile: 'redSolid', border: 'rgba(217,63,43,0.16)' },
+    plain: isNight ? { bg: 'rgba(255,247,236,0.07)', fg: night.ink, sub: night.muted, tile: 'night', border: night.line } : { bg: c.surface, fg: c.ink, sub: c.muted, tile: 'plain', border: c.line },
+  }[tone] ?? { bg: c.surface, fg: c.ink, sub: c.muted, tile: 'plain', border: c.line };
+  // The outer view takes the grid slot (two per row, with or without flexWrap); the card fills it.
+  return (
+    <View style={[st.tileSlot, style]}>
+    <Press
+      onPress={onPress}
+      disabled={disabled}
+      feedback="press"
+      accessibilityLabel={accessibilityLabel ?? (sub ? `${title}. ${sub}` : title)}
+      accessibilityHint={hint}
+      style={[st.tile, { flex: 1, minHeight: S ? 132 : 112, padding: S ? 18 : 16, backgroundColor: T_.bg, borderColor: T_.border }, tone === 'plain' && !isNight && shadow.card, tone === 'lamp' && st.lampLift]}
+    >
+      {icon ? <IconTile icon={icon} tone={T_.tile} size={S ? 52 : 40} style={S ? { borderRadius: 16 } : { borderRadius: 12 }} /> : null}
+      <View style={{ gap: 2, marginTop: 'auto' }}>
+        <Text style={S ? [TYPE.readHeadline, { fontSize: 22, lineHeight: 27, color: T_.fg }] : [st.tileTitle, { color: T_.fg }]}>{title}</Text>
+        {sub ? <Text style={S ? [TYPE.readSmall, { lineHeight: 25, color: T_.sub }] : [TYPE.footnote, { color: T_.sub }]}>{sub}</Text> : null}
+      </View>
+    </Press>
+    </View>
+  );
+}
+
+// iOS inset-grouped list: a white card whose rows are separated by inset hairlines.
+export function ListGroup({ children, style }) {
+  const { c, isSenior, isNight } = useTheme();
+  const items = Children.toArray(children).filter(Boolean);
+  const insetFor = (child) => {
+    const p = child?.props ?? {};
+    if (p.dividerInset != null) return p.dividerInset;
+    if (p.icon || p.avatar) return 16 + (isSenior ? 48 : 36) + (isSenior ? 14 : 12);
+    if (p.plan) return 16 + (isSenior ? 72 + 16 : 52 + 14);
+    return 16;
+  };
+  return (
+    <View style={[st.group, { backgroundColor: c.surface, borderColor: c.line }, !isNight && shadow.card, style]}>
+      <View style={st.groupClip}>
+        <SurfaceContext.Provider value="group">
+          {items.map((child, i) => (
+            <Fragment key={child.key ?? i}>
+              {i > 0 ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: c.lineStrong, marginLeft: insetFor(child) }} /> : null}
+              {child}
+            </Fragment>
+          ))}
+        </SurfaceContext.Provider>
+      </View>
+    </View>
+  );
+}
+
+// A row for ListGroup: icon tile (or avatar name), title, detail, and a right-hand value or chevron.
+// On its own on a page it draws its own rounded card. iconTone: plain | lamp | amber | green | red | ink
+export function ListRow({ icon, iconTone = 'plain', avatar, title, sub, right, onPress, accessibilityLabel, accessibilityHint, chevron }) {
+  const { c, isSenior, isNight } = useTheme();
+  const surface = useSurface();
+  if (surface === 'page') return <ListGroup><ListRow {...{ icon, iconTone, avatar, title, sub, right, onPress, accessibilityLabel, accessibilityHint, chevron }} /></ListGroup>;
+  const S = isSenior;
+  const label = accessibilityLabel ?? [title, sub, typeof right === 'string' ? right : null].filter(Boolean).join('. ');
+  const showChevron = chevron ?? (!!onPress && right == null);
+  const body = (
+    <>
+      {avatar ? <Avatar name={avatar} size={S ? 48 : 36} /> : icon ? <IconTile icon={icon} tone={iconTone} size={S ? 48 : 36} iconSize={S ? 24 : 18} style={{ borderRadius: S ? 14 : 10 }} /> : null}
+      <View style={{ flex: 1, gap: S ? 2 : 1 }}>
+        <Text style={S ? [TYPE.readHeadline, { fontSize: 22, lineHeight: 28, color: c.ink }] : [st.rowTitle, { color: c.ink }]}>{title}</Text>
+        {sub ? <Text style={S ? [TYPE.readSmall, { color: c.muted }] : [st.rowSub, { color: c.muted }]}>{sub}</Text> : null}
+      </View>
+      {typeof right === 'string' ? <Text style={S ? [TYPE.readSmall, { color: c.muted }] : [st.rowRight, { color: c.muted }]}>{right}</Text> : right != null ? <View style={{ alignSelf: 'center' }}>{right}</View> : null}
+      {showChevron ? <Icon name="chevron.right" size={S ? 18 : 14} color={c.faint} weight="bold" /> : null}
+    </>
+  );
+  const rowStyle = [st.row, { minHeight: S ? 80 : 60, gap: S ? 14 : 12, paddingVertical: S ? 16 : 12, paddingHorizontal: surface === 'card' ? 0 : 16 }];
+  if (!onPress) return <View style={rowStyle} accessible accessibilityLabel={label}>{body}</View>;
+  return (
+    <Pressable
+      onPress={(e) => { haptic.tap(); onPress(e); }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      style={({ pressed }) => [rowStyle, pressed && { backgroundColor: isNight ? 'rgba(255,247,236,0.06)' : c.sunken }]}
+    >
+      {body}
+    </Pressable>
+  );
+}
+
+// A warm-tinted initial circle. tone: auto (from the name) | lamp | ink | night
+const TINTS = [['#F6E2C6', '#7A4A0E'], ['#EADFD3', '#5A4636'], ['#F3DDD3', '#7C3B26'], ['#E3E7D6', '#46553A'], ['#E6E0EC', '#4F4566'], ['#F1E6D8', '#6E4F33']];
+export function Avatar({ name = '?', size = 40, tone, style }) {
+  const { isSenior, isNight } = useTheme();
+  const n = String(name || '?').trim();
+  let h = 0;
+  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) % 997;
+  const t = tone ?? (isNight ? 'night' : null);
+  const [bg, fg] = t === 'lamp' ? [accent.lamp, accent.lampInk] : t === 'ink' ? ['#1E1915', '#FFF7EC'] : t === 'night' ? ['rgba(255,247,236,0.14)', night.ink] : TINTS[h % TINTS.length];
+  return (
+    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }, style]} accessible={false} importantForAccessibility="no">
+      <Text style={{ color: fg, fontSize: Math.round(size * 0.42), lineHeight: Math.round(size * 0.52), fontWeight: isSenior ? 'normal' : '700', fontFamily: isSenior ? font.readBold : undefined, letterSpacing: -0.3 }}>{n.charAt(0).toUpperCase()}</Text>
+    </View>
+  );
+}
+
+// A section title (20pt semibold) with an optional link-style action on the right.
+export function SectionHeader({ title, action, onAction, style }) {
+  const { isSenior } = useTheme();
+  return (
+    <View style={[st.sectionHead, style]}>
+      <T v="section" style={{ flex: 1 }}>{title}</T>
+      {action && onAction ? (
+        <Press onPress={onAction} accessibilityLabel={action} hitSlop={12} scaleTo={0.96}>
+          <Text style={[st.link, isSenior && { fontFamily: font.readBold, fontWeight: 'normal', fontSize: 20, lineHeight: 26 }]}>{action}</Text>
+        </Press>
+      ) : null}
+    </View>
+  );
+}
+
+// The iOS large title block for the top of family and desk screens. (Peggy's side: T v="readTitle".)
+export function LargeTitle({ title, subtitle, right, style }) {
+  return (
+    <View style={[{ gap: 4, paddingTop: 4 }, style]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <T v="largeTitle" style={{ flex: 1 }}>{title}</T>
+        {right}
+      </View>
+      {subtitle ? <T v="callout" muted>{subtitle}</T> : null}
+    </View>
+  );
+}
+
+// A small rounded status chip. tone: neutral | lamp | green | red | night (adapts on a HeroCard)
+export function Chip({ label, icon, tone = 'neutral', style }) {
+  const { c, isSenior, isNight } = useTheme();
+  const t = isNight && tone === 'neutral' ? 'night' : tone;
+  const [bg, fg, border] = isNight ? {
+    night: ['rgba(255,247,236,0.10)', night.ink2, 'rgba(255,247,236,0.12)'],
+    lamp: ['rgba(245,165,36,0.18)', '#FFC566', 'rgba(245,165,36,0.28)'],
+    green: ['rgba(80,190,120,0.16)', '#9BE3B4', 'rgba(80,190,120,0.26)'],
+    red: ['rgba(240,100,80,0.20)', '#FFB3A6', 'rgba(240,100,80,0.30)'],
+  }[t] ?? ['rgba(255,247,236,0.10)', night.ink2, 'rgba(255,247,236,0.12)'] : {
+    neutral: [c.sunken, c.ink2, 'transparent'],
+    lamp: [accent.lampSoft, accent.lampText, 'rgba(224,138,18,0.18)'],
+    green: [accent.greenSoft, accent.greenText, 'rgba(47,138,78,0.16)'],
+    red: [accent.redSoft, accent.redText, 'rgba(217,63,43,0.16)'],
+    night: ['rgba(255,247,236,0.10)', night.ink2, 'rgba(255,247,236,0.12)'],
+  }[t] ?? [c.sunken, c.ink2, 'transparent'];
+  return (
+    <View style={[st.chip, { backgroundColor: bg, borderColor: border }, isSenior && { paddingHorizontal: 14, paddingVertical: 7, gap: 8 }, style]}>
+      {icon ? <Icon name={icon} size={isSenior ? 18 : 12} color={fg} weight="bold" /> : null}
+      <Text style={[st.chipText, { color: fg }, isSenior && { fontFamily: font.readBold, fontWeight: 'normal', fontSize: 20, lineHeight: 25, letterSpacing: 0 }]}>{label}</Text>
+    </View>
+  );
+}
+
+// The page scroller: 20pt gutters, 28pt between sections, and bottom room for the floating tab bar.
+export function Screen({ children, senior, contentStyle, style, ref, ...rest }) {
+  const { isSenior } = useTheme();
+  const tabs = useContext(TabBarContext);
+  const insets = useSafeAreaInsets();
+  const S = senior ?? isSenior;
+  const bottom = tabs ? (tabs === 'senior' ? TAB_CLEARANCE_SENIOR : TAB_CLEARANCE) + Math.max(0, insets.bottom - 34) : insets.bottom + 32;
+  return (
+    <ScrollView
+      ref={ref}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      style={[{ flex: 1 }, style]}
+      contentContainerStyle={[st.screen, { paddingBottom: bottom, gap: S ? 24 : 28 }, contentStyle]}
+      {...rest}
+    >
+      {children}
+    </ScrollView>
+  );
+}
+
+// ── Lists and labels ────────────────────────────────────────────────────────
 export function Section({ title, action, children, style }) {
   return (
-    <View style={[{ gap: 10 }, style]}>
+    <View style={[{ gap: 12 }, style]}>
       {title ? (
         <View style={st.sectionHead}>
-          <T v="label" muted style={{ flex: 1 }} accessibilityRole="header">{title}</T>
+          <T v="section" style={{ flex: 1 }}>{title}</T>
           {action}
         </View>
       ) : null}
@@ -164,24 +463,25 @@ export function Divider({ inset = 0 }) {
 
 // Small status badge. tone: red | lamp | green | neutral
 export function Badge({ label, tone = 'neutral', icon, style }) {
-  const { c } = useTheme();
+  const { c, isSenior, isNight } = useTheme();
   const [bg, fg] = {
-    red: [accent.redSoft, accent.redText],
-    lamp: [accent.lampSoft, accent.lampText],
-    green: [accent.greenSoft, accent.greenText],
-    neutral: [c.sunken ?? c.raised, c.ink2],
-  }[tone];
+    red: [isNight ? 'rgba(240,100,80,0.20)' : accent.redSoft, isNight ? '#FFB3A6' : accent.redText],
+    lamp: [isNight ? 'rgba(245,165,36,0.18)' : accent.lampSoft, isNight ? '#FFC566' : accent.lampText],
+    green: [isNight ? 'rgba(80,190,120,0.16)' : accent.greenSoft, isNight ? '#9BE3B4' : accent.greenText],
+    neutral: [isNight ? 'rgba(255,247,236,0.10)' : c.sunken, c.ink2],
+  }[tone] ?? [c.sunken, c.ink2];
   return (
-    <View style={[st.badge, { backgroundColor: bg }, style]}>
-      {icon ? <Icon name={icon} size={11} color={fg} weight="bold" /> : null}
-      <Text style={[st.badgeText, { color: fg }]}>{label}</Text>
+    <View style={[st.badge, { backgroundColor: bg }, isSenior && { paddingHorizontal: 12, paddingVertical: 6 }, style]}>
+      {icon ? <Icon name={icon} size={isSenior ? 16 : 11} color={fg} weight="bold" /> : null}
+      <Text style={[st.badgeText, { color: fg }, isSenior && { fontFamily: font.readBold, fontWeight: 'normal', fontSize: 20, lineHeight: 25 }]}>{label}</Text>
     </View>
   );
 }
 
 // A status dot. Tone matches the lamp: red only for help and scams.
 export function Dot({ tone = 'neutral', size = 8 }) {
-  const bg = { red: accent.red, lamp: accent.lamp, green: accent.green, neutral: '#A1A1AA' }[tone];
+  const { c } = useTheme();
+  const bg = { red: accent.red, lamp: accent.lamp, green: accent.green, neutral: c.faint }[tone] ?? c.faint;
   return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg }} />;
 }
 
@@ -209,7 +509,7 @@ export function Segmented({ options, value, onChange, style }) {
 
   return (
     <View style={[st.seg, { backgroundColor: c.sunken }, style]} accessibilityRole="tablist">
-      <Animated.View style={[st.segPill, shadow.card, pill]} />
+      <Animated.View style={[st.segPill, { backgroundColor: c.surface }, shadow.card, { shadowOpacity: 0.1, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } }, pill]} />
       {options.map((o) => {
         const on = o.id === value;
         return (
@@ -238,39 +538,55 @@ export function useSettled(ms = 700) {
   useEffect(() => { const t = setTimeout(() => setSettled(true), ms); return () => clearTimeout(t); }, [ms]);
   return settled;
 }
-const APPEAR = FadeInDown.duration(300).easing(ease.out);
 const REFLOW = LinearTransition.duration(220).easing(ease.out);
-export function Appear({ on, children, style }) {
+// on: animate in. index: stagger by 40ms per step (first mount of a screen's sections).
+export function Appear({ on, index = 0, children, style }) {
   const reduced = useReducedMotion();
-  return <Animated.View entering={on ? (reduced ? FadeIn.duration(200) : APPEAR) : undefined} layout={reduced ? undefined : REFLOW} style={style}>{children}</Animated.View>;
+  const entering = on ? (reduced ? FadeIn.duration(200) : FadeInDown.duration(300).easing(ease.out).delay(index * 40)) : undefined;
+  return <Animated.View entering={entering} layout={reduced ? undefined : REFLOW} style={style}>{children}</Animated.View>;
 }
 
 // Label + value pair used in summary rows.
 export function Fact({ label, value, icon }) {
-  const { c } = useTheme();
+  const { c, isSenior } = useTheme();
   return (
-    <View style={{ gap: 3, flexGrow: 1, flexShrink: 1, flexBasis: 120, minWidth: 120 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-        {icon ? <Icon name={icon} size={12} color={c.muted} /> : null}
-        <Text style={[TYPE.footnote, { color: c.muted, flexShrink: 1 }]}>{label}</Text>
+    <View style={{ gap: 4, flexGrow: 1, flexShrink: 1, flexBasis: 120, minWidth: 120 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        {icon ? <Icon name={icon} size={isSenior ? 18 : 13} color={c.muted} /> : null}
+        <Text style={[TYPE.footnote, { color: c.muted, flexShrink: 1 }, isSenior && TYPE.readSmall, isSenior && { color: c.muted }]}>{label}</Text>
       </View>
-      <Text style={[TYPE.headline, { color: c.ink, fontSize: 16 }]}>{value}</Text>
+      <Text style={[TYPE.headline, { color: c.ink }, isSenior && TYPE.readHeadline, isSenior && { fontSize: 22, lineHeight: 28 }]}>{value}</Text>
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
   btnText: { fontWeight: '600', letterSpacing: -0.2 },
-  big: { minHeight: 104, borderRadius: radius.md, paddingHorizontal: 20, paddingVertical: 20, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1 },
-  bigIcon: { width: 32, alignItems: 'center', justifyContent: 'center' },
-  card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 18, gap: 12 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
+  big: { minHeight: 112, borderRadius: radius.lg, paddingLeft: 18, paddingRight: 22, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: StyleSheet.hairlineWidth },
+  lampLift: { shadowColor: '#C46E00', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+  card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 20, gap: 12 },
+  hero: { backgroundColor: night.bg, borderRadius: radius.xl, padding: 22, gap: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,247,236,0.08)', shadowColor: '#2A1A0C', shadowOpacity: 0.22, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
+  heroClip: { ...StyleSheet.absoluteFillObject, borderRadius: radius.xl, overflow: 'hidden' },
+  tileSlot: { flexGrow: 1, flexBasis: '40%', minWidth: 0 },
+  tile: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: 14, alignItems: 'flex-start' },
+  tileTitle: { fontSize: 16, lineHeight: 21, fontWeight: '600', letterSpacing: -0.2 },
+  group: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
+  groupClip: { borderRadius: radius.lg, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  rowTitle: { fontSize: 16, lineHeight: 21, fontWeight: '600', letterSpacing: -0.2 },
+  rowSub: { fontSize: 14, lineHeight: 19 },
+  rowRight: { fontSize: 15, lineHeight: 20 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 2 },
+  link: { fontSize: 15, fontWeight: '600', letterSpacing: -0.2, color: accent.lampText },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, paddingHorizontal: 11, paddingVertical: 5 },
+  chipText: { fontSize: 13, lineHeight: 17, fontWeight: '600', letterSpacing: -0.1 },
+  screen: { paddingHorizontal: 20, paddingTop: 8, width: '100%', maxWidth: 680, alignSelf: 'center' },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   badgeText: { fontSize: 12, lineHeight: 15, fontWeight: '600' },
   seg: { flexDirection: 'row', borderRadius: radius.sm, padding: 3 },
-  segPill: { position: 'absolute', top: 3, bottom: 3, left: 0, borderRadius: 10, backgroundColor: '#fff' },
-  segBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  segPill: { position: 'absolute', top: 3, bottom: 3, left: 0, borderRadius: 10 },
+  segBtn: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   segText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.2 },
   segBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   segBadgeText: { fontSize: 11, fontWeight: '700', color: accent.lampInk },

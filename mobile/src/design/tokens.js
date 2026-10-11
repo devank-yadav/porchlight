@@ -1,49 +1,62 @@
 import { Easing } from 'react-native-reanimated';
 
-// Porchlight design tokens.
-// Quiet neutrals, hairline borders, soft depth. The porch light (amber) is the only bold color;
-// red is reserved for help and scams, green for "confirmed".
+// Porchlight design tokens: "evening porch".
+// Warm paper, white cards with hairlines and soft warm depth. The porch light (amber) is the only
+// accent; red is reserved for help and scams, green for "confirmed". The one dark, bold surface on a
+// screen is the night hero card, where the lamp glows.
 
-// Family and desk: light.
+// Family and desk: warm paper.
 export const light = {
-  bg: '#F1F3F4',
+  bg: '#F6F2EC',
   surface: '#FFFFFF',
-  sunken: '#F0F0EE',
-  ink: '#252B2A',
-  ink2: '#454D4A',
-  muted: '#626A67',
-  faint: '#6B736F',
-  line: 'rgba(0,0,0,0.08)',
-  lineStrong: 'rgba(0,0,0,0.14)',
-  primary: '#252B2A',
+  surface2: '#FBF8F4',
+  sunken: '#F1EBE3',
+  raised: '#F1EBE3',
+  ink: '#1E1915',
+  ink2: '#4A423B',
+  muted: '#776D63',
+  faint: '#A0958A',
+  line: 'rgba(30,25,21,0.08)',
+  lineStrong: 'rgba(30,25,21,0.14)',
+  primary: '#1E1915',
   onPrimary: '#FFFFFF',
 };
 
-// A spacious reading surface for the older person.
-export const seniorPalette = { ...light, bg: '#F7F7F5', sunken: '#EBEEE9', raised: '#EBEEE9', line: '#DCE0DA', lineStrong: '#B7C0B9', muted: '#59635C' };
+// Peggy's side: the same paper, a touch lighter, with higher-contrast secondary text for low vision.
+export const seniorPalette = { ...light, bg: '#F8F4EE', muted: '#5F564D' };
 
-// Retained for existing dark sheets and the volunteer experience.
-export const dark = {
-  bg: '#0C0C0E',
-  surface: '#18181B',
-  raised: '#232327',
-  ink: '#FAFAFA',
-  ink2: '#E4E4E7',
-  muted: '#A1A1AA',
-  line: 'rgba(255,255,255,0.09)',
-  lineStrong: 'rgba(255,255,255,0.16)',
+// The night hero card (the porch at dusk). Used only behind the lamp.
+export const night = {
+  bg: '#1B1613',
+  surface: '#2A221D',
+  surface2: '#231C18',
+  sunken: '#2A221D',
+  raised: '#2A221D',
+  ink: '#FFF7EC',
+  ink2: '#EADFD2',
+  muted: '#B9AA99',
+  faint: '#8C7E70',
+  line: 'rgba(255,247,236,0.10)',
+  lineStrong: 'rgba(255,247,236,0.18)',
+  primary: '#FFF7EC',
+  onPrimary: '#1B1613',
 };
+
+// Retained for dark sheets (demo controls); aligned to the night palette.
+export const dark = { ...night, bg: '#1B1613', surface: '#231C18' };
 
 export const accent = {
   lamp: '#F5A524',
+  lampDeep: '#E08A12',
   lampInk: '#241500',
-  lampSoft: '#FEF3DC',
+  lampSoft: '#FDF1DC',
   lampText: '#8A5300',
+  lampGlow: 'rgba(245,165,36,0.35)',
   red: '#D93F2B',
-  redSoft: '#FDECEA',
+  redSoft: '#FCEAE6',
   redText: '#A8291A',
   green: '#2F8A4E',
-  greenSoft: '#E7F5EC',
+  greenSoft: '#E6F3EA',
   greenText: '#1F6B3B',
 };
 
@@ -56,12 +69,13 @@ export const font = {
   ui: undefined,
 };
 
-export const radius = { xs: 8, sm: 12, md: 16, lg: 16, xl: 20, pill: 999 };
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+export const radius = { xs: 8, sm: 12, md: 16, lg: 24, xl: 28, pill: 999 };
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, gutter: 20, section: 28 };
 
+// Warm, soft depth (brown-tinted shadows read as light, not dirt, on paper).
 export const shadow = {
-  card: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  float: { shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 8 } },
+  card: { shadowColor: '#3B2A1A', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+  float: { shadowColor: '#3B2A1A', shadowOpacity: 0.14, shadowRadius: 28, shadowOffset: { width: 0, height: 12 } },
 };
 
 // Motion (Emil Kowalski's values). Never ease-in on UI; stay under 300ms.
