@@ -1,12 +1,12 @@
 // OWNER: Person A (voice & AI).
 // Natural phone conversation through Twilio ConversationRelay: Twilio streams her speech to
 // us as text over a WebSocket and speaks our replies with a natural voice. She can interrupt,
-// and there's no "beep, now talk" turn-taking. Fallback: VOICE_MODE=gather (classic <Gather>).
+// and there's no "beep, now talk" turn-taking. Needs VOICE_MODE=relay and a paid Twilio account with the AI/ML addendum on.
 import { WebSocketServer } from 'ws';
 import { addTurn } from './checkins.js';
 import { VOICE } from './notify.js';
 
-export const relayEnabled = () => (process.env.VOICE_MODE || 'relay') !== 'gather';
+export const relayEnabled = () => process.env.VOICE_MODE === 'relay';
 
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 

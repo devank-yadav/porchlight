@@ -6,6 +6,7 @@ import { scamCheck } from './llm.js';
 import { sms, VOICE } from './notify.js';
 import { callSenior, setSchedule, scheduleOf, startScheduler } from './schedule.js';
 import { relayEnabled, relayTwiml } from './relay.js';
+import { transcribeRecording } from './stt.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
 import * as escalation from '../care/escalation.js';
 import { wrap } from '../wrap.js';
@@ -59,8 +60,16 @@ voiceRoutes.post('/api/scam-check', wrap(async (req, res) => {
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 const twiml = (inner) => `<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`;
 const gather = (say, checkinId, silent = 0) =>
-  `<Gather input="speech" speechTimeout="auto" bargeIn="true" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="${VOICE}">${xml(say)}</Say></Gather>` +
+  `<Gather input="speech" language="en-US" speechTimeout="2" timeout="6" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="${VOICE}">${xml(say)}</Say></Gather>` +
   `<Redirect method="POST">/twilio/turn?checkinId=${checkinId}&amp;silent=${silent + 1}</Redirect>`;
+// VOICE_MODE=record: Twilio records her reply and we transcribe it ourselves (works on Twilio trial
+// accounts, which block <Gather input="speech">). Silence ends her turn after 2 seconds.
+const recordMode = () => process.env.VOICE_MODE === 'record';
+const listen = (say, checkinId, silent = 0) =>
+  `<Say voice="${VOICE}">${xml(say)}</Say>`
+  + `<Record action="/twilio/heard?checkinId=${checkinId}&amp;silent=${silent}" method="POST" timeout="2" maxLength="30" playBeep="false" trim="trim-silence"/>`
+  + `<Redirect method="POST">/twilio/heard?checkinId=${checkinId}&amp;silent=${silent + 1}</Redirect>`;
+const ask = (say, checkinId, silent = 0) => (recordMode() ? listen(say, checkinId, silent) : gather(say, checkinId, silent));
 
 // "Call now" in the app.
 voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
@@ -79,7 +88,7 @@ startScheduler();
 voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
   if (relayEnabled()) return res.type('text/xml').send(relayTwiml(checkin)); // natural, streaming conversation
-  res.type('text/xml').send(twiml(gather(checkin.transcript[0].text, checkin._id)));
+  res.type('text/xml').send(twiml(ask(checkin.transcript[0].text, checkin._id)));
 }));
 
 // ConversationRelay finished (we sent "end", or the line dropped): hang up kindly.
@@ -88,22 +97,39 @@ voiceRoutes.post('/twilio/relay-done', (req, res) => {
   res.type('text/xml').send(twiml('<Hangup/>'));
 });
 
-voiceRoutes.post('/twilio/turn', wrap(async (req, res) => {
-  const id = req.query.checkinId;
-  const said = req.body.SpeechResult;
+// One turn of the phone conversation: what she said → Porchlight's reply (or a kind goodbye).
+async function respond(res, id, said, silent) {
   if (!said) {
     // Never loop forever on a silent line: two retries, then a kind goodbye.
     // (/twilio/status still finishes the check-in or starts the missed ladder.)
-    const silent = Number(req.query.silent || 0);
     if (silent >= 3) return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">I'm having trouble hearing you, so I'll say goodbye for now. If you need anything, press your help button. Take care.</Say><Hangup/>`));
-    return res.type('text/xml').send(twiml(gather("Sorry, I didn't catch that. Could you say that again?", id, silent)));
+    return res.type('text/xml').send(twiml(ask("Sorry, I didn't catch that. Could you say that again?", id, silent)));
   }
   const { reply: answer, ended } = await addTurn(id, said);
   if (ended) {
     finishCheckin(id).catch(console.error);
     return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">${xml(answer)}</Say><Hangup/>`));
   }
-  res.type('text/xml').send(twiml(gather(answer, id)));
+  res.type('text/xml').send(twiml(ask(answer, id)));
+}
+
+// <Gather> mode: Twilio already turned her speech into text.
+voiceRoutes.post('/twilio/turn', wrap(async (req, res) => {
+  await respond(res, req.query.checkinId, req.body.SpeechResult, Number(req.query.silent || 0));
+}));
+
+// Record mode: transcribe her recording with local Whisper.
+voiceRoutes.post('/twilio/heard', wrap(async (req, res) => {
+  let said = '';
+  if (req.body.RecordingUrl && Number(req.body.RecordingDuration || 0) > 0) {
+    try {
+      said = (await transcribeRecording(req.body.RecordingUrl)).trim();
+      console.log(`[stt] she said: ${said || '(nothing)'}`);
+    } catch (e) {
+      console.warn('[stt] transcription failed:', e.message);
+    }
+  }
+  await respond(res, req.query.checkinId, said, Number(req.query.silent || 0) + (said ? 0 : 1));
 }));
 
 voiceRoutes.post('/twilio/status', wrap(async (req, res) => {
