@@ -106,8 +106,10 @@ function mockReply(senior, transcript) {
   return script[Math.min(turns, script.length - 1)];
 }
 
-export function greeting(senior, opener) {
-  return `${opener ? opener + ' ' : ''}Hi ${senior.preferredName}, it's Porchlight, your family's check-in helper. I'm an AI, and I'll never ask you for money or codes. How are you feeling today?`;
+// notices: confirmed facts since her last check-in (A7). Only confirmed facts are read out.
+export function greeting(senior, opener, notices = []) {
+  const news = notices.slice(0, 2).map((n) => n.text.trim().replace(/([^.!?])$/, '$1.')).join(' ');
+  return `${opener ? opener + ' ' : ''}Hi ${senior.preferredName}, it's Porchlight, your family's check-in helper. I'm an AI, and I'll never ask you for money or codes.${news ? ` Good news first: ${news}` : ''} How are you feeling today?`;
 }
 
 // ---------- Post-call analysis ----------

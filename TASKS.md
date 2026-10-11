@@ -10,7 +10,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] A4 Ride detection with appointment context, never claims a booking (voice side; prompt uses appointments once B1 seeds them)
 - [x] A5 Med "not sure" status + safe wording
 - [x] A6 Quotes on every request
-- [ ] A7 tellSenior() + greeting mentions confirmed notices
+- [x] A7 tellSenior() + greeting mentions confirmed notices
 - [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal
 
 ## Person B — Backend & workflows (Codex) — name: ____

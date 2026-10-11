@@ -45,3 +45,26 @@ export async function placeCall(to, twimlUrl, statusUrl) {
     StatusCallbackEvent: 'completed', Timeout: '25',
   });
 }
+
+// B → A: tell the senior a confirmed fact ("Mark is bringing your milk Thursday.").
+// With Twilio on and a real number: a short spoken call. Otherwise it's logged, and the
+// notice on her screen plus the next check-in greeting carry it.
+export async function tellSenior(senior, text) {
+  const entry = { at: new Date().toISOString(), to: senior.preferredName, toId: senior._id, text, delivered: 'logged' };
+  feed.push(entry);
+  if (twilioEnabled && senior.phone && !senior.phone.startsWith('+1555')) {
+    const say = String(text).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+    try {
+      await twilio('Calls.json', {
+        To: senior.phone, From: FROM, Timeout: '25',
+        Twiml: `<Response><Say voice="Polly.Joanna">Hi ${senior.preferredName}, it's Porchlight. ${say} Have a good day.</Say></Response>`,
+      });
+      entry.delivered = 'call';
+    } catch (e) {
+      console.warn('[notify] tellSenior failed:', e.message);
+      entry.delivered = 'failed';
+    }
+  }
+  console.log(`[notify] -> ${senior.preferredName} (senior): ${text}`);
+  return entry;
+}

@@ -11,10 +11,19 @@ async function appointmentsFor(seniorId) {
   try { return await store.list('appointments', { seniorId }); } catch { return []; }
 }
 
+// Notices (B's collection) that arrived since her last check-in, newest first.
+async function newNoticesFor(senior) {
+  try {
+    const since = senior.lastCheckinAt ? new Date(senior.lastCheckinAt) : new Date(0);
+    const all = await store.list('notices', { seniorId: senior._id });
+    return all.filter((n) => new Date(n.at || n.createdAt) > since).sort((a, b) => new Date(b.at || b.createdAt) - new Date(a.at || a.createdAt));
+  } catch { return []; }
+}
+
 export async function startCheckin(seniorId, channel) {
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
-  const text = greeting(senior, senior.opener);
+  const text = greeting(senior, senior.opener, await newNoticesFor(senior));
   const checkin = await store.insert('checkins', {
     seniorId, channel, status: 'in-progress', startedAt: new Date().toISOString(),
     transcript: [{ who: 'porchlight', text, at: new Date().toISOString() }],
