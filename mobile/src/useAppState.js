@@ -10,6 +10,7 @@ export function useAppState(viewer = null) {
   const active = useRef(true);
   const request = useRef(0);
   const applied = useRef(0);
+  const last = useRef('');
 
   const refresh = useCallback(async () => {
     const id = ++request.current;
@@ -19,7 +20,12 @@ export function useAppState(viewer = null) {
       // Slow connections must not starve the screen of every response.
       if (id < applied.current) return;
       applied.current = id;
-      setSnapshot({ viewer, state: s });
+      // Same as last time: skip the re-render, so the phone isn't redrawing every screen every 2 s.
+      const key = viewer + '|' + JSON.stringify(s);
+      if (key !== last.current) {
+        last.current = key;
+        setSnapshot({ viewer, state: s });
+      }
       setError(null);
     } catch (e) {
       if (id < applied.current) return;

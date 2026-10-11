@@ -1,6 +1,6 @@
 import { Children, Fragment, createContext, useContext, useEffect, useId, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, LinearTransition, useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { accent, ease, font, night, radius, shadow } from './tokens';
@@ -220,40 +220,34 @@ export function Card({ children, style, tone, ...rest }) {
 // tone: 'lamp' (amber glow, default) or 'red' (help): the glow follows the porch light's colour.
 export function HeroCard({ children, style, glow = true, glowAt = 'left', tone = 'lamp', ...rest }) {
   const { isSenior } = useTheme();
-  const [box, setBox] = useState(null);
   const id = useSvgId('hero');
-  let gx = 0, gy = 0, gr = 0;
-  if (box) {
-    gx = glowAt === 'center' ? box.w / 2 : glowAt === 'right' ? box.w - Math.min(84, box.w * 0.22) : Math.min(84, box.w * 0.22);
-    gy = glowAt === 'center' ? Math.min(box.h * 0.34, 140) : Math.min(78, box.h * 0.32);
-    gr = Math.max(box.w, box.h) * (glowAt === 'center' ? 0.75 : 0.9);
-  }
+  // In the card's own units (no measuring pass): the glow sits behind the lamp.
+  const gx = glowAt === 'center' ? '50%' : glowAt === 'right' ? '80%' : '20%';
+  const gy = glowAt === 'center' ? '30%' : '24%';
+  const gr = glowAt === 'center' ? '75%' : '90%';
+  const red = tone === 'red';
   return (
-    <View
-      {...rest}
-      onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; setBox((b) => (b && b.w === w && b.h === h ? b : { w, h })); }}
-      style={[st.hero, style]}
-    >
-      <View style={st.heroClip} pointerEvents="none">
-        {glow && box ? (
-          <Svg width={box.w} height={box.h}>
+    <View {...rest} style={[st.hero, style]}>
+      {glow ? (
+        <View style={st.heroClip} pointerEvents="none">
+          <Svg width="100%" height="100%">
             <Defs>
-              <RadialGradient id={id} cx={gx} cy={gy} r={gr} fx={gx} fy={gy} gradientUnits="userSpaceOnUse">
-                <Stop offset="0" stopColor={tone === 'red' ? '#FF6A52' : '#FFB547'} stopOpacity={tone === 'red' ? 0.42 : 0.5} />
-                <Stop offset="0.28" stopColor={tone === 'red' ? '#D93F2B' : '#F5A524'} stopOpacity="0.18" />
-                <Stop offset="0.62" stopColor={tone === 'red' ? '#A8291A' : '#E08A12'} stopOpacity="0.06" />
-                <Stop offset="1" stopColor={tone === 'red' ? '#A8291A' : '#E08A12'} stopOpacity="0" />
+              <RadialGradient id={id} cx={gx} cy={gy} r={gr} fx={gx} fy={gy}>
+                <Stop offset="0" stopColor={red ? '#FF6A52' : '#FFB547'} stopOpacity={red ? 0.42 : 0.5} />
+                <Stop offset="0.28" stopColor={red ? '#D93F2B' : '#F5A524'} stopOpacity="0.18" />
+                <Stop offset="0.62" stopColor={red ? '#A8291A' : '#E08A12'} stopOpacity="0.06" />
+                <Stop offset="1" stopColor={red ? '#A8291A' : '#E08A12'} stopOpacity="0" />
               </RadialGradient>
-              <RadialGradient id={id + 'e'} cx={box.w * 0.96} cy={box.h * 1.08} r={Math.max(box.w, box.h) * 0.6} gradientUnits="userSpaceOnUse">
+              <RadialGradient id={id + 'e'} cx="96%" cy="108%" r="60%">
                 <Stop offset="0" stopColor="#B4560F" stopOpacity="0.16" />
                 <Stop offset="1" stopColor="#B4560F" stopOpacity="0" />
               </RadialGradient>
             </Defs>
-            <Rect x="0" y="0" width={box.w} height={box.h} fill={`url(#${id}e)`} />
-            <Rect x="0" y="0" width={box.w} height={box.h} fill={`url(#${id})`} />
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}e)`} />
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
           </Svg>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
       <ThemeProvider value={isSenior ? 'senior-night' : 'night'}>
         <SurfaceContext.Provider value="card">{children}</SurfaceContext.Provider>
       </ThemeProvider>
@@ -539,12 +533,11 @@ export function useSettled(ms = 700) {
   useEffect(() => { const t = setTimeout(() => setSettled(true), ms); return () => clearTimeout(t); }, [ms]);
   return settled;
 }
-const REFLOW = LinearTransition.duration(220).easing(ease.out);
 // on: animate in. index: stagger by 40ms per step (first mount of a screen's sections).
 export function Appear({ on, index = 0, children, style }) {
   const reduced = useReducedMotion();
   const entering = on ? (reduced ? FadeIn.duration(200) : FadeInDown.duration(300).easing(ease.out).delay(index * 40)) : undefined;
-  return <Animated.View entering={entering} layout={reduced ? undefined : REFLOW} style={style}>{children}</Animated.View>;
+  return <Animated.View entering={entering} style={style}>{children}</Animated.View>;
 }
 
 // Label + value pair used in summary rows.
