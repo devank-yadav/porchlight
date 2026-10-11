@@ -69,6 +69,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] A5 Med "not sure" status + safe wording
 - [x] A6 Quotes on every request
 - [x] A7 tellSenior() + greeting mentions confirmed notices
+- [x] A9 Uber as a phone notification (Devank, Claude Code, `claude/project-thread-lxigum`): server pushes "Your Uber to Target is ready" via Expo push (`voice/push.js`, `POST /api/seniors/:id/push-token`); tapping opens Uber pre-filled. Touches mobile/ (`src/notify.js`, one hook in App.js, expo-notifications) with Devank's OK. Needs `npx eas-cli init` in mobile/ once for remote push; otherwise the app notifies itself while open.
 - [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md, Devpost draft in DEVPOST.md; rehearse + video still to do)
 
 ## Person B — Backend & workflows (Codex) — name: Rishi (B1–B6, B8 initial implementation merged from the teammate branch; integration checks on `care/contract-seed`)
