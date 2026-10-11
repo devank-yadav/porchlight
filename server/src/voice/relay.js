@@ -33,6 +33,11 @@ export function relayTwiml(checkin) {
 // Words she's likely to say, so the transcriber hears "headache", not "FedEx".
 const HINTS = 'headache,dizzy,pills,blood pressure,vitamin D,doctor,heart doctor,appointment,ride,milk,groceries,pharmacy,refill,scam,gift cards,grandson,Anne,Mark,Maya,Dolores,Peggy,Porchlight';
 
+// Dead-air guards for a live call.
+const FILLER_MS = Number(process.env.RELAY_FILLER_MS || 2500);
+const TURN_LIMIT_MS = Number(process.env.RELAY_TURN_LIMIT_MS || 12000);
+const FILLERS = ['Mm, one moment.', 'Let me think.', 'Okay, just a second.'];
+
 // Roughly how long Twilio needs to say a line, so "goodbye" isn't cut off before we hang up.
 const speakMs = (text) => 1500 + text.split(/\s+/).length * 380;
 
@@ -40,6 +45,47 @@ function onConnection(ws) {
   let checkinId = null;
   let queue = Promise.resolve(); // one turn at a time, in order
   const send = (msg) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(msg));
+
+  // One turn. Never leaves dead air: a short "one moment" if the first words are slow, and a
+  // kind fallback (and the queue moves on) if the turn hasn't finished after TURN_LIMIT_MS.
+  async function turn(said) {
+    console.log(`[relay] she said: ${said}`);
+    let spoke = false;
+    let over = false;
+    const say = (token, last, isFiller = false) => {
+      if (over) return;
+      if (!isFiller) spoke = spoke || Boolean(token.trim());
+      send({ type: 'text', token, last });
+    };
+    const filler = setTimeout(() => { if (!spoke) say(FILLERS[Math.floor(Math.random() * FILLERS.length)] + ' ', false, true); }, FILLER_MS);
+    let timer;
+    const limit = new Promise((resolve) => { timer = setTimeout(() => resolve(null), TURN_LIMIT_MS); });
+    try {
+      // Each sentence is spoken as soon as Claude has written it (last: false), then closed out.
+      const result = await Promise.race([
+        addTurn(checkinId, said, { onSentence: (sentence) => say(`${sentence} `, false) }),
+        limit,
+      ]);
+      if (!result) {
+        console.warn(`[relay] turn took over ${TURN_LIMIT_MS} ms; moving on`);
+        say(spoke ? '' : "Sorry, I'm a little slow just now. Could you say that again?", true);
+        over = true;
+        return;
+      }
+      const { reply, ended, transfer, streamed } = result;
+      say(streamed ? '' : reply, true);
+      over = true;
+      // On "end", Twilio calls /twilio/relay-done with handoffData; a transfer there dials the family member.
+      if (ended) setTimeout(() => send({ type: 'end', ...(transfer && { handoffData: JSON.stringify({ transfer }) }) }), speakMs(reply));
+    } catch (e) {
+      console.warn('[relay] turn failed:', e.message);
+      say(spoke ? '' : 'Sorry, I lost my train of thought. Could you say that again?', true);
+      over = true;
+    } finally {
+      clearTimeout(filler);
+      clearTimeout(timer);
+    }
+  }
 
   ws.on('message', (raw) => {
     let msg;
@@ -50,19 +96,7 @@ function onConnection(ws) {
     } else if (msg.type === 'prompt' && msg.last !== false && checkinId) {
       const said = String(msg.voicePrompt || '').trim();
       if (!said) return;
-      queue = queue.then(async () => {
-        console.log(`[relay] she said: ${said}`);
-        // Each sentence is spoken as soon as Claude has written it (last: false), then closed out.
-        const { reply, ended, transfer, streamed } = await addTurn(checkinId, said, {
-          onSentence: (sentence) => send({ type: 'text', token: `${sentence} `, last: false }),
-        });
-        send({ type: 'text', token: streamed ? '' : reply, last: true });
-        // On "end", Twilio calls /twilio/relay-done with handoffData; a transfer there dials the family member.
-        if (ended) setTimeout(() => send({ type: 'end', ...(transfer && { handoffData: JSON.stringify({ transfer }) }) }), speakMs(reply));
-      }).catch((e) => {
-        console.warn('[relay] turn failed:', e.message);
-        send({ type: 'text', token: "Sorry, I lost my train of thought. Could you say that again?", last: true });
-      });
+      queue = queue.then(() => turn(said)).catch((e) => console.warn('[relay] turn failed:', e.message));
     } else if (msg.type === 'interrupt' && checkinId) {
       // She cut in: keep only what she actually heard, so the next reply doesn't assume the rest.
       const heard = String(msg.utteranceUntilInterrupt || '').trim();

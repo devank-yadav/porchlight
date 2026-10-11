@@ -20,6 +20,7 @@ async function twilio(pathname, params) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams(params),
+    signal: AbortSignal.timeout(8000), // texts are sent mid-call: never let a slow Twilio stall her conversation
   });
   if (!res.ok) throw new Error(`Twilio ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.json();
