@@ -1,6 +1,6 @@
 # TASKS
 
-- [x] N1 — Rishi (Codex), `app/uber-notification-link`; implemented for app-owner review. Owner notice: mobile/src/push.js and App.js only. The root app handles warm and cold notification taps once, opens the native Uber link, and falls back to the web link if Uber is unavailable. Checked: source review against Expo SDK 57 notification docs and Uber deep-link docs. Local command runner is failing before startup, so lint, typecheck, iOS export, and physical-iPhone tap still need validation before merge.
+- [x] N1 — Rishi (Codex), `app/uber-notification-link`; implemented for app-owner review. Owner notice: mobile/src/push.js and App.js (C), server/src/voice/intents.js (A), server/src/care/actions.js and uber.js (B). The root app handles warm and cold notification taps once. The ride handoff prioritizes Peggy's named destination or a calendar event's location, geocodes calendar locations for a destination pin, and uses the phone's current pickup location when only sample home data exists. The voice agent asks for an address when a calendar event lacks one. Checked: source review against Expo SDK 57 and Uber deep-link docs. Local command runner is failing before startup, so lint, typecheck, server tests, iOS export, and physical-iPhone tap still need validation before merge.
 
 ## Two-experience redesign — October 11, 2026
 
