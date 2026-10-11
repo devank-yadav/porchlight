@@ -124,6 +124,7 @@ function personaPrompt(senior, appointments, memory) {
 Right now it is ${now} where she lives. If she asks the day, date or time, tell her exactly that.
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
+${memory?.medsDue?.length ? `Doses still due today, not yet marked taken (ask gently, once): ${memory.medsDue.join('; ')}. If she says she took them, I mark them for you. Never suggest a dose, a time change, or taking an extra.` : 'All of her doses due so far today are marked taken; no need to ask about pills.'}
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories: ask a follow-up about the people and places in them.
 ${memoryLines(memory)}${appointmentLines(appointments, senior.primaryContactName, senior)}If she isn't sure whether she took a pill, suggest she check her pill box for today's slot, tell her not to take another just in case, and that you'll let ${senior.primaryContactName} know.
 ${RULES(senior.primaryContactName)}`;

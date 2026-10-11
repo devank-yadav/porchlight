@@ -4,6 +4,7 @@ import * as store from '../store.js';
 import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
+import { medsDueNow, doseLine } from '../care/meds.js';
 import { forecast, cachedForecast } from './weather.js';
 import { handleIntent, dueReminders, localDate } from './intents.js';
 
@@ -48,6 +49,7 @@ async function memoryFor(senior) {
       activity: fit ? { title: fit.title, when: fit.when, where: clean(fit.where).toLowerCase() } : null,
       weather: cachedForecast(senior.timezone || 'America/New_York'),
       events: events.slice(0, 4).map((e) => `${e.title} (${e.when}, ${clean(e.where)})`),
+      medsDue: (await medsDueNow(senior).catch(() => [])).map(doseLine),
     };
   } catch {
     return {};
