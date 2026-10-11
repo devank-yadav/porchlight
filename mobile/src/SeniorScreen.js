@@ -117,6 +117,22 @@ function Home({ senior, ride, notices, primary, setMode, refresh }) {
     }
   };
 
+  // Rings her real phone (Twilio). Without Twilio set up the server says no; point her to Talk instead.
+  const [calling, setCalling] = useState(false);
+  const callMe = async () => {
+    setCalling(true);
+    try {
+      await api.phoneCall(senior._id);
+      haptic.success();
+      toast.success('Calling your phone now…', { description: 'Pick up when it rings. It’s Porchlight.' });
+    } catch (e) {
+      haptic.warn();
+      toast.info('Phone calls aren’t set up here', { description: 'Tap “Talk with Porchlight” instead.' });
+    } finally {
+      setTimeout(() => setCalling(false), 4000);
+    }
+  };
+
   return (
     <Page>
       <View style={st.hero}>
@@ -156,6 +172,7 @@ function Home({ senior, ride, notices, primary, setMode, refresh }) {
 
       <View style={st.stack}>
         <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
+        <BigButton icon="phone.arrow.down.left.fill" title={calling ? 'Calling you…' : 'Call me now'} sub="Porchlight rings your phone" hint="Porchlight calls your phone now." onPress={callMe} disabled={calling} />
         <BigButton icon="checkmark.circle.fill" title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
         {primary && (
           <BigButton icon="phone.fill" title={`Call ${primaryFirst}`} sub={primary.relation} hint={`Opens a phone call to ${primaryFirst}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
