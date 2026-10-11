@@ -40,9 +40,9 @@ voiceRoutes.post('/api/scam-check', wrap(async (req, res) => {
 // ---------- Real phone calls (Twilio + a public URL) ----------
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 const twiml = (inner) => `<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`;
-const gather = (say, checkinId) =>
+const gather = (say, checkinId, silent = 0) =>
   `<Gather input="speech" speechTimeout="auto" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="Polly.Joanna">${xml(say)}</Say></Gather>` +
-  `<Redirect method="POST">/twilio/turn?checkinId=${checkinId}&amp;silent=1</Redirect>`;
+  `<Redirect method="POST">/twilio/turn?checkinId=${checkinId}&amp;silent=${silent + 1}</Redirect>`;
 
 voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
   if (!twilioEnabled || !process.env.PUBLIC_URL) {
@@ -63,7 +63,13 @@ voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
 voiceRoutes.post('/twilio/turn', wrap(async (req, res) => {
   const id = req.query.checkinId;
   const said = req.body.SpeechResult;
-  if (!said) return res.type('text/xml').send(twiml(gather("Sorry, I didn't catch that. How are you doing today?", id)));
+  if (!said) {
+    // Never loop forever on a silent line: two retries, then a kind goodbye.
+    // (/twilio/status still finishes the check-in or starts the missed ladder.)
+    const silent = Number(req.query.silent || 0);
+    if (silent >= 3) return res.type('text/xml').send(twiml(`<Say voice="Polly.Joanna">I'm having trouble hearing you, so I'll say goodbye for now. If you need anything, press your help button. Take care.</Say><Hangup/>`));
+    return res.type('text/xml').send(twiml(gather("Sorry, I didn't catch that. Could you say that again?", id, silent)));
+  }
   const { reply: answer, ended } = await addTurn(id, said);
   if (ended) {
     finishCheckin(id).catch(console.error);
