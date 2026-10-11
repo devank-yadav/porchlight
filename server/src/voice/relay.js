@@ -52,8 +52,11 @@ function onConnection(ws) {
       if (!said) return;
       queue = queue.then(async () => {
         console.log(`[relay] she said: ${said}`);
-        const { reply, ended, transfer } = await addTurn(checkinId, said);
-        send({ type: 'text', token: reply, last: true });
+        // Each sentence is spoken as soon as Claude has written it (last: false), then closed out.
+        const { reply, ended, transfer, streamed } = await addTurn(checkinId, said, {
+          onSentence: (sentence) => send({ type: 'text', token: `${sentence} `, last: false }),
+        });
+        send({ type: 'text', token: streamed ? '' : reply, last: true });
         // On "end", Twilio calls /twilio/relay-done with handoffData; a transfer there dials the family member.
         if (ended) setTimeout(() => send({ type: 'end', ...(transfer && { handoffData: JSON.stringify({ transfer }) }) }), speakMs(reply));
       }).catch((e) => {
