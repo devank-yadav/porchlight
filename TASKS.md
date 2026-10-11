@@ -13,15 +13,15 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] A7 tellSenior() + greeting mentions confirmed notices
 - [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md; rehearse, video, Devpost still to do)
 
-## Person B — Backend & workflows (Codex) — name: ____
-- [ ] B1 Contract seed + new fields in /api/state (by 2:45, push early)
-- [ ] B2 actions.js: state machine, idempotent approve, 403 for non-approvers, history, audit
-- [ ] B3 Sandbox ride provider (clearly simulated), appointment transport, notice on confirm
-- [ ] B4 outcomes.js: ride → action, other requests → tasks with quote + suggested owner, meds unsure → sensitive task
-- [ ] B5 Task handoff/accept/decline + notice when claimed
-- [ ] B6 Digest per viewer
+## Person B — Backend & workflows (Codex) — name: ____ (B1–B6, B8 built by Claude for Devank at 6:40 PM since B was free)
+- [x] B1 Contract seed + new fields in /api/state (by 2:45, push early)
+- [x] B2 actions.js: state machine, idempotent approve, 403 for non-approvers, history, audit
+- [x] B3 Sandbox ride provider (clearly simulated), appointment transport, notice on confirm
+- [x] B4 outcomes.js: ride → action, other requests → tasks with quote + suggested owner, meds unsure → sensitive task
+- [x] B5 Task handoff/accept/decline + notice when claimed
+- [x] B6 Digest per viewer
 - [ ] B7 Escalation: unresolved (amber) semantics + quiet hours
-- [ ] B8 ?viewer= filtering
+- [x] B8 ?viewer= filtering
 - [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize
 
 ## Person C — iOS app (Claude Code) — name: Manasv
