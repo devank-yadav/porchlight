@@ -34,6 +34,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [ ] C7 (Manasv, in progress) Med status labels incl. Private
 - [ ] C8 (Manasv, in progress) Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
+- [ ] C10 Evening theme onto main — Manasv (Claude Code), branch `app/evening-theme`; in progress. Scope: mobile/* only; regular merge of origin/main into the branch (no force-push), keep main's start screen (#15) and C8, then PR. Checks: `npx expo export --platform ios`. Next: merge, resolve, open PR.
 
 ## Done
 - [x] Research → feature spec (PLAN.md), ranked Phase 1 (TEAM_PLAN.md)
