@@ -36,38 +36,41 @@ export async function startCheckin(seniorId, channel) {
   return { senior, checkin };
 }
 
-export async function addTurn(checkinId, text) {
+// onSentence (live calls only): sentences of the reply are handed over as they're written; the
+// result then has streamed: true and the caller doesn't speak `reply` again.
+export async function addTurn(checkinId, text, { onSentence } = {}) {
   const checkin = await store.get('checkins', checkinId);
   const senior = await store.get('seniors', checkin.seniorId);
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
+  const urgent = URGENT_WORDS.test(text);
   // Voice actions ("tell Mark…", "put me through to Anne") run before the chat reply; never on an emergency.
-  const intent = URGENT_WORDS.test(text) ? null : await handleIntent(senior, checkin, text);
+  const intent = urgent ? null : await handleIntent(senior, checkin, text);
   if (intent?.transfer) {
     transcript.push({ who: 'porchlight', text: intent.reply, at: new Date().toISOString() });
     await store.update('checkins', checkinId, { transcript, transferredTo: intent.transfer });
     return { reply: intent.reply, ended: true, transfer: intent.transfer };
   }
-  const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id) });
-  // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
-  if (URGENT_WORDS.test(text) && !checkin.urgentAlertedAt) {
-    await alertFamilyNow(senior, text);
-    checkin.urgentAlertedAt = new Date().toISOString();
-    await store.update('checkins', checkinId, { urgentAlertedAt: checkin.urgentAlertedAt });
-  }
-  transcript.push({ who: 'porchlight', text: answer, at: new Date().toISOString() });
-  await store.update('checkins', checkinId, { transcript });
   const turns = transcript.filter((t) => t.who === 'senior').length;
   // She can end the call herself ("no, that's all", "bye"), unless something is urgent.
-  const askedAnythingElse = /anything else|need anything/i.test(checkin.transcript[checkin.transcript.length - 1]?.text || '');
   // Out of turns: never end on a question she can't answer. Say goodbye instead.
-  const outOfTurns = turns >= MAX_TURNS && !URGENT_WORDS.test(text);
-  if (outOfTurns || (turns >= 2 && (BYE.test(text) || (askedAnythingElse && GOODBYE.test(text))) && !URGENT_WORDS.test(text) && !checkin.urgentAlertedAt)) {
+  const askedAnythingElse = /anything else|need anything/i.test(checkin.transcript[checkin.transcript.length - 1]?.text || '');
+  const outOfTurns = turns >= MAX_TURNS && !urgent;
+  if (!intent && (outOfTurns || (turns >= 2 && (BYE.test(text) || (askedAnythingElse && GOODBYE.test(text))) && !urgent && !checkin.urgentAlertedAt))) {
     const bye = `Thank you, ${senior.preferredName}. I'll pass everything on to ${senior.primaryContactName}, and I'll only tell you things once they're confirmed. Talk tomorrow!`;
-    transcript[transcript.length - 1] = { who: 'porchlight', text: bye, at: new Date().toISOString() };
+    transcript.push({ who: 'porchlight', text: bye, at: new Date().toISOString() });
     await store.update('checkins', checkinId, { transcript });
     return { reply: bye, ended: true };
   }
-  return { reply: answer, ended: turns >= MAX_TURNS };
+  const streamed = !intent && !!onSentence;
+  const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id), onSentence });
+  // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
+  if (urgent && !checkin.urgentAlertedAt) {
+    await alertFamilyNow(senior, text);
+    await store.update('checkins', checkinId, { urgentAlertedAt: new Date().toISOString() });
+  }
+  transcript.push({ who: 'porchlight', text: answer, at: new Date().toISOString() });
+  await store.update('checkins', checkinId, { transcript });
+  return { reply: answer, ended: false, streamed };
 }
 
 async function alertFamilyNow(senior, said) {

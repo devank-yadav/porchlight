@@ -23,6 +23,36 @@ async function chat(messages, { json = false, maxTokens = 300 } = {}) {
   return data.choices?.[0]?.message?.content?.trim() ?? '';
 }
 
+// Streaming version for live calls: calls onText(chunk) as words arrive. Returns the full text.
+async function chatStream(messages, { maxTokens = 120, onText }) {
+  const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
+    body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: maxTokens, stream: true }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok || !res.body) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const decoder = new TextDecoder();
+  let buf = '';
+  let full = '';
+  for await (const chunk of res.body) {
+    buf += decoder.decode(chunk, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') return full;
+      try {
+        const delta = JSON.parse(data).choices?.[0]?.delta?.content;
+        if (delta) { full += delta; if (onText(delta) === false) return full; }
+      } catch { /* keep-alive or partial line */ }
+    }
+  }
+  return full;
+}
+
 function parseJson(text) {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -87,10 +117,45 @@ export function guardReply(senior, text) {
   return t;
 }
 
-export async function reply(senior, transcript, { appointments = [] } = {}) {
+// onSentence (live calls): each sentence is checked by the guard and handed over as soon as it's
+// complete, so Porchlight starts speaking while the rest is still being written.
+export async function reply(senior, transcript, { appointments = [], onSentence } = {}) {
   const last = [...transcript].reverse().find((t) => t.who === 'senior')?.text ?? '';
   const fixed = policyReply(senior, last);
-  if (fixed) return fixed;
+  if (fixed) { onSentence?.(fixed); return fixed; }
+  if (llmEnabled && onSentence) {
+    const messages = [
+      { role: 'system', content: personaPrompt(senior, appointments) },
+      ...transcript.map((t) => ({ role: t.who === 'porchlight' ? 'assistant' : 'user', content: t.text })),
+    ];
+    let pending = '';
+    let spoken = '';
+    let blocked = false;
+    const flush = (final) => {
+      // Sentence = up to . ! ? (or the end), at least a few words so TTS doesn't sound choppy.
+      const re = final ? /^[\s\S]+$/ : /^[\s\S]*?[.!?](?=\s|$)/;
+      let m;
+      while (!blocked && (m = pending.match(re)) && m[0].trim()) {
+        const sentence = m[0].trim();
+        if (!final && sentence.split(/\s+/).length < 3 && pending.length === m[0].length) break;
+        pending = pending.slice(m[0].length);
+        if (!guardReply(senior, sentence)) { blocked = true; break; }
+        spoken += (spoken ? ' ' : '') + sentence;
+        onSentence(sentence);
+        if (final) break;
+      }
+    };
+    try {
+      await chatStream(messages, { maxTokens: 120, onText: (t) => { pending += t; flush(false); return !blocked; } });
+      flush(true);
+    } catch (e) {
+      console.warn('[llm] streamed reply failed:', e.message);
+    }
+    if (spoken) return spoken;
+    const fallback = mockReply(senior, transcript);
+    onSentence(fallback);
+    return fallback;
+  }
   if (llmEnabled) {
     try {
       const messages = [
@@ -103,7 +168,9 @@ export async function reply(senior, transcript, { appointments = [] } = {}) {
       console.warn('[llm] reply failed, using mock:', e.message);
     }
   }
-  return mockReply(senior, transcript);
+  const fallback = mockReply(senior, transcript);
+  onSentence?.(fallback);
+  return fallback;
 }
 
 // Word-bounded so "stairs", "first", "wired" or "fell asleep" never trip an alarm.
