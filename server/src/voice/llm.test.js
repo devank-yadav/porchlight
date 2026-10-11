@@ -79,5 +79,5 @@ test('phone greeting is short, skips the family opener, still says it is an AI',
 });
 
 test('guard blocks the model claiming it set up an Uber button', () => {
-  assert.equal(guardReply(peggy, 'Got it! I\'ll put a "Book my Uber" button on your Tella screen with Target already filled in.'), null);
+  assert.equal(guardReply(peggy, 'Got it! I\'ll put a "Book my Uber" button on your Porchlight screen with Target already filled in.'), null);
 });

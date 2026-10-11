@@ -11,7 +11,7 @@ export default function StartScreen({ onPick }) {
   const [family, setFamily] = useState(false);
   const insets = useSafeAreaInsets();
   return <ThemeProvider value="senior"><ScrollView style={{ backgroundColor: seniorPalette.bg }} contentContainerStyle={[st.page, { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 32 }]}>
-    <View style={st.brand}><Lamp state="lit" size={72} /><T v="readHeadline">Tella</T></View>
+    <View style={st.brand}><Lamp state="lit" size={72} /><T v="readHeadline">Porchlight</T></View>
     {family ? <>
       <T v="readTitle">Who’s checking in?</T>
       <T v="read" muted>Choose your sample profile. Each person sees the details shared with them.</T>

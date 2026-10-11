@@ -1,4 +1,4 @@
-# Tella — product plan
+# Porchlight — product plan
 
 ## Product decision — October 11, 2026
 
@@ -6,7 +6,7 @@ Rishi requested a family-focused product that takes actions: connect a parent's 
 
 This is a planning update, not a claim that the integrations are implemented. The current runtime/data contract in TEAM_PLAN.md remains in force. Proposed fields, states, endpoints, and owner handoffs are in [the implementation note](server/src/care/ACTION_PLAN.md); A/B/C must agree on the contract update before implementation. The published TASKS.md P1/P2 claims record these user-authorized PLAN.md edits and owner notices. Rishi also approved everyday plans, requests, reminders, and family connection alongside calls. This update does not reopen the October 11 feature freeze.
 
-**One-liner:** Tella helps your parent manage the day, handles everyday arrangements within agreed limits, and keeps the family informed through simple buttons or a phone call.
+**One-liner:** Porchlight helps your parent manage the day, handles everyday arrangements within agreed limits, and keeps the family informed through simple buttons or a phone call.
 
 **First customer:** an adult child helping an independently living parent who cannot reliably arrange transportation or manage every appointment alone. The parent agrees to participate and can communicate over a regular phone. Family members pay for the service and approve its authority to spend on their behalf; the parent controls participation and sharing.
 
@@ -18,7 +18,7 @@ This is a planning update, not a claim that the integrations are implemented. Th
 
 Families repeatedly check whether a parent is okay, track appointments, arrange transport, and chase updates across phone calls and group messages. A reminder or summary still leaves someone responsible for the arrangement.
 
-> Mom has a doctor's appointment tomorrow, but she no longer drives. Today, someone has to notice, find a ride, book it, and keep the family updated. Tella checks her calendar, asks whether she needs a ride, and books an appropriate option within the family's agreed budget. It tells Mom who's coming and lets her family follow the trip. One conversation becomes an arrangement people can rely on.
+> Mom has a doctor's appointment tomorrow, but she no longer drives. Today, someone has to notice, find a ride, book it, and keep the family updated. Porchlight checks her calendar, asks whether she needs a ride, and books an appropriate option within the family's agreed budget. It tells Mom who's coming and lets her family follow the trip. One conversation becomes an arrangement people can rely on.
 
 Describe this as automating routine caregiving work: check-ins, reminders, transport arrangements, and follow-up. Physical assistance and emergency response still require an appropriate person or service. A time-sensitive appointment uses the ride planner; a reported medical emergency uses the existing urgent-help policy and is never optimized as a cheap cab trip.
 
@@ -51,7 +51,7 @@ Do not promise "best across all ride services" with one integration. Say "best e
 
 ## The app experience
 
-**Product goal:** the parent opens Tella to see what is happening today; a family member opens it to see what has been handled and whether a decision is needed. Calls, text/dictation, and large buttons feed the same appointments and action history. A request made on a call must appear in the app without needing to be submitted again. Phone-only participation remains supported.
+**Product goal:** the parent opens Porchlight to see what is happening today; a family member opens it to see what has been handled and whether a decision is needed. Calls, text/dictation, and large buttons feed the same appointments and action history. A request made on a call must appear in the app without needing to be submitted again. Phone-only participation remains supported.
 
 ### Parent navigation
 
@@ -61,7 +61,7 @@ Do not promise "best across all ride services" with one integration. Say "best e
 | My plans | Upcoming appointments, active ride, and requests with accurate progress | Arrange a ride; Remind me; Ask my family; view or change a request |
 | Family | Familiar faces, private messages and a simple reply entry point | Call Anne; read a message aloud; reply by text or keyboard dictation |
 
-Keep Talk with Tella available throughout, and retain an easy-to-find Help action. Settings can sit behind a clearly labelled control rather than another main parent tab. Preserve the existing theme tokens, porch light, text at least 20pt, buttons at least 104pt tall, and VoiceOver labels. Only the current mobile owner implements these changes.
+Keep Talk with Porchlight available throughout, and retain an easy-to-find Help action. Settings can sit behind a clearly labelled control rather than another main parent tab. Preserve the existing theme tokens, porch light, text at least 20pt, buttons at least 104pt tall, and VoiceOver labels. Only the current mobile owner implements these changes.
 
 An appointment card should make the next step obvious. Fictional sample, after a provider has confirmed the relevant state:
 
@@ -87,7 +87,7 @@ Reuse existing appointment cards, action timelines, task handoffs and contacts. 
 
 These are published competitor features checked October 11, 2026, not independently tested performance claims. Our proposed improvement is visible follow-through across a small set of supported actions; it is not a claim that no competitor can do this.
 
-| Feature | Competitor reference | Tella scope |
+| Feature | Competitor reference | Porchlight scope |
 |---|---|---|
 | Today's plan | [Lotsa Helping Hands](https://kp.lotsahelpinghands.com/how-it-works/) provides a calendar for rides, meals, visits and task reminders | Combine appointments and arrangements; show "Ride arranged", "Leave at 1:15", or "Address needed" on the relevant event |
 | Routines with follow-through | [ElliQ](https://elliq.com/pages/caregivers) offers medication/hydration reminders and wellness goals | Done / Remind me later / I need help; ask what prevents completion and create a supported request when authorized. Medication completion is self-reported; no dosing or treatment advice |

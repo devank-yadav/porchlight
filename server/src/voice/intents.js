@@ -1,9 +1,9 @@
 // OWNER: Person A (voice & AI).
 // Things Peggy can get done just by saying them on a check-in:
 //   "Tell Mark thanks for the milk"      → Mark gets a text with her words, and she hears them read back.
-//   "Put me through to Anne"              → on a phone call, Tella connects her live to Anne.
+//   "Put me through to Anne"              → on a phone call, Porchlight connects her live to Anne.
 //   "Remind me to call the pharmacy tomorrow" → saved; the next call that day opens with it.
-//   "Call me back later, I'm busy"        → the call ends kindly and Tella rings again (in an hour, or when she says).
+//   "Call me back later, I'm busy"        → the call ends kindly and Porchlight rings again (in an hour, or when she says).
 //   "What do I have this week?"           → her appointments for the next 7 days, and only confirmed rides called confirmed.
 //   "Book an Uber for me"                 → right away, a "Book my Uber" button with the trip to her next
 //                                           appointment filled in shows on her screen; the family is told she's going.
@@ -239,7 +239,7 @@ async function rideNow(senior, text, checkin = {}) {
   }
   // Already set up on this call: don't make a second booking, just point her back to the button.
   if (checkin.rideTo && (!place || place.toLowerCase() === String(checkin.rideTo).toLowerCase())) {
-    return { reply: `It's all set. Tap the Uber notification on your phone, or the Book my Uber button on your Tella screen, then press Request.` };
+    return { reply: `It's all set. Tap the Uber notification on your phone, or the Book my Uber button on your Porchlight screen, then press Request.` };
   }
   // Anywhere else she names. First: where from? (Home unless she says otherwise.)
   if (!checkin.rideFrom) {
@@ -273,7 +273,7 @@ async function rideNow(senior, text, checkin = {}) {
   await push(senior, { title: `Your Uber to ${where.replace(/^your /, '')} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: details.uberLink });
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const time = leavingNow ? 'now' : sayTime(new Date(pickupAt), tz);
-  for (const m of members.filter((x) => x.role === 'family')) await sms(m, `Heads-up: ${senior.preferredName} is taking an Uber to ${where.replace(/^your /, 'her ')} ${time}. She's booking it from her Tella screen.`);
+  for (const m of members.filter((x) => x.role === 'family')) await sms(m, `Heads-up: ${senior.preferredName} is taking an Uber to ${where.replace(/^your /, 'her ')} ${time}. She's booking it from her Porchlight screen.`);
   return { reply: `Okay, an Uber from ${fromHome ? 'home' : checkin.rideFrom} to ${where}, ${leavingNow ? 'leaving now' : `leaving ${time}`}. ${STEPS} I'll let ${family} know.` };
 }
 
@@ -328,7 +328,7 @@ export async function handleIntent(senior, checkin, text) {
   await audit.log('porchlight', 'voice.connect', { seniorId: senior._id, targetId: intent.member._id, detail: phone ? 'live transfer' : 'asked to call back' });
   if (phone) {
     // A heads-up text first, so a missed call still reaches them.
-    await sms(intent.member, `${senior.preferredName} is calling you through Tella right now. If you miss it, please call her back.`);
+    await sms(intent.member, `${senior.preferredName} is calling you through Porchlight right now. If you miss it, please call her back.`);
     return { reply: `Of course. I'm connecting you to ${first} now. Please stay on the line.`, transfer: phone };
   }
   await sms(intent.member, `${senior.preferredName} asked to talk to you. Please give her a call when you can.`);

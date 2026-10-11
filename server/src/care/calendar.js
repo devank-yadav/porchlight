@@ -1,4 +1,4 @@
-// Peggy's own phone calendar (iCloud, Google or Outlook accounts on her iPhone) → Tella appointments.
+// Peggy's own phone calendar (iCloud, Google or Outlook accounts on her iPhone) → Porchlight appointments.
 // Her phone reads the next two weeks with expo-calendar and posts them here. We keep them in the same
 // `appointments` collection as everything else, so calls, "what do I have this week?" and ride prompts
 // use her real events. Sample/seed appointments are never touched.
@@ -30,7 +30,7 @@ export async function syncCalendar(seniorId, { events = [], from, to } = {}) {
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw Object.assign(new Error('Unknown senior'), { status: 404 });
   const incoming = (Array.isArray(events) ? events : []).slice(0, MAX_EVENTS)
-    .filter((e) => clean(e?.calendar, 60) !== 'Tella') // our own write-backs aren't appointments
+    .filter((e) => clean(e?.calendar, 60) !== 'Porchlight') // our own write-backs aren't appointments
     .map((e) => toAppointment(seniorId, e)).filter(Boolean);
   const start = iso(from) || new Date().toISOString();
   const end = iso(to) || new Date(Date.now() + 14 * 86400000).toISOString();

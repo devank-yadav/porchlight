@@ -17,7 +17,7 @@ app.use(express.urlencoded({ extended: false })); // Twilio webhooks
 
 app.use(voiceRoutes);
 app.use(careRoutes);
-app.get('/', (_req, res) => res.send('Tella API is running. Open the Tella app on your iPhone.'));
+app.get('/', (_req, res) => res.send('Porchlight API is running. Open the Porchlight app on your iPhone.'));
 
 const PORT = Number(process.env.PORT || 3001);
 await store.connect();

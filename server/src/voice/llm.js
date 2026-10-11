@@ -80,23 +80,23 @@ Always do both: help her right now with one practical, safe thing she can do her
 - Lonely, bored or missing someone: in that same reply, acknowledge it AND offer one concrete thing: name a specific activity from the list below with its day and time ("The garden club meets Thursday at 2 at the library. Want me to tell ${family} you'd like to go?"), or offer "Want me to connect you to ${family} right now?". Don't just ask how she's feeling.
 - Groceries, errands, repairs: say you'll ask the family who can help and you'll tell her who's coming once someone says yes. Ask what exactly she needs, and help with tonight ("Is there something in the freezer or pantry for dinner tonight?").
 - When you give her steps to follow, give at most three, each short, with "first", "then", "and that's it".
-- Say "your Tella screen", not "the app"; never say "notification" or "submit".
+- Say "your Porchlight screen", not "the app"; never say "notification" or "submit".
 - Once per call, if no family question is waiting, invite one memory tied to what she's talking about ("Did you and Walt garden together?"). When she tells a story, ask about one vivid detail (a song, a smell, who was there); don't summarize it back.
 - Bring up at most ONE thing from her last calls; never read her a list.
-- Tech help (her phone, TV, computer, a message or pop-up on a screen): ask what she sees on the screen, then give ONE small step at a time in plain words ("Press the round button at the bottom of the phone, then tell me what you see"). Wait for her to say done before the next step. Never ask her to tell you a password, passcode, code or card number. Typing her own phone passcode on her own phone's lock screen or Settings (for example during an iPhone update) is fine; tell her to type it, never to say it out loud. Typing a password or code into a website, a message or for a caller is not. A pop-up or caller saying her device has a virus, asking her to call a number, or asking for payment or remote access is a scam: tell her to close it and not call or pay. If you're both stuck, offer to connect her to ${family}. She can also tap "Help with my phone" in the Tella app and take a picture of the screen.
+- Tech help (her phone, TV, computer, a message or pop-up on a screen): ask what she sees on the screen, then give ONE small step at a time in plain words ("Press the round button at the bottom of the phone, then tell me what you see"). Wait for her to say done before the next step. Never ask her to tell you a password, passcode, code or card number. Typing her own phone passcode on her own phone's lock screen or Settings (for example during an iPhone update) is fine; tell her to type it, never to say it out loud. Typing a password or code into a website, a message or for a caller is not. A pop-up or caller saying her device has a virus, asking her to call a number, or asking for payment or remote access is a scam: tell her to close it and not call or pay. If you're both stuck, offer to connect her to ${family}. She can also tap "Help with my phone" in the Porchlight app and take a picture of the screen.
 - Questions she asks you (the date, the weather, a word she forgot, how to do something simple): just answer helpfully if you can; if you don't know, say so plainly. Never suggest apps, websites or screens you weren't told about; you may suggest the radio, the newspaper or asking ${family}.
 How to sound like a person on the phone, not a form:
 - React to what she actually said first ("Oh, a headache, that's no fun."), then move on. Use contractions and everyday words.
 - Vary your openers ("Mm, I see.", "Oh, good.", "Ah.") and never start two replies the same way. At most one exclamation mark per call.
 - Never ask about something she already answered. If she asks how you are, answer briefly and turn it back to her.
 - If what she said seems garbled or doesn't make sense, gently check ("Sorry, did you say a headache?") rather than guessing.
-- Tella CAN do these for her, and they're handled automatically when she asks: set up an Uber (a "Book my Uber" button on her screen), connect her to a family member by phone, pass a message to family, set a reminder, call her back later. Never say you can't do these, and don't promise anything else.`;
+- Porchlight CAN do these for her, and they're handled automatically when she asks: set up an Uber (a "Book my Uber" button on her screen), connect her to a family member by phone, pass a message to family, set a reminder, call her back later. Never say you can't do these, and don't promise anything else.`;
 
 // Rides are pre-approved unless the family switched on "Ask me before booking rides" (askBeforeRides).
-// Pre-approved: she books it herself with the Uber button on her screen, so Tella never says it's booked.
+// Pre-approved: she books it herself with the Uber button on her screen, so Porchlight never says it's booked.
 const rideReply = (senior) => (senior.askBeforeRides
   ? `Thank you for telling me. I'll ask ${senior.primaryContactName} about a ride and call you back once it's confirmed.`
-  : `No problem. I've put a "Book my Uber" button on your Tella screen for that ride, with everything already filled in, and I'll let ${senior.primaryContactName} know you're going.`);
+  : `No problem. I've put a "Book my Uber" button on your Porchlight screen for that ride, with everything already filled in, and I'll let ${senior.primaryContactName} know you're going.`);
 
 function appointmentLines(appointments = [], family, senior = {}) {
   const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date() && !a.cancelled).sort((x, y) => (x.startsAt > y.startsAt ? 1 : -1));
@@ -105,7 +105,7 @@ function appointmentLines(appointments = [], family, senior = {}) {
 If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say: "${rideReply({ ...senior, primaryContactName: family })}" Never say a ride is booked, arranged or confirmed.\n`;
 }
 
-// What Tella remembers between calls, so it can pick up threads like a person would.
+// What Porchlight remembers between calls, so it can pick up threads like a person would.
 function memoryLines(memory = {}) {
   const out = [];
   if (memory.recent?.length) out.push(`From her last calls (bring ONE of these up naturally early on, e.g. ask how it went): ${memory.recent.join(' | ')}`);
@@ -120,7 +120,7 @@ function memoryLines(memory = {}) {
 
 function personaPrompt(senior, appointments, memory) {
   const now = new Date().toLocaleString('en-US', { timeZone: senior.timezone || 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  return `You are Tella, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
+  return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
 Right now it is ${now} where she lives. If she asks the day, date or time, tell her exactly that.
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
@@ -137,10 +137,10 @@ ${RULES(senior.primaryContactName)}`;
 export function policyReply(senior, text, memory = {}) {
   const name = senior.preferredName;
   const family = senior.primaryContactName;
-  // "Hello?" / "Are you there?": answer instantly (no AI wait), so she knows Tella is listening.
+  // "Hello?" / "Are you there?": answer instantly (no AI wait), so she knows Porchlight is listening.
   if (/^\s*(hello|hi|hey|hallo|are you there|can you hear me)\b[\s?!.,]*((hello|hi|are you there|can you hear me)[\s?!.,]*)*$/i.test(text)) {
     // Her first "Hello?" is just how people answer the phone: a warm hi, not "I can hear you".
-    return /are you there|can you hear/i.test(text) ? `Yes, I'm here, ${name}, and I can hear you. How are you today?` : `Hi ${name}! It's Tella. How's your day going?`;
+    return /are you there|can you hear/i.test(text) ? `Yes, I'm here, ${name}, and I can hear you. How are you today?` : `Hi ${name}! It's Porchlight. How's your day going?`;
   }
   if (URGENT_WORDS.test(text)) return `Oh ${name}, I'm sorry. I'm letting ${family} know right now. If you're hurt or can't get up, stay still, keep your phone close, and call 911 or press your help button. Are you safe where you are?`;
   if (SCAM_WORDS.test(text)) return `That sounds like a scam, ${name}, and you did the right thing telling me. Don't buy any gift cards or send money, and if they call back, just hang up. If you're worried about someone, call them on the number you already have, or I can put you through to ${family} right now. Did you give them any information?`;
@@ -175,7 +175,7 @@ export function guardReply(senior, text) {
 }
 
 // onSentence (live calls): each sentence is checked by the guard and handed over as soon as it's
-// complete, so Tella starts speaking while the rest is still being written.
+// complete, so Porchlight starts speaking while the rest is still being written.
 export async function reply(senior, transcript, { appointments = [], memory = {}, onSentence } = {}) {
   const last = [...transcript].reverse().find((t) => t.who === 'senior')?.text ?? '';
   const fixed = policyReply(senior, last, memory);
@@ -295,9 +295,9 @@ export function greeting(senior, opener, notices = [], { phone = false, reminder
   if (phone) {
     // Short and warm: still says it's an AI (a rule), without a speech about money; it never asks anyway.
     const helper = senior.primaryContactName ? `${senior.primaryContactName}'s AI helper` : 'your AI helper';
-    return `Hi ${senior.preferredName}, it's Tella, ${helper}.${goodNews} How are you today?`;
+    return `Hi ${senior.preferredName}, it's Porchlight, ${helper}.${goodNews} How are you today?`;
   }
-  return `${opener ? opener + ' ' : ''}Hi ${senior.preferredName}, it's Tella, your family's check-in helper. I'm an AI, and I'll never ask you for money or codes.${goodNews} How are you feeling today?`;
+  return `${opener ? opener + ' ' : ''}Hi ${senior.preferredName}, it's Porchlight, your family's check-in helper. I'm an AI, and I'll never ask you for money or codes.${goodNews} How are you feeling today?`;
 }
 
 // ---------- Post-call analysis ----------
@@ -305,7 +305,7 @@ export function greeting(senior, opener, notices = [], { phone = false, reminder
 export async function analyze(senior, transcript, { appointments = [], questions = [] } = {}) {
   if (llmEnabled) {
     try {
-      const text = transcript.map((t) => `${t.who === 'porchlight' ? 'Tella' : senior.preferredName}: ${t.text}`).join('\n');
+      const text = transcript.map((t) => `${t.who === 'porchlight' ? 'Porchlight' : senior.preferredName}: ${t.text}`).join('\n');
       const out = await chat(
         [
           {
@@ -322,7 +322,7 @@ export async function analyze(senior, transcript, { appointments = [], questions
 Never diagnose. "change" means different from her usual. If she was unsure whether she took a pill, medStatus is "unsure" and add a "meds_unsure" flag.
 A story is a memory from her life (people, places, how things used to be), not today's news. Only include real memories; [] if she told none.`,
           },
-          { role: 'user', content: `About her: ${senior.about.join(' ')}\n${questions.length ? `Questions her family asked Tella to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
+          { role: 'user', content: `About her: ${senior.about.join(' ')}\n${questions.length ? `Questions her family asked Porchlight to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
         ],
         { json: true, maxTokens: 900, model: ANALYSIS_MODEL },
       );

@@ -68,7 +68,7 @@ export default function SeniorScreen({ senior, page = 'today' }) {
       {state.members.filter((m) => m.circleId === senior.circleId).map((m) => <BigButton key={m._id} icon="phone" title={'Call ' + m.name.split(' ')[0]} sub={m.relation + (m.primary ? ' · First contact' : '')} disabled={!m.phone} onPress={() => openLink('tel:' + m.phone)} />)}
       <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check a call, letter or message" onPress={() => go('scam')} />
       <HelpButton />
-      <T v="readSmall" muted>Sample people. Tella is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
+      <T v="readSmall" muted>Sample people. Porchlight is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
       <BigButton icon="person.crop.circle" title="Switch person" sub="Choose a different sample profile" onPress={() => setRole(null)} />
     </Page>}
     {page === 'talk' && <Talk senior={senior} done={() => { router.replace('/senior/thanks'); refresh(); }} />}
@@ -108,11 +108,11 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     try {
       await api.phoneCall(senior._id);
       haptic.success();
-      toast.success('Your call is requested', { description: 'Pick up when your phone rings. Tella is an AI and will talk first.' });
+      toast.success('Your call is requested', { description: 'Pick up when your phone rings. Porchlight is an AI and will talk first.' });
       callReset.current = setTimeout(() => setCalling(false), 20000);
     } catch (_e) {
       haptic.warn();
-      toast.info('The phone call didn’t go through', { description: 'Tap “Talk with Tella” to chat here, or try the call again.' });
+      toast.info('The phone call didn’t go through', { description: 'Tap “Talk with Porchlight” to chat here, or try the call again.' });
       setCalling(false);
     }
   };
@@ -129,14 +129,14 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     {plans[0] ? <PlanRow plan={plans[0]} senior={senior} state={state} /> : <View style={st.agendaRow}><T v="readHeadline">A little room in your day</T><T v="readSmall" muted>No upcoming appointments.</T></View>}
     {!compact && checkinButton}
     <PillsCard senior={senior} state={state} refresh={refresh} />
-    <BigButton icon="bubble.left.and.bubble.right" title="Talk with Tella" sub="Your AI helper for the day" onPress={() => go('talk')} />
-    <BigButton icon="phone.arrow.down.left" title={calling ? 'Call requested…' : 'Call me now'} sub="Tella rings your phone" hint="Requests a phone call. Tella is an AI and will talk first." onPress={callMe} disabled={calling} />
+    <BigButton icon="bubble.left.and.bubble.right" title="Talk with Porchlight" sub="Your AI helper for the day" onPress={() => go('talk')} />
+    <BigButton icon="phone.arrow.down.left" title={calling ? 'Call requested…' : 'Call me now'} sub="Porchlight rings your phone" hint="Requests a phone call. Porchlight is an AI and will talk first." onPress={callMe} disabled={calling} />
     <HelpButton />
     <Notices notices={notices} />
     {primary && <BigButton icon="phone" title={'Call ' + primary.name.split(' ')[0]} sub={primary.relation} onPress={() => openLink('tel:' + primary.phone)} />}
-    <BigButton icon="iphone" title="Help with my phone" sub="Show me the screen, I’ll walk you through it" hint="Take a picture of a screen and Tella explains what to do next." onPress={() => go('tech')} />
+    <BigButton icon="iphone" title="Help with my phone" sub="Show me the screen, I’ll walk you through it" hint="Take a picture of a screen and Porchlight explains what to do next." onPress={() => go('tech')} />
     <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check before you act" onPress={() => go('scam')} />
-    <T v="readSmall" muted>Tella is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
+    <T v="readSmall" muted>Porchlight is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
   </Page>;
 }
 function Notices({ notices }) {
@@ -153,7 +153,7 @@ function RideCard({ ride }) {
     <T v="read">{ride.details.to}</T>
     {ride.details.pickupAt && <T v="readSmall" muted>{dayLabel(ride.details.pickupAt)}</T>}
     <BigButton tone="lamp" icon="car" title="Book with Uber" sub="Your trip is filled in" hint="Opens Uber. You confirm the booking and price there." onPress={() => openLink(ride.details.uberLink)} />
-    <T v="readSmall" muted>{ride.simulated ? 'Tella’s booking is a demo. Confirm a real ride and its price in Uber.' : 'Confirm the ride and its price in Uber.'}</T>
+    <T v="readSmall" muted>{ride.simulated ? 'Porchlight’s booking is a demo. Confirm a real ride and its price in Uber.' : 'Confirm the ride and its price in Uber.'}</T>
   </View>;
 }
 
@@ -224,7 +224,7 @@ function Talk({ senior, done }) {
     }
   };
 
-  const status = { starting: 'Calling…', speaking: 'Tella is talking', ready: 'Your turn', thinking: 'Thinking', ending: 'Saying goodbye…' }[phase];
+  const status = { starting: 'Calling…', speaking: 'Porchlight is talking', ready: 'Your turn', thinking: 'Thinking', ending: 'Saying goodbye…' }[phase];
 
   return (
     <View style={{ flex: 1, paddingTop: 0 }}>
@@ -235,7 +235,7 @@ function Talk({ senior, done }) {
             <Text style={st.talkStatus} accessibilityLiveRegion="polite">{status}</Text>
             {(phase === 'thinking' || phase === 'starting') && <Dots />}
           </View>
-          <Text style={st.talkSub}>Tella is an AI</Text>
+          <Text style={st.talkSub}>Porchlight is an AI</Text>
         </View>
         <View style={st.voiceToggle}>
           <Switch value={voiceOn} onValueChange={(v) => { haptic.select(); setVoiceOn(v); }} trackColor={{ true: accent.lamp }} accessibilityLabel="Read replies aloud" />
@@ -246,7 +246,7 @@ function Talk({ senior, done }) {
       <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={st.transcript} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: true })}>
         {lines.map((l, i) => (
           <Animated.View key={i} entering={reduced ? undefined : FadeInDown.duration(250).easing(ease.out)} style={[st.bubble, l.who === 'senior' ? st.bubbleMe : st.bubbleThem]}>
-            <Text style={[st.bubbleWho, l.who === 'senior' && { color: '#52525B' }]}>{l.who === 'porchlight' ? 'Tella' : senior.preferredName}</Text>
+            <Text style={[st.bubbleWho, l.who === 'senior' && { color: '#52525B' }]}>{l.who === 'porchlight' ? 'Porchlight' : senior.preferredName}</Text>
             <Text style={[st.bubbleText, l.who === 'senior' && { color: '#111' }]}>{l.text}</Text>
           </Animated.View>
         ))}
@@ -279,7 +279,7 @@ function Talk({ senior, done }) {
   );
 }
 
-// Three dots while Tella thinks. Runs only while waiting.
+// Three dots while Porchlight thinks. Runs only while waiting.
 function Dots() {
   return (
     <View style={{ flexDirection: 'row', gap: 4 }} accessible={false}>
@@ -325,7 +325,7 @@ function TechHelp({ senior, back }) {
   const pick = async (camera) => {
     try {
       const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return toast.info('Tella needs permission', { description: camera ? 'Allow the camera in Settings to take a picture of the screen.' : 'Allow Photos in Settings to choose a screenshot.' });
+      if (!perm.granted) return toast.info('Porchlight needs permission', { description: camera ? 'Allow the camera in Settings to take a picture of the screen.' : 'Allow Photos in Settings to choose a screenshot.' });
       const opts = { base64: true, quality: 0.4, mediaTypes: ['images'] };
       const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
       if (res.canceled || !res.assets?.[0]?.base64) return;
@@ -473,7 +473,7 @@ function Help({ senior, back, refresh }) {
         <Animated.View entering={FadeIn.duration(250)} style={{ gap: 18, alignItems: 'center' }}>
           <Lamp state="alert" size={160} label="Help requested" />
           <T v="readTitle" center>Your help request is sent.</T>
-          <T v="read" muted center>Tella has asked your family to contact you. A response is not confirmed yet. If you’re hurt, call 911.</T>
+          <T v="read" muted center>Porchlight has asked your family to contact you. A response is not confirmed yet. If you’re hurt, call 911.</T>
           <BigButton tone="help" icon="phone.fill" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
           <Button label="Back to start" variant="ghost" onPress={back} />
         </Animated.View>

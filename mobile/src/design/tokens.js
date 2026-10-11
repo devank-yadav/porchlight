@@ -1,6 +1,6 @@
 import { Easing } from 'react-native-reanimated';
 
-// Tella design tokens.
+// Porchlight design tokens.
 // Quiet neutrals, hairline borders, soft depth. The porch light (amber) is the only bold color;
 // red is reserved for help and scams, green for "confirmed".
 

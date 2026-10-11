@@ -51,7 +51,7 @@ voiceRoutes.post('/api/tech-help', wrap(async (req, res) => {
   const result = await techHelp(senior, { image, mime: req.body.mime || 'image/jpeg', question: String(req.body.question || '').slice(0, 500), history: Array.isArray(req.body.history) ? req.body.history : [] });
   if (result.scam && senior.circleId) {
     const family = (await store.list('members', { circleId: senior.circleId })).filter((m) => m.role === 'family');
-    for (const m of family) await sms(m, `${senior.preferredName} showed Tella a screen that looks like a scam: "${result.says}". We told her to close it and not call or pay. Worth a quick call.`);
+    for (const m of family) await sms(m, `${senior.preferredName} showed Porchlight a screen that looks like a scam: "${result.says}". We told her to close it and not call or pay. Worth a quick call.`);
   }
   res.json(result);
 }));
@@ -93,7 +93,7 @@ voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
 voiceRoutes.get('/api/seniors/:id/schedule', wrap(async (req, res) => {
   res.json(scheduleOf(await store.get('seniors', req.params.id)));
 }));
-// Family questions: "Ask Mom about her first job". Tella asks one on a coming call, and her answer
+// Family questions: "Ask Mom about her first job". Porchlight asks one on a coming call, and her answer
 // is saved as a story under it. { text, memberId } → the senior's open questions.
 voiceRoutes.post('/api/seniors/:id/questions', wrap(async (req, res) => {
   const senior = await store.get('seniors', req.params.id);
@@ -144,7 +144,7 @@ voiceRoutes.post('/twilio/dial-done', (req, res) => {
     : `<Say voice="${VOICE}">I couldn't reach them just now, but they have a text from me asking them to call you back. Take care.</Say><Hangup/>`));
 });
 
-// One turn of the phone conversation: what she said → Tella's reply (or a kind goodbye).
+// One turn of the phone conversation: what she said → Porchlight's reply (or a kind goodbye).
 async function respond(res, id, said, silent) {
   if (!said) {
     // Never loop forever on a silent line: two retries, then a kind goodbye.
