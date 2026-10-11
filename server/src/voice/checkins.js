@@ -26,7 +26,7 @@ async function newNoticesFor(senior) {
 export async function startCheckin(seniorId, channel) {
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
-  const text = greeting(senior, senior.opener, await newNoticesFor(senior));
+  const text = greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone' });
   const checkin = await store.insert('checkins', {
     seniorId, channel, status: 'in-progress', startedAt: new Date().toISOString(),
     transcript: [{ who: 'porchlight', text, at: new Date().toISOString() }],
