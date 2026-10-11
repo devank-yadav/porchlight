@@ -85,7 +85,14 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
   const urgent = URGENT_WORDS.test(text);
   // Voice actions ("tell Mark…", "put me through to Anne") run before the chat reply; never on an emergency.
-  const intent = urgent ? null : await handleIntent(senior, checkin, text);
+  // "Yes" to Porchlight's own offer ("Would you like me to connect you to Anne?") is a real request to connect.
+  const lastQuestion = ([...checkin.transcript].reverse().find((t) => t.who === 'porchlight')?.text.match(/[^.?!]*\?/g) || []).at(-1) || '';
+  // "connect you to Mark?", "connect you to her?", "Shall I connect you now?" (no name → her first contact)
+  const offered = lastQuestion.match(/\b(?:connect you|put you through|call)\b(?:\s+(?:to|with))?\s*(\w+)?/i);
+  const named = offered?.[1] && !/^(her|him|them|now|right|there|back|in|over)$/i.test(offered[1]) ? offered[1] : null;
+  const offeredTo = offered && (named || senior.primaryContactName);
+  const acceptsOffer = offeredTo && YES.test(text) && !/\b(no|not|don'?t)\b/i.test(text);
+  const intent = urgent ? null : await handleIntent(senior, checkin, acceptsOffer ? `Connect me to ${offeredTo}` : text);
   if (intent?.transfer) {
     transcript.push({ who: 'porchlight', text: intent.reply, at: new Date().toISOString() });
     await store.update('checkins', checkinId, { transcript, transferredTo: intent.transfer });

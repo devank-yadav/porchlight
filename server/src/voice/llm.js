@@ -159,12 +159,14 @@ export function policyReply(senior, text, memory = {}) {
 // (null → rule-based fallback).
 const CLAIMS_BOOKING = /\b(i('|’)ve|i have|we('|’)ve|it('|’)s|is|has been) (booked|scheduled|arranged|confirmed|set up)\b.*\b(ride|car|driver|pickup|pick-up)|\b(ride|car|driver|pickup)\b.*\b(is|has been) (booked|scheduled|arranged|confirmed|on (its|the) way)/i;
 // Only the ride code puts the Uber button on her screen; the model claiming it would be a promise nobody kept.
+// Only the connect code bridges calls; the model saying "I'm connecting you" would be a promise nobody kept.
+const CLAIMS_CONNECT = /\b(i('|’)m|i am|i('|’)ll be) (now )?(connecting|putting) you (through|to)\b/i;
 const CLAIMS_BUTTON = /\b(put|added|placed|set up|i('|’)ll put|i('|’)ve put)\b.{0,30}book my uber|book my uber.{0,40}\b(filled in|ready)\b/i;
 const ASKS_SECRETS = /\b(what('|’)s|tell me|give me|read me|share|confirm) (your|the)\b.*\b(password|pin|code|social security|ssn|account|card number|bank|medicare number|date of birth)/i;
 const DIAGNOSES = /\byou (probably |might |may )?have (a |an )?(stroke|heart attack|infection|dementia|diabetes|covid|flu|uti)\b|\btake (another|an extra|two|double)\b.*\b(pill|dose|tablet)/i;
 export function guardReply(senior, text) {
   const t = String(text || '').trim();
-  if (!t || CLAIMS_BOOKING.test(t) || CLAIMS_BUTTON.test(t) || ASKS_SECRETS.test(t) || DIAGNOSES.test(t)) {
+  if (!t || CLAIMS_BOOKING.test(t) || CLAIMS_BUTTON.test(t) || CLAIMS_CONNECT.test(t) || ASKS_SECRETS.test(t) || DIAGNOSES.test(t)) {
     if (t) console.warn('[llm] model reply blocked by guard:', t.slice(0, 120));
     return null;
   }
