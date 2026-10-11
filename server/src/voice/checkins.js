@@ -4,6 +4,7 @@ import * as store from '../store.js';
 import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
+import { forecast } from './weather.js';
 import { handleIntent, dueReminders, localDate } from './intents.js';
 
 const YES = /^\s*(oh,? )?(yes|yeah|yep|sure|okay|ok|please|i('|’)?d (like|love) that|that would be (nice|lovely|great))\b/i;
@@ -45,6 +46,7 @@ async function memoryFor(senior) {
       stories: past.flatMap((c) => (c.stories || []).map((st) => st.title)).slice(0, 8),
       questions: openQuestions(senior).slice(0, 2).map((q) => ({ text: q.text, from: who(q.askedBy) })),
       activity: fit ? { title: fit.title, when: fit.when, where: clean(fit.where).toLowerCase() } : null,
+      weather: await forecast(senior.timezone || 'America/New_York'),
       events: events.slice(0, 4).map((e) => `${e.title} (${e.when}, ${clean(e.where)})`),
     };
   } catch {
@@ -63,6 +65,7 @@ async function newNoticesFor(senior) {
 }
 
 export async function startCheckin(seniorId, channel) {
+  forecast().catch(() => {}); // warm the weather cache so the first question about it is instant
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
   const text = greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
