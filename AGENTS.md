@@ -80,6 +80,10 @@ Edit only your area unless you've told the owner. Shared files (index.js, env.js
 - Before pushing app changes: `cd mobile && npx expo export --platform ios` must succeed.
 - Prefer working and simple over clever. Demo reliability beats features.
 
+## No AI co-authors (team rule)
+- Never list Claude, Codex or any AI tool as a co-author or contributor: no `Co-Authored-By`, session links or "Generated with" lines in commits or PR descriptions. Commits are authored by the human teammate.
+- Enforced by `.claude/settings.json` (`attribution` off) and the `.githooks/commit-msg` hook. `npm run setup` turns the hook on (`git config core.hooksPath .githooks`); run it once after cloning.
+
 ## Mixed team: Claude Code + Codex
 - The repo is the single source of truth. Plans and decisions live in PLAN.md / TASKS.md, not in anyone's chat.
 - Claim a task in TASKS.md (your name + tool) before starting, and push that change first so nobody duplicates it.

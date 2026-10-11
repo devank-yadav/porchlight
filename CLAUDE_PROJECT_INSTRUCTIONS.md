@@ -1,22 +1,22 @@
-Paste everything below the line into the Claude Project's "Instructions" box.
-Add these repo files as Project knowledge (or connect the GitHub repo if your plan offers it): AGENTS.md, TEAM_PLAN.md, PLAN.md, TASKS.md, README.md.
+# Claude project: "Porchlight – c0mpiled"
+
+Created on claude.ai and linked to github.com/devank-yadav/porchlight (Settings → Environment → Project repositories).
+The team brief is in the project's Goal field (Settings → General). If you recreate the project, paste the brief below into Goal and add the repo.
 
 ---
 
-You are helping a 3-person team build Porchlight at the c0mpiled hackathon (Penn State, Oct 11 2026; feature freeze 6:30 PM, judging 8:00 PM). Track 1B, YC RFS "AI for the Aging Population"; also targeting the Bloomerang (nonprofits) and MongoDB prizes.
+Win c0mpiled Track 1B (judging 8:00 PM Oct 11 2026, feature freeze 6:30 PM) with Porchlight. The repo is the source of truth; read AGENTS.md and TEAM_PLAN.md there first.
 
-Porchlight: an AI calls an older adult living alone, notices problems (scam calls, a missing ride, errands, unsure about pills), and closes the loop with family approval. The family sees a short digest, approves actions (rides are a clearly labeled simulated booking), and claims tasks; the senior only hears confirmed facts. Wedge: nonprofits running telephone reassurance programs.
+Porchlight: an AI calls an older adult living alone, notices problems (scam calls, a missing ride, errands, unsure about pills), and closes the loop with family approval. Family sees a short digest, approves actions (rides are a clearly labeled simulated booking), and claims tasks; the senior only hears confirmed facts. Wedge: nonprofits running telephone reassurance programs. Also targeting the Bloomerang and MongoDB prizes.
 
-Team (see TEAM_PLAN.md for tasks and the data contract):
+Team (tasks + data contract in TEAM_PLAN.md):
 - Person A, voice & AI + demo lead (Claude Code): server/src/voice/*
 - Person B, backend & workflows (Codex): server/src/care/*, server/src/store.js
-- Person C, iOS app (Claude Code): mobile/* (Expo SDK 57, runs in Expo Go)
+- Person C, iOS app (Claude Code): mobile/* (Expo SDK 57, Expo Go)
 
-When helping:
-- The GitHub repo is the source of truth. If we decide something here, tell me which repo file to update.
-- Keep answers short and practical; we are under time pressure.
-- Respect folder ownership and the contract in TEAM_PLAN.md; don't propose changes to another person's folder without flagging it.
-- Give complete, drop-in code for one file at a time. App code uses theme.js tokens and ui.js components and only Expo modules that run in Expo Go.
+Rules:
+- Never add Claude as a co-author or contributor: no Co-Authored-By or "Generated with Claude" lines in commits or PRs.
+- Respect folder ownership and the contract; never edit another person's folder without flagging it.
 - The app must run with an empty .env; every external service needs a fallback.
-- Never suggest medical advice, asking seniors for money/codes, hiding that Porchlight is an AI, or claiming a simulated booking is real.
-- Pitch help: lead with the floor-fall story, show the live call, approve the ride, close with "It doesn't just remind. It follows through."
+- Never: medical advice, asking seniors for money/codes, hiding that Porchlight is an AI, or presenting a simulated booking as real.
+- Keep answers short. Decisions go back into the repo (PLAN.md / TASKS.md).

@@ -4,6 +4,13 @@ Goal: by **6:30 PM feature freeze**, this works live, end to end, with fictional
 **AI calls Peggy → she mentions a scam call, a ride she doesn't have, and milk she needs → Anne's phone shows it → Anne approves the ride, Mark claims the milk → Peggy hears only confirmed facts.**
 Judging 8:00 PM. Everyone reads AGENTS.md first (rules for every coding agent).
 
+## Setup (5 minutes, everyone)
+1. Accept the GitHub invite to **github.com/devank-yadav/porchlight**, then `git clone` it.
+2. `npm run setup` (also turns on the git hook that keeps AI tools out of the commit credits), then `npm run dev`.
+3. Install **Expo Go** on your iPhone and scan the QR code.
+4. Claude users: open the **"Porchlight – c0mpiled"** Claude project (it's linked to the repo), or run Claude Code in your clone. Codex user: run Codex CLI in your clone, or connect Codex cloud to the repo.
+5. Put your name next to your role below and in TASKS.md, and push.
+
 ## Who does what
 
 | | Person A — Voice & AI + demo lead | Person B — Backend & workflows | Person C — iOS app (UI) |

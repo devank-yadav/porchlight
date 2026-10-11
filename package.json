@@ -3,7 +3,7 @@
   "private": true,
   "description": "Daily check-ins for older adults living alone, with family, neighbors and volunteers in the loop. iOS app (Expo) + Node server.",
   "scripts": {
-    "setup": "npm install && npm install --prefix server && npm install --prefix mobile",
+    "setup": "git config core.hooksPath .githooks && npm install && npm install --prefix server && npm install --prefix mobile",
     "dev": "concurrently -n api,app -c yellow,blue \"npm run dev --prefix server\" \"npm start --prefix mobile\"",
     "server": "npm run dev --prefix server",
     "app": "npm start --prefix mobile",
