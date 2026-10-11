@@ -5,6 +5,7 @@ import * as store from '../store.js';
 import * as escalation from './escalation.js';
 import { sms } from '../voice/notify.js';
 import { proposeRide } from './actions.js';
+import { markDueTaken } from './meds.js';
 
 // Who should do it: errands/repairs → neighbor or the sibling with the fewest done tasks; refills/meds → primary.
 async function suggestOwner(senior, type, members) {
@@ -39,6 +40,9 @@ export async function handleCheckinOutcome(senior, checkin, a) {
       handoff: null, sensitive: false,
     });
   }
+
+  // She said on the call she took her pills: every dose due so far today is marked taken ("by call").
+  if (a.medStatus === 'taken' && senior.meds?.length) await markDueTaken(senior, 'call');
 
   if (a.medStatus === 'unsure') {
     const primary = members.find((m) => m.primary);

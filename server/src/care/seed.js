@@ -1,5 +1,6 @@
 // Demo data. Every person and organization here is fictional sample data.
 import * as store from '../store.js';
+import { localNow } from './meds.js';
 
 const daysAgo = (n, hour = 10) => {
   const d = new Date();
@@ -55,9 +56,10 @@ export async function seed() {
       'Granddaughter Maya is a sophomore at Penn State.',
       'Stopped driving last spring.',
     ],
+    // times are Peggy's local HH:MM; `when` is the readable form the call prompt uses (see care/meds.js).
     meds: [
-      { name: 'blood pressure pill', when: 'morning' },
-      { name: 'vitamin D', when: 'morning' },
+      { id: 'med_bp', name: 'blood pressure pill', dose: '1 tablet', times: ['08:00', '20:00'], when: '8:00 AM and 8:00 PM' },
+      { id: 'med_vitd', name: 'vitamin D', dose: '1 capsule', times: ['08:00'], when: '8:00 AM' },
     ],
     status: 'waiting',
   });
@@ -104,6 +106,15 @@ export async function seed() {
       transcript: [], summary: h.summary, mood: h.mood, medsTaken: h.medsTaken, medStatus: h.medStatus, flags: [],
       starters: [], stories: h.stories, requests: [],
     });
+  }
+
+  // This morning's pills, marked Taken from her phone at 8:06 (only if it's already past 8 her time).
+  const { date, minutes } = localNow('America/New_York');
+  if (minutes >= 8 * 60 + 6) {
+    const at = new Date(Date.now() - (minutes - (8 * 60 + 6)) * 60000).toISOString();
+    for (const [medId, name] of [['med_bp', 'blood pressure pill'], ['med_vitd', 'vitamin D']]) {
+      await store.insert('doses', { _id: `peggy:${medId}:${date}:08:00`, seniorId: 'peggy', medId, name, date, time: '08:00', status: 'taken', by: 'peggy', at });
+    }
   }
 
   // Tomorrow 2:00 PM: the appointment the ride rescue is about.

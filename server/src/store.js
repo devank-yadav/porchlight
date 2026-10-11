@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 
 const COLLECTIONS = [
   'seniors', 'members', 'checkins', 'tasks', 'escalations', 'events', 'scamChecks',
-  'appointments', 'actions', 'preferences', 'audit', 'notices',
+  'appointments', 'actions', 'preferences', 'audit', 'notices', 'doses',
 ];
 
 let db = null;
