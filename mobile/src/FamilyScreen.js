@@ -542,7 +542,7 @@ const MEMORY = /remember|used to|when i was|back in|years ago|growing up|my (lat
 function liveStories(checkin) {
   return (checkin.transcript || [])
     .filter((t) => t.who === 'senior' && MEMORY.test(t.text))
-    .map((t) => ({ title: t.text.split(/[.!?]/)[0].slice(0, 48), text: t.text, at: t.at, live: true }));
+    .map((t) => ({ title: 'Something she just shared', text: t.text, at: t.at, live: true }));
 }
 // Accept both field spellings while the server shape settles (quote/text, about/people, followUp/askNext).
 // quote = her most vivid sentence, exactly as said; text = the memory retold in her words.
