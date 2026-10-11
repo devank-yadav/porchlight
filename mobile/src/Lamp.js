@@ -13,10 +13,10 @@ export function lampState(senior) {
 }
 
 const PALETTE = {
-  lit: { core: '#F5A524', flame: '#FFD27A', glass: '#FFF6E0', metal: '#2B3A60', halo: 1 },
-  dim: { core: '#9AA6C2', flame: '#C9D1E3', glass: '#EEF1F8', metal: '#55627F', halo: 0.35 },
-  amber: { core: '#D98A1E', flame: '#F2C46B', glass: '#FBEFD9', metal: '#6A4300', halo: 0.6 },
-  alert: { core: '#E0573A', flame: '#F08A6E', glass: '#FDE9E4', metal: '#6B2A1D', halo: 1 },
+  lit: { core: '#F5A524', flame: '#FFD27A', glass: '#FFF6E0', metal: '#8C98B4', halo: 0.9 },
+  dim: { core: '#6B7792', flame: '#AAB4C8', glass: '#D9DFEA', metal: '#6B7792', halo: 0.18 },
+  amber: { core: '#D98A1E', flame: '#F2C46B', glass: '#FBEFD9', metal: '#B07A2A', halo: 0.6 },
+  alert: { core: '#E0573A', flame: '#F08A6E', glass: '#FDE9E4', metal: '#C2614B', halo: 1 },
 };
 
 export default function Lamp({ state = 'dim', size = 120, label }) {
@@ -46,13 +46,13 @@ export default function Lamp({ state = 'dim', size = 120, label }) {
       <Animated.View style={{ position: 'absolute', width: size, height: size, opacity: Animated.multiply(pulse, p.halo) }}>
         <Svg viewBox="0 0 120 120" width={size} height={size}>
           <Defs>
-            <RadialGradient id="glow" cx="50%" cy="58%" r="50%">
+            <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
               <Stop offset="0%" stopColor={p.core} stopOpacity="1" />
-              <Stop offset="45%" stopColor={p.core} stopOpacity="0.35" />
+              <Stop offset="40%" stopColor={p.core} stopOpacity="0.28" />
               <Stop offset="100%" stopColor={p.core} stopOpacity="0" />
             </RadialGradient>
           </Defs>
-          <Circle cx="60" cy="68" r="56" fill="url(#glow)" />
+          <Circle cx="60" cy="60" r="60" fill="url(#glow)" />
         </Svg>
       </Animated.View>
       <Svg viewBox="0 0 120 120" width={size} height={size}>
