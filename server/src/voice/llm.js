@@ -221,7 +221,8 @@ export async function reply(senior, transcript, { appointments = [], memory = {}
       console.warn('[llm] streamed reply failed:', e.message);
     }
     if (spoken) return spoken;
-    const fallback = mockReply(senior, transcript);
+    // The AI was slow or down: don't recite a scripted line that ignores what she said; ask her to repeat.
+    const fallback = "Sorry, I missed that. Could you say it once more?";
     onSentence(fallback);
     return fallback;
   }
