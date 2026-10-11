@@ -99,7 +99,7 @@ export async function reply(senior, transcript, { appointments = [] } = {}) {
 
 // Word-bounded so "stairs", "first", "wired" or "fell asleep" never trip an alarm.
 const SCAM_WORDS = /gift ?cards?|\bwire (the |some )?money|western union|\bbitcoin|\bcrypto(currency)?\b|bank (called|account|number)|social security (number|card)|\bssn\b|\birs\b|\bwarrant\b|\bbail\b|\barrest(ed)?\b|you(’|')?ve won|won (the|a) (lottery|sweepstakes|prize)|\blottery\b|computer virus|tech support|grand(son|daughter|kid).*(trouble|jail|arrest|accident|lawyer)|keep (it|this) (a )?secret|verification code|one.?time code|medicare (card|number)|pin number|password/i;
-const URGENT_WORDS = /\bfell (down|over|off|in|on|out|and|again|last|this|yesterday|today)\b|\bi fell\b(?! asleep)|\b(had|took) a (bad )?fall\b|\b(i('|’)ve|have) fallen\b|can(’|')?t (get up|breathe|stand up|move my)|chest (pain|hurts)|bleeding|hit my head|\bfainted\b|passed out/i;
+export const URGENT_WORDS = /\bfell (down|over|off|in|on|out|and|again|last|this|yesterday|today)\b|\bi fell\b(?! asleep)|\b(had|took) a (bad )?fall\b|\b(i('|’)ve|have) fallen\b|can(’|')?t (get up|breathe|stand up|move my)|chest (pain|hurts)|bleeding|hit my head|\bfainted\b|passed out/i;
 const MED_UNSURE_WORDS = /(not sure|don(’|')?t (remember|know)|can(’|')?t remember|forget|forgot) (if|whether|about)? ?(i )?(took|taken|take)?.*(pill|med|tablet|dose)|(pill|med|tablet|dose).*(not sure|don(’|')?t remember|can(’|')?t remember)/i;
 const NO_RIDE_WORDS = /(don(’|')?t|do not|no) (have )?(a )?ride|no way to get|can(’|')?t get there|nobody to (drive|take) me/i;
 const RIDE_WORDS = /\bride\b|doctor|appointment|dentist|pharmacy|groceries|grocery|store|pick ?up|drive me/i;

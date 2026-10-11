@@ -1,7 +1,8 @@
 // OWNER: Person A (voice & AI).
 // A check-in conversation: start → turns → finish (analyze, then hand off to care/outcomes.js).
 import * as store from '../store.js';
-import { reply, analyze, greeting } from './llm.js';
+import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
+import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
 
 export const MAX_TURNS = 6;
@@ -37,10 +38,24 @@ export async function addTurn(checkinId, text) {
   const senior = await store.get('seniors', checkin.seniorId);
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
   const answer = await reply(senior, transcript, { appointments: await appointmentsFor(senior._id) });
+  // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
+  if (URGENT_WORDS.test(text) && !checkin.urgentAlertedAt) {
+    await alertFamilyNow(senior, text);
+    checkin.urgentAlertedAt = new Date().toISOString();
+    await store.update('checkins', checkinId, { urgentAlertedAt: checkin.urgentAlertedAt });
+  }
   transcript.push({ who: 'porchlight', text: answer, at: new Date().toISOString() });
   await store.update('checkins', checkinId, { transcript });
   const turns = transcript.filter((t) => t.who === 'senior').length;
   return { reply: answer, ended: turns >= MAX_TURNS };
+}
+
+async function alertFamilyNow(senior, said) {
+  await store.update('seniors', senior._id, { status: 'help' });
+  const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
+  for (const m of members.filter((m) => m.role === 'family')) {
+    await sms(m, `URGENT: during her check-in call just now ${senior.preferredName} said: "${said}". Please call her now. If you can't reach her, call 911.`);
+  }
 }
 
 export async function finishCheckin(checkinId) {
