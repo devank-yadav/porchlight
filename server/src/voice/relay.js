@@ -11,19 +11,24 @@ export const relayEnabled = () => process.env.VOICE_MODE === 'relay';
 
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 
+// Live-call voice. ElevenLabs sounds the most human (billed through Twilio, no extra account).
+// To go back to Google: RELAY_VOICE=Google.en-US-Chirp3-HD-Aoede in .env.
+const RELAY_VOICE = process.env.RELAY_VOICE || 'ElevenLabs.21m00Tcm4TlvDq8ikWAM'; // "Rachel": calm, warm, clear
+
 // "Google.en-US-Chirp3-HD-Aoede" → Google + en-US-Chirp3-HD-Aoede; "Polly.Joanna-Neural" → Amazon + Joanna-Neural.
 function ttsFor(voice) {
   const [provider, ...rest] = voice.split('.');
   const name = rest.join('.');
   if (provider === 'Google') return { ttsProvider: 'Google', voice: name };
   if (provider === 'Polly') return { ttsProvider: 'Amazon', voice: name.replace(/-(Neural|Generative)$/, '') };
+  if (provider === 'ElevenLabs') return { ttsProvider: 'ElevenLabs', voice: name };
   return { ttsProvider: 'Google', voice: 'en-US-Chirp3-HD-Aoede' };
 }
 
 export function relayTwiml(checkin) {
   const base = process.env.PUBLIC_URL.replace(/\/$/, '');
   const wss = base.replace(/^http/, 'ws') + '/twilio/relay';
-  const { ttsProvider, voice } = ttsFor(VOICE);
+  const { ttsProvider, voice } = ttsFor(RELAY_VOICE);
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Connect action="${base}/twilio/relay-done?checkinId=${checkin._id}">`
     + `<ConversationRelay url="${wss}" welcomeGreeting="${xml(checkin.transcript[0].text)}" ttsProvider="${ttsProvider}" voice="${voice}" language="en-US" interruptible="true" hints="${HINTS}">`
     + `<Parameter name="checkinId" value="${checkin._id}"/>`
