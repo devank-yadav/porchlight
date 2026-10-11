@@ -22,7 +22,7 @@ export async function geocode(query) {
   return hit;
 }
 
-export function uberLink({ from, to, place, placeLatLng } = {}) {
+export function uberLink({ from, to, place, placeLatLng, pickupPlace, pickupLatLng } = {}) {
   // place: a destination she named on the call ("the grocery store"): used as is, never swapped for RIDE_DROPOFF_ADDRESS.
   const clean = (s) => String(s || '').replace(/\s*\(sample\)/i, '').trim();
   const q = new URLSearchParams({ action: 'setPickup' });
@@ -33,8 +33,10 @@ export function uberLink({ from, to, place, placeLatLng } = {}) {
     const [lat, lng] = String(latlng || '').split(',').map((n) => n.trim());
     if (lat && lng) { q.set(`${key}[latitude]`, lat); q.set(`${key}[longitude]`, lng); }
   };
-  const pickup = clean(process.env.RIDE_HOME_ADDRESS || from);
-  if (pickup) { pin('pickup', process.env.RIDE_HOME_LATLNG); q.set('pickup[formatted_address]', pickup); q.set('pickup[nickname]', 'Home'); } else q.set('pickup', 'my_location');
+  // pickupPlace: somewhere other than home that she named ("from the library").
+  if (pickupPlace) { pin('pickup', pickupLatLng); q.set('pickup[formatted_address]', clean(pickupPlace)); q.set('pickup[nickname]', clean(pickupPlace).split(',')[0]); }
+  const pickup = pickupPlace ? null : clean(process.env.RIDE_HOME_ADDRESS || from);
+  if (pickupPlace) { /* set above */ } else if (pickup) { pin('pickup', process.env.RIDE_HOME_LATLNG); q.set('pickup[formatted_address]', pickup); q.set('pickup[nickname]', 'Home'); } else q.set('pickup', 'my_location');
   const dropoff = place ? clean(place) : clean(process.env.RIDE_DROPOFF_ADDRESS || to);
   if (dropoff) { if (place && placeLatLng) pin('dropoff', placeLatLng); else if (!place && process.env.RIDE_DROPOFF_ADDRESS) pin('dropoff', process.env.RIDE_DROPOFF_LATLNG); q.set('dropoff[formatted_address]', dropoff); q.set('dropoff[nickname]', dropoff.split(',')[0]); }
   return `https://m.uber.com/ul/?${q.toString()}`;

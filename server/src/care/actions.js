@@ -6,7 +6,7 @@
 // family gets a heads-up text with an Uber link. A family can turn "Ask me before booking rides" back on (senior.askBeforeRides).
 import * as store from '../store.js';
 import * as audit from './audit.js';
-import { sms, tellSenior } from '../voice/notify.js';
+import { sms, tellSenior, push } from '../voice/notify.js';
 import { uberLink } from './uber.js';
 
 const SANDBOX_STEP_MS = Number(process.env.SANDBOX_STEP_MS || 2000);
@@ -72,6 +72,8 @@ export async function proposeRide(senior, appointment, quote) {
     seniorId: senior._id, kind: 'uber', actionId: booked._id, uberLink: booked.details.uberLink, simulated: false, at: new Date().toISOString(),
     text: `Your ride to the ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}: tap "Book my Uber" and Uber opens with your home and the clinic filled in. Leave by ${fmtTime(pickupAt)}.`,
   });
+  // Her phone gets the Uber notification too: tap it and Uber opens with home and the clinic filled in.
+  await push(senior, { title: `Your Uber to the ${appointment.title.toLowerCase()} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: booked.details.uberLink });
   for (const m of fam) {
     await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}, pickup ${fmtTime(pickupAt)}. Porchlight set up her Uber ride; she books it from her Porchlight screen.`);
   }

@@ -103,6 +103,14 @@ voiceRoutes.delete('/api/seniors/:id/questions/:qid', wrap(async (req, res) => {
   res.json(updated.familyQuestions);
 }));
 
+// Peggy's phone registers for notifications (Expo push token from the app).
+voiceRoutes.post('/api/seniors/:id/push-token', wrap(async (req, res) => {
+  const token = String(req.body.token || '');
+  if (!/^ExponentPushToken\[.+\]$|^ExpoPushToken\[.+\]$/.test(token)) return res.status(400).json({ error: 'Not an Expo push token.' });
+  await store.update('seniors', req.params.id, { pushToken: token });
+  res.json({ ok: true });
+}));
+
 voiceRoutes.put('/api/seniors/:id/schedule', wrap(async (req, res) => {
   res.json(scheduleOf(await setSchedule(req.params.id, req.body || {})));
 }));

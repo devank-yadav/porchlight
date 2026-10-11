@@ -75,3 +75,27 @@ export async function tellSenior(senior, text) {
   console.log(`[notify] -> ${senior.preferredName} (senior): ${text}`);
   return entry;
 }
+
+// Phone notification to the senior's iPhone through Expo's push service (token saved by the app).
+// No token or offline → logged only, like texts.
+export async function push(senior, { title, body, url }) {
+  const entry = { at: new Date().toISOString(), to: senior.preferredName, toId: senior._id, text: `${title}: ${body}`, delivered: 'logged' };
+  feed.push(entry);
+  if (senior.pushToken) {
+    try {
+      const res = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ to: senior.pushToken, title, body, sound: 'default', data: { url } }),
+        signal: AbortSignal.timeout(5000),
+      });
+      const out = await res.json().catch(() => ({}));
+      entry.delivered = out?.data?.status === 'ok' ? 'push' : 'failed';
+      if (entry.delivered === 'failed') console.warn('[notify] push failed:', JSON.stringify(out).slice(0, 200));
+    } catch (e) {
+      console.warn('[notify] push failed:', e.message);
+      entry.delivered = 'failed';
+    }
+  }
+  console.log(`[notify] -> ${senior.preferredName} (push): ${title}`);
+  return entry;
+}
