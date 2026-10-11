@@ -351,7 +351,7 @@ function ActionCard({ action, state, me, run, senior }) {
       )}
       {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <T v="footnote" muted>{last.evidence.note}</T> : null}
       {d.uberLink && !ended && action.status !== 'COMPLETED' ? (
-        <Button size="sm" icon="car.side" label="Book a real Uber instead" accessibilityHint="Opens Uber with the pickup and drop-off filled in." onPress={() => Linking.openURL(d.uberLink)} style={{ alignSelf: 'flex-start' }} />
+        <T v="footnote" muted>{senior.preferredName} can book a real Uber from her own screen. Nothing for you to do.</T>
       ) : null}
 
       {pending && (canApprove ? (
