@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { api } from './api';
 import Lamp, { lampState } from './Lamp';
 import { ago } from './useAppState';
-import { Button, Card, Chip, H1, H2, Meta, P, Segmented } from './ui';
+import { Button, Card, Chip, H1, H2, Meta, P, Segmented, tap } from './ui';
 import { color, font, radius } from './theme';
 
 const MOOD = { good: 'Cheerful', okay: 'Steady', low: 'A bit down' };
@@ -14,6 +14,36 @@ function medLabel(c) {
   if (!c) return null;
   if (c.medStatus && MED[c.medStatus]) return MED[c.medStatus];
   return c.medsTaken === true ? 'Taken (she said)' : c.medsTaken === false ? 'Not yet' : 'No answer';
+}
+
+// Daily call schedule (server: voice/schedule.js). Times are the senior's local time.
+const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const toMin = (hhmm) => { const [h, m] = (hhmm || '10:00').split(':').map(Number); return h * 60 + m; };
+const toHHMM = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+function clock(hhmm) {
+  const min = toMin(hhmm);
+  const h = Math.floor(min / 60);
+  return `${h % 12 || 12}:${String(min % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+// Ring her phone now, and say so (the call itself happens on her phone, not this one).
+const callNow = (senior, run) => run(async () => {
+  await api.phoneCall(senior._id);
+  Alert.alert(`Calling ${senior.preferredName}`, 'Her phone is ringing now. You’ll see what she shared here when the call ends.');
+});
+function nextCallLabel(senior) {
+  if (!senior.autoCall) return 'Not scheduled';
+  const days = senior.callDays || [0, 1, 2, 3, 4, 5, 6];
+  const tz = senior.timezone || 'America/New_York';
+  const now = new Date();
+  const local = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+  const nowMin = local.getHours() * 60 + local.getMinutes();
+  for (let i = 0; i < 8; i++) {
+    const d = (local.getDay() + i) % 7;
+    if (!days.includes(d) || (i === 0 && toMin(senior.checkinTime) <= nowMin)) continue;
+    return `${i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAY_NAMES[d]} ${clock(senior.checkinTime)}`;
+  }
+  return 'Not scheduled';
 }
 
 const TRANSPORT = {
@@ -140,8 +170,9 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
             <View style={st.facts}>
               {latest?.mood && <Fact label="Mood" value={MOOD[latest.mood]} />}
               {latest && <Fact label="Pills" value={medLabel(latest)} />}
-              <Fact label="Next call" value={`Tomorrow ${senior.checkinTime}`} />
+              <Fact label="Next call" value={nextCallLabel(senior)} />
             </View>
+            <Button label={`Call ${senior.preferredName} now`} variant="light" accessibilityHint={`Porchlight phones ${senior.preferredName} right away for a check-in.`} onPress={callNow(senior, run)} />
             {lastResolved && Date.now() - new Date(lastResolved.resolvedAt).getTime() < 3600000 && (
               <Text style={st.note}>Earlier alert resolved by {lastResolved.resolvedBy}, {ago(lastResolved.resolvedAt)}.</Text>
             )}
@@ -302,6 +333,8 @@ function Care({ senior, state, me, run, circle }) {
 
   return (
     <>
+      <DailyCall senior={senior} run={run} />
+
       <Card>
         <H2>Care tasks</H2>
         {open.length === 0 && <P muted>Nothing open. Add something below.</P>}
@@ -337,6 +370,54 @@ function Care({ senior, state, me, run, circle }) {
         ))}
       </Card>
     </>
+  );
+}
+
+function DailyCall({ senior, run }) {
+  const [autoCall, setAutoCall] = useState(!!senior.autoCall);
+  const [min, setMin] = useState(toMin(senior.checkinTime));
+  const [days, setDays] = useState(senior.callDays || [0, 1, 2, 3, 4, 5, 6]);
+  const saved = autoCall === !!senior.autoCall && toHHMM(min) === senior.checkinTime
+    && [...days].sort().join() === [...(senior.callDays || [0, 1, 2, 3, 4, 5, 6])].sort().join();
+  const step = (d) => { tap(); setMin((m) => (m + d + 1440) % 1440); };
+  const toggleDay = (d) => { tap(); setDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d])); };
+  const first = senior.preferredName;
+
+  return (
+    <Card>
+      <View style={st.callTop}>
+        <View style={{ flex: 1 }}>
+          <H2>Daily call</H2>
+          <Meta>Porchlight phones {first} at this time for a short chat. Her time.</Meta>
+        </View>
+        <Switch value={autoCall} onValueChange={(v) => { tap(); setAutoCall(v); }} trackColor={{ true: color.sage }} accessibilityLabel={`Call ${first} every day`} />
+      </View>
+
+      <View style={[st.timeRow, !autoCall && { opacity: 0.45 }]}>
+        <Button small label="−15" onPress={() => step(-15)} disabled={!autoCall} accessibilityHint="Fifteen minutes earlier" />
+        <Text style={st.time} accessibilityLabel={`Call time ${clock(toHHMM(min))}`}>{clock(toHHMM(min))}</Text>
+        <Button small label="+15" onPress={() => step(15)} disabled={!autoCall} accessibilityHint="Fifteen minutes later" />
+      </View>
+
+      <View style={[st.days, !autoCall && { opacity: 0.45 }]}>
+        {DAYS.map((label, d) => {
+          const on = days.includes(d);
+          return (
+            <Pressable key={d} disabled={!autoCall} onPress={() => toggleDay(d)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={DAY_NAMES[d]} style={[st.day, on && st.dayOn]}>
+              <Text style={[st.dayText, on && { color: '#fff' }]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Button
+        variant="solid"
+        label={saved ? (autoCall ? `Next call: ${nextCallLabel(senior)}` : 'Daily call is off') : 'Save schedule'}
+        disabled={saved || (autoCall && !days.length)}
+        onPress={run(() => api.setSchedule(senior._id, { autoCall, checkinTime: toHHMM(min), callDays: days }))}
+      />
+      <Button label={`Call ${first} now`} onPress={callNow(senior, run)} accessibilityHint={`Porchlight phones ${first} right away.`} />
+    </Card>
   );
 }
 
@@ -472,6 +553,13 @@ const st = StyleSheet.create({
   quoteSmall: { fontFamily: font.bodyItalic, fontSize: 16, lineHeight: 22, color: color.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: color.line },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  callTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  time: { fontFamily: font.display, fontSize: 34, color: color.dusk },
+  days: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
+  day: { flex: 1, minHeight: 44, borderRadius: radius.sm, borderWidth: 1, borderColor: color.line, alignItems: 'center', justifyContent: 'center' },
+  dayOn: { backgroundColor: color.dusk, borderColor: color.dusk },
+  dayText: { fontFamily: font.bodyBold, fontSize: 16, color: color.dusk },
   addInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.line, borderRadius: radius.sm, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shareName: { width: 64, fontFamily: font.body, fontSize: 15, color: color.ink },

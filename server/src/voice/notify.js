@@ -5,6 +5,9 @@ const SID = process.env.TWILIO_ACCOUNT_SID;
 const TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const FROM = process.env.TWILIO_FROM_NUMBER;
 export const twilioEnabled = Boolean(SID && TOKEN && FROM);
+// Phone voice. Google Chirp3-HD voices sound like a person; any Twilio <Say> voice works here
+// (e.g. Polly.Joanna-Neural, Polly.Ruth-Generative). Override with TWILIO_VOICE in .env.
+export const VOICE = process.env.TWILIO_VOICE || 'Google.en-US-Chirp3-HD-Aoede';
 
 const feed = [];
 export const recentNotifications = () => feed.slice(-30).reverse();
@@ -57,7 +60,7 @@ export async function tellSenior(senior, text) {
     try {
       await twilio('Calls.json', {
         To: senior.phone, From: FROM, // no Timeout: Twilio trial accounts reject it
-        Twiml: `<Response><Say voice="Polly.Joanna">Hi ${senior.preferredName}, it's Porchlight. ${say} Have a good day.</Say></Response>`,
+        Twiml: `<Response><Say voice="${VOICE}">Hi ${senior.preferredName}, it's Porchlight. ${say} Have a good day.</Say></Response>`,
       });
       entry.delivered = 'call';
     } catch (e) {

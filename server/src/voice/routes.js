@@ -3,7 +3,8 @@
 import { Router } from 'express';
 import * as store from '../store.js';
 import { scamCheck } from './llm.js';
-import { sms, placeCall, twilioEnabled } from './notify.js';
+import { sms, VOICE } from './notify.js';
+import { callSenior, setSchedule, scheduleOf, startScheduler } from './schedule.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
 import * as escalation from '../care/escalation.js';
 import { wrap } from '../wrap.js';
@@ -57,19 +58,22 @@ voiceRoutes.post('/api/scam-check', wrap(async (req, res) => {
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 const twiml = (inner) => `<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`;
 const gather = (say, checkinId, silent = 0) =>
-  `<Gather input="speech" speechTimeout="auto" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="Polly.Joanna">${xml(say)}</Say></Gather>` +
+  `<Gather input="speech" speechTimeout="auto" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="${VOICE}">${xml(say)}</Say></Gather>` +
   `<Redirect method="POST">/twilio/turn?checkinId=${checkinId}&amp;silent=${silent + 1}</Redirect>`;
 
+// "Call now" in the app.
 voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
-  if (!twilioEnabled || !process.env.PUBLIC_URL) {
-    return res.status(400).json({ error: 'Phone calls need TWILIO_* and PUBLIC_URL in .env. Use "Talk" in the app instead.' });
-  }
-  const senior = await store.get('seniors', req.params.id);
-  const { checkin } = await startCheckin(senior._id, 'phone');
-  const base = process.env.PUBLIC_URL.replace(/\/$/, '');
-  await placeCall(senior.phone, `${base}/twilio/voice?checkinId=${checkin._id}`, `${base}/twilio/status?checkinId=${checkin._id}`);
-  res.json(checkin);
+  res.json(await callSenior(req.params.id, 'now'));
 }));
+
+// Daily call schedule: { autoCall, checkinTime: "HH:MM", callDays: [0-6] }.
+voiceRoutes.get('/api/seniors/:id/schedule', wrap(async (req, res) => {
+  res.json(scheduleOf(await store.get('seniors', req.params.id)));
+}));
+voiceRoutes.put('/api/seniors/:id/schedule', wrap(async (req, res) => {
+  res.json(scheduleOf(await setSchedule(req.params.id, req.body || {})));
+}));
+startScheduler();
 
 voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
@@ -83,13 +87,13 @@ voiceRoutes.post('/twilio/turn', wrap(async (req, res) => {
     // Never loop forever on a silent line: two retries, then a kind goodbye.
     // (/twilio/status still finishes the check-in or starts the missed ladder.)
     const silent = Number(req.query.silent || 0);
-    if (silent >= 3) return res.type('text/xml').send(twiml(`<Say voice="Polly.Joanna">I'm having trouble hearing you, so I'll say goodbye for now. If you need anything, press your help button. Take care.</Say><Hangup/>`));
+    if (silent >= 3) return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">I'm having trouble hearing you, so I'll say goodbye for now. If you need anything, press your help button. Take care.</Say><Hangup/>`));
     return res.type('text/xml').send(twiml(gather("Sorry, I didn't catch that. Could you say that again?", id, silent)));
   }
   const { reply: answer, ended } = await addTurn(id, said);
   if (ended) {
     finishCheckin(id).catch(console.error);
-    return res.type('text/xml').send(twiml(`<Say voice="Polly.Joanna">${xml(answer)}</Say><Hangup/>`));
+    return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">${xml(answer)}</Say><Hangup/>`));
   }
   res.type('text/xml').send(twiml(gather(answer, id)));
 }));
