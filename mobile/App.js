@@ -39,8 +39,8 @@ const ROLES = [
 
 function Main() {
   const insets = useSafeAreaInsets();
-  const { state, error, setError, refresh } = useAppState();
   const [role, setRole] = useState(null);
+  const { state, error, setError, refresh } = useAppState(role?.id === 'family' ? role.who : null);
 
   const run = useCallback((fn) => async () => {
     try {

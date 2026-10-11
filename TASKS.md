@@ -32,7 +32,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [ ] C5 (Manasv, in progress) Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
 - [ ] C6 (Manasv, in progress) Amber unresolved state, red only for help
 - [ ] C7 (Manasv, in progress) Med status labels incl. Private
-- [ ] C8 Desk restyle + VoiceOver labels on Peggy's screen
+- [ ] C8 (Manasv, in progress) Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
 
 ## Done
