@@ -4,7 +4,7 @@ import * as store from '../store.js';
 import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
-import { handleIntent } from './intents.js';
+import { handleIntent, dueReminders } from './intents.js';
 
 export const MAX_TURNS = 10; // a natural chat, not an interrogation; then a kind wrap-up
 const BYE = /^\s*(ok(ay)?,? )?(bye|goodbye|talk (to you )?tomorrow)\b/i;
@@ -27,7 +27,7 @@ async function newNoticesFor(senior) {
 export async function startCheckin(seniorId, channel) {
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
-  const text = greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone' });
+  const text = greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
   const checkin = await store.insert('checkins', {
     seniorId, channel, status: 'in-progress', startedAt: new Date().toISOString(),
     transcript: [{ who: 'porchlight', text, at: new Date().toISOString() }],
