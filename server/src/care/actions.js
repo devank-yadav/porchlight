@@ -54,7 +54,7 @@ export async function proposeRide(senior, appointment, quote) {
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}`,
     reason: `${senior.preferredName} said: "${quote}"`,
-    details: { pickupAt, from: '12 Maple Ln (sample)', to: appointment.where, needs: 'Uses a cane', uberLink: uberLink({ from: '12 Maple Ln (sample)', to: appointment.where }) },
+    details: { pickupAt, from: '12 Maple Ln (sample)', to: appointment.where || appointment.title, needs: 'Uses a cane', uberLink: uberLink({ from: '12 Maple Ln (sample)', to: appointment.where || appointment.title }) },
     appointmentId: appointment._id, approverId: approver?._id ?? null, simulated: true, status: first,
     history: [{ status: first, at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: ask ? `From today's check-in call: "${quote}"` : `Booked from today's check-in call: "${quote}"; family notified` } }],
   });

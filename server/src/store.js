@@ -94,6 +94,11 @@ export async function update(coll, id, patch) {
   return structuredClone(d);
 }
 
+export async function remove(coll, id) {
+  if (db) await db.collection(coll).deleteOne({ _id: id });
+  else mem[coll] = mem[coll].filter((x) => x._id !== id);
+}
+
 export async function clearAll() {
   for (const c of COLLECTIONS) {
     if (db) await db.collection(c).deleteMany({});

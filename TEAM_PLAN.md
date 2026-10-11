@@ -42,6 +42,10 @@ B ships the **shapes and seed data first (by 2:45)**, even before the logic work
 // appointments (new)
 { _id, seniorId, title: 'Cardiology follow-up', with: 'Dr. Lena Ortiz (sample)', where: 'Valley Heart Clinic (sample)',
   startsAt: ISO /* tomorrow 2:00 PM */, transport: 'unknown'|'self'|'at_risk'|'requested'|'confirmed', actionId: null }
+// Added (calendar, Oct 11): appointments synced from Peggy's iPhone calendar also carry source: 'calendar',
+// calendarEventId, calendar (its name), endsAt, needsRide (false for video/phone visits), cancelled (true when
+// deleted from her calendar after a ride was set up), and with: null. POST /api/seniors/:id/calendar
+// { events, from, to } does the sync; senior.calendar = { connected, syncedAt, count }. See care/calendar.js.
 
 // actions (new) — anything the AI wants to DO that needs a human OK
 { _id, seniorId, kind: 'ride', title: 'Ride to cardiology tomorrow',
