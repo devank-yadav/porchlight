@@ -12,7 +12,7 @@ export const careRoutes = Router();
 
 // Everything the app needs in one call. The app polls this every 2 seconds.
 careRoutes.get('/api/state', wrap(async (_req, res) => {
-  const [seniors, members, checkins, tasks, escalations, events, scamChecks] = await Promise.all([
+  const [seniors, members, checkins, tasks, escalations, events, scamChecks, appointments, actions, notices] = await Promise.all([
     store.list('seniors'),
     store.list('members'),
     store.list('checkins', {}, { sort: { startedAt: -1 }, limit: 60 }),
@@ -20,9 +20,19 @@ careRoutes.get('/api/state', wrap(async (_req, res) => {
     store.list('escalations', {}, { sort: { createdAt: -1 }, limit: 20 }),
     store.list('events'),
     store.list('scamChecks', {}, { sort: { createdAt: -1 }, limit: 20 }),
+    store.list('appointments'),
+    store.list('actions'),
+    store.list('notices', {}, { sort: { at: -1 } }),
   ]);
+  // B1 placeholder; B6 adds urgency ordering and viewer-specific content.
+  const openTasks = tasks.filter((t) => t.seniorId === 'peggy' && t.status === 'open' && !t.hidden);
+  const digest = {
+    line: `${openTasks.length} ${openTasks.length === 1 ? 'task' : 'tasks'} open`,
+    items: [],
+  };
   res.json({
     seniors, members, checkins, tasks, escalations, events, scamChecks,
+    appointments, actions, notices, digest,
     notifications: recentNotifications(),
     config: { llm: llmEnabled, twilio: twilioEnabled, mongo: Boolean(process.env.MONGODB_URI) },
   });
@@ -35,7 +45,7 @@ careRoutes.post('/api/seniors/:id/ok', wrap(async (req, res) => {
   await store.insert('checkins', {
     seniorId: senior._id, channel: 'button', status: 'completed', startedAt: now, endedAt: now,
     transcript: [], summary: `${senior.preferredName} tapped "I'm okay".`, mood: 'okay',
-    medsTaken: null, flags: [], starters: [], stories: [], requests: [],
+    medsTaken: null, medStatus: 'no_answer', flags: [], starters: [], stories: [], requests: [],
   });
   await store.update('seniors', senior._id, { status: 'ok', lastCheckinAt: now });
   const n = await escalation.resolve(senior._id, `${senior.preferredName} herself`);

@@ -14,7 +14,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md; rehearse, video, Devpost still to do)
 
 ## Person B — Backend & workflows (Codex) — name: Rishi
-- [ ] B1 Contract seed + new fields in /api/state (by 2:45, push early) — claimed by Rishi (Codex), branch `care/contract-seed`
+- [x] B1 Contract seed + new fields in /api/state (by 2:45, push early) — Rishi (Codex), branch `care/contract-seed`
 - [ ] B2 actions.js: state machine, idempotent approve, 403 for non-approvers, history, audit
 - [ ] B3 Sandbox ride provider (clearly simulated), appointment transport, notice on confirm
 - [ ] B4 outcomes.js: ride → action, other requests → tasks with quote + suggested owner, meds unsure → sensitive task
