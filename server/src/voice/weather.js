@@ -38,3 +38,12 @@ export async function forecast(tz = 'America/New_York') {
     return null;
   }
 }
+
+// For the call prompt: whatever is cached right now, never waiting on the network (a reply must not stall
+// on weather). A fresh fetch starts in the background when the cache is cold or stale.
+export function cachedForecast(tz = 'America/New_York') {
+  const { lat, lng } = home();
+  const hit = cache.get(`${lat},${lng},${tz}`);
+  if (!hit || Date.now() - hit.at > 15 * 60000) forecast(tz).catch(() => {});
+  return hit?.text || null;
+}
