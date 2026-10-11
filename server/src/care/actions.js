@@ -3,7 +3,7 @@
 // PENDING_APPROVAL → APPROVED → REQUESTED → CONFIRMED → COMPLETED, or REJECTED / FAILED / CANCELLED.
 // The ride provider is a sandbox: every booking is simulated and labelled that way.
 // Rides no longer wait for the family (Devank, 2026-10-11): Porchlight books right away and the
-// family gets a heads-up text with an Uber link. RIDES_NEED_APPROVAL=1 brings the approval step back.
+// family gets a heads-up text with an Uber link. A family can turn "Ask me before booking rides" back on (senior.askBeforeRides).
 import * as store from '../store.js';
 import * as audit from './audit.js';
 import { sms, tellSenior } from '../voice/notify.js';
@@ -23,11 +23,13 @@ export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+// Her local time (Peggy is in New York), even when the server runs in UTC.
+const TZ = 'America/New_York';
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
 const fmtDay = (iso) => {
-  const d = new Date(iso);
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-  return d.toDateString() === tomorrow.toDateString() ? 'tomorrow' : d.toLocaleDateString('en-US', { weekday: 'long' });
+  const day = (x) => x.toLocaleDateString('en-US', { timeZone: TZ });
+  const tomorrow = new Date(Date.now() + 86400000);
+  return day(new Date(iso)) === day(tomorrow) ? 'tomorrow' : new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long' });
 };
 
 async function move(action, status, actor, evidence) {
@@ -56,7 +58,7 @@ export async function proposeRide(senior, appointment, quote) {
   });
   await store.update('appointments', appointment._id, { transport: 'at_risk', actionId: action._id });
   await audit.log('porchlight', 'action.proposed', { seniorId: senior._id, targetId: action._id, detail: action.title });
-  if (process.env.RIDES_NEED_APPROVAL === '1') {
+  if (senior.askBeforeRides === true) {
     if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
     return action;
   }
