@@ -35,15 +35,15 @@ export function relayTwiml(checkin) {
 }
 
 // Words she's likely to say, so the transcriber hears "headache", not "FedEx".
-const HINTS = 'headache,dizzy,pills,blood pressure,vitamin D,doctor,heart doctor,appointment,ride,milk,groceries,pharmacy,refill,scam,gift cards,grandson,Anne,Mark,Maya,Dolores,Peggy,Tella';
+const HINTS = 'headache,dizzy,pills,blood pressure,vitamin D,doctor,heart doctor,appointment,ride,milk,groceries,pharmacy,refill,scam,gift cards,grandson,Anne,Mark,Maya,Dolores,Peggy,Porchlight';
 
 // Roughly how long Twilio needs to say a line, so "goodbye" isn't cut off before we hang up.
 const speakMs = (text) => 1500 + text.split(/\s+/).length * 380;
 
 // Never leave her in silence or stuck:
-// - a turn that takes too long gets a short "Mm, let me think" so she knows Tella heard her;
+// - a turn that takes too long gets a short "Mm, let me think" so she knows Porchlight heard her;
 // - a turn that hangs is abandoned after TURN_LIMIT_MS with a kind line, and the call goes on;
-// - if she keeps talking while Tella is still thinking, those words are folded into the next turn
+// - if she keeps talking while Porchlight is still thinking, those words are folded into the next turn
 //   instead of being answered one by one after a delay.
 const FILLER_AFTER_MS = 1600;
 const TURN_LIMIT_MS = 12000;

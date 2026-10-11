@@ -1,4 +1,4 @@
-# Tella product
+# Porchlight product
 
 <!-- impeccable:product-schema 1 -->
 
@@ -16,11 +16,11 @@ An AI daily conversation turns expressed needs into visible requests, family tas
 
 ## Capabilities and Constraints
 
-Existing Expo SDK 57 / React Native application, running in Expo Go, backed by the existing Node API. Preserve existing check-in, speech, scam, help, task handoff, story, schedule and ride flows. Voice input uses keyboard dictation. The senior confirms a real ride through the Uber link; Tella simulation states never establish a real booking. Empty-environment demo operation is required. No new server data contracts in this redesign. The user authorized pushing the redesign and creating a PR after reviewing the local preview.
+Existing Expo SDK 57 / React Native application, running in Expo Go, backed by the existing Node API. Preserve existing check-in, speech, scam, help, task handoff, story, schedule and ride flows. Voice input uses keyboard dictation. The senior confirms a real ride through the Uber link; Porchlight simulation states never establish a real booking. Empty-environment demo operation is required. No new server data contracts in this redesign. The user authorized pushing the redesign and creating a PR after reviewing the local preview.
 
 ## Brand Commitments
 
-Tella name and lamp. Quiet neutrals, hairline borders and soft depth; lamp is the bold accent. Red is reserved for help and scams. Atkinson Hyperlegible for the older person, system type for family, SF Symbols and Reanimated with Reduce Motion support. Plain, warm sentence-case copy.
+Porchlight name and lamp. Quiet neutrals, hairline borders and soft depth; lamp is the bold accent. Red is reserved for help and scams. Atkinson Hyperlegible for the older person, system type for family, SF Symbols and Reanimated with Reduce Motion support. Plain, warm sentence-case copy.
 
 ## Evidence on Hand
 

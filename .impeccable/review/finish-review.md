@@ -1,4 +1,4 @@
-# Tella finish review
+# Porchlight finish review
 
 Original disposition: fix. Final verdict disposition: ship, at the six scored fixes and React Native web preview scope.
 

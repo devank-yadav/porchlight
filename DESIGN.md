@@ -1,5 +1,5 @@
 ---
-name: Tella
+name: Porchlight
 description: A legible daily page for older adults and the family around them.
 colors:
   family-bg: "#F1F3F4"
@@ -190,13 +190,13 @@ components:
     height: "66pt"
 ---
 
-# Design System: Tella
+# Design System: Porchlight
 
 ## Overview
 
 **Creative North Star: "The daily page"**
 
-Tella reads like a familiar daily agenda: a quiet paper ground, white task surfaces, charcoal text and clearly dated plans. The lamp gives status a recognizable visual presence. Plain words state the status and the next action.
+Porchlight reads like a familiar daily agenda: a quiet paper ground, white task surfaces, charcoal text and clearly dated plans. The lamp gives status a recognizable visual presence. Plain words state the status and the next action.
 
 The older person's experience makes reading and acting spacious; the family experience fits more coordination into compact rows. They share materials and appointments while retaining different type and control sizes. This document records the implemented consumer system; the retained dark palette and volunteer desk are outside this redesign.
 

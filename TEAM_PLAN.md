@@ -8,7 +8,7 @@ Judging 8:00 PM. Everyone reads AGENTS.md first (rules for every coding agent).
 1. Accept the GitHub invite to **github.com/devank-yadav/porchlight**, then `git clone` it.
 2. `npm run setup` (also turns on the git hook that keeps AI tools out of the commit credits), then `npm run dev`.
 3. Install **Expo Go** on your iPhone and scan the QR code.
-4. Claude users: open the **"Tella – c0mpiled"** Claude project (it's linked to the repo), or run Claude Code in your clone. Codex user: run Codex CLI in your clone, or connect Codex cloud to the repo.
+4. Claude users: open the **"Porchlight – c0mpiled"** Claude project (it's linked to the repo), or run Claude Code in your clone. Codex user: run Codex CLI in your clone, or connect Codex cloud to the repo.
 5. Put your name next to your role below and in TASKS.md, and push.
 
 ## Who does what
@@ -175,7 +175,7 @@ Cut order if behind: B7 quiet hours → B8 viewer filtering → C8 desk restyle 
 > Read AGENTS.md, mobile/AGENTS.md and TEAM_PLAN.md. I'm Person C (iOS app). Only edit mobile/*. Use theme.js and ui.js. Start with C2–C4 using the contract fields (they'll exist after B1 merges). Run `npx expo export --platform ios` before every push.
 
 ## Demo (90 seconds, who does what)
-- **A** (narrator): floor-fall story, then "watch Tella call Peggy".
+- **A** (narrator): floor-fall story, then "watch Porchlight call Peggy".
 - **B** plays Peggy on the phone: "Feeling okay. Not sure I took my pill. A man said my grandson's in jail and needs gift cards. And I don't have a ride to the heart doctor tomorrow. Oh, and I'm out of milk."
 - **C** holds Anne's phone up: digest → Approve ride → status walks to Confirmed (simulated). Mark's phone claims the milk.
 - Peggy's screen: "Your ride is confirmed. Mark is bringing your milk Thursday." Tap "I need help" → phones buzz.

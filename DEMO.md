@@ -7,7 +7,7 @@ All people and organizations are fictional samples. The ride is a **simulated bo
 | Time | Say / do | Screen |
 |---|---|---|
 | 0:00 | "Last year Peggy fell on her kitchen floor and lay there for a day before anyone knew. She lives alone, like millions of older Americans." | Title slide |
-| 0:10 | "Tella calls her every morning. It says it's an AI, and it never asks for money or codes." Start the call (real phone, or Talk on Peggy's screen). | Peggy's phone |
+| 0:10 | "Porchlight calls her every morning. It says it's an AI, and it never asks for money or codes." Start the call (real phone, or Talk on Peggy's screen). | Peggy's phone |
 | 0:20 | Peggy: *"A man called about gift cards for my grandson's bail."* → fixed scam reply. "That reply is a backend rule, not the model's mood." | Peggy's phone |
 | 0:35 | Peggy: *"I don't have a ride to the heart doctor tomorrow."* → "I'll ask Anne and call you back once it's confirmed." It never claims a booking. | Peggy's phone |
 | 0:45 | Peggy: *"And I'm out of milk."* then *"No, that's all."* The call ends itself. | |
@@ -36,10 +36,10 @@ Expected replies and analysis: `server/src/voice/samples.md` ("Demo call" sectio
 ## Test every feature on your iPhone (no keys needed)
 1. On the laptop: `git pull`, `npm run setup` (first time), `npm run dev`.
 2. iPhone (same Wi-Fi): open the Camera, scan the QR code in the terminal, it opens in **Expo Go**. (Expo runs with `--offline`, so nobody needs an Expo account; if Expo Go asks you to sign in, you started Expo some other way.)
-3. Tap **Demo** (top right, family and desk sides) → **Reset demo data**. On Peggy's side there is no Demo button: long-press the Tella name instead.
-4. Pick **Peggy** → **Talk with Tella**, dictate or type the three lines, then tap **I'm done talking**. Or: **Demo → Play the demo call** to run it in one tap.
+3. Tap **Demo** (top right, family and desk sides) → **Reset demo data**. On Peggy's side there is no Demo button: long-press the Porchlight name instead.
+4. Pick **Peggy** → **Talk with Porchlight**, dictate or type the three lines, then tap **I'm done talking**. Or: **Demo → Play the demo call** to run it in one tap.
    - Scam line → the fixed scam reply. "No ride" → "I'll ask Anne… call you back once it's confirmed."
-5. Tap the Tella name → switch to **Family · Anne**: digest line, scam alert, the **ride card** with Peggy's words → **Approve**. Watch it go Requested → Confirmed, labelled "Simulated booking". Appointment chip turns confirmed.
+5. Tap the Porchlight name → switch to **Family · Anne**: digest line, scam alert, the **ride card** with Peggy's words → **Approve**. Watch it go Requested → Confirmed, labelled "Simulated booking". Appointment chip turns confirmed.
 6. Switch to **Family · Mark**: the ride says "Waiting for Anne to approve" (he can't approve; the server returns 403). Meds show **Private**. Tap **I'll do it** on "Bring her milk".
 7. Switch to **Peggy**: notices "Your ride is confirmed: pickup tomorrow at 1:15 PM." and "Mark is bringing your milk." Start Talk again: the greeting opens with that good news.
 8. **Demo → Peggy presses Help**: red lamp, family ladder. **Demo → Simulate a missed check-in**: amber lamp (calm), not red.

@@ -2,7 +2,7 @@
 // Actions: anything the AI wants to DO that needs a human OK (Phase 1: rides).
 // PENDING_APPROVAL → APPROVED → REQUESTED → CONFIRMED → COMPLETED, or REJECTED / FAILED / CANCELLED.
 // The ride provider is a sandbox: every booking is simulated and labelled that way.
-// Rides no longer wait for the family (Devank, 2026-10-11): Tella books right away and the
+// Rides no longer wait for the family (Devank, 2026-10-11): Porchlight books right away and the
 // family gets a heads-up text with an Uber link. A family can turn "Ask me before booking rides" back on (senior.askBeforeRides).
 import * as store from '../store.js';
 import * as audit from './audit.js';
@@ -66,7 +66,7 @@ export async function proposeRide(senior, appointment, quote) {
   await store.update('appointments', appointment._id, { transport: ask ? 'at_risk' : 'requested', actionId: action._id });
   await audit.log('porchlight', 'action.proposed', { seniorId: senior._id, targetId: action._id, detail: action.title });
   if (ask) {
-    if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Tella to approve a ride (simulated booking).`);
+    if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
     return action;
   }
   // No approval step: book now. The Uber button goes to her (it's her ride), and the family just hears she's going.
@@ -80,7 +80,7 @@ export async function proposeRide(senior, appointment, quote) {
   // Her phone gets the Uber notification too: tap it and Uber opens with home and the clinic filled in.
   await push(senior, { title: `Your Uber to the ${appointment.title.toLowerCase()} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: booked.details.uberLink });
   for (const m of fam) {
-    await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}, pickup ${fmtTime(pickupAt)}. Tella set up her Uber ride; she books it from her Tella screen.`);
+    await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}, pickup ${fmtTime(pickupAt)}. Porchlight set up her Uber ride; she books it from her Porchlight screen.`);
   }
   // She books it herself in Uber, so no sample confirmation (and no "your ride is confirmed" call).
   return booked;
