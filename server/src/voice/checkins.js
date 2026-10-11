@@ -53,7 +53,8 @@ async function newNoticesFor(senior) {
   try {
     const since = senior.lastCheckinAt ? new Date(senior.lastCheckinAt) : new Date(0);
     const all = await store.list('notices', { seniorId: senior._id });
-    return all.filter((n) => new Date(n.at || n.createdAt) > since).sort((a, b) => new Date(b.at || b.createdAt) - new Date(a.at || a.createdAt));
+    // Read-aloud news only: an Uber button notice is an on-screen instruction, not news.
+    return all.filter((n) => n.kind !== 'uber' && new Date(n.at || n.createdAt) > since).sort((a, b) => new Date(b.at || b.createdAt) - new Date(a.at || a.createdAt));
   } catch { return []; }
 }
 

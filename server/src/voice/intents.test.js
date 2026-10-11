@@ -96,3 +96,16 @@ test('rides: ask where first, take a short answer, remember a place said earlier
   assert.ok(!rideTurn('Target', { transcript: [{ who: 'porchlight', text: 'How are you?' }] }));
   assert.ok(rideTurn('Just book me an Uber', { transcript: [] }));
 });
+
+test('a sentence is never a ride destination', async () => {
+  const { rideDestination } = await import('./intents.js');
+  assert.equal(rideDestination('You wanna listen to I just need an Uber.'), null);
+  assert.equal(rideDestination('Can you listen to me'), null);
+  assert.equal(rideDestination('Take me to the Schlow Library'), 'the Schlow Library');
+});
+
+test('filler words are never a place', async () => {
+  const { bareDestination } = await import('./intents.js');
+  for (const t of ['Listen.', 'Hello?', 'Wait', 'Hold on', 'Sorry?']) assert.equal(bareDestination(t), null, t);
+  assert.equal(bareDestination('To Target please.'), 'Target');
+});
