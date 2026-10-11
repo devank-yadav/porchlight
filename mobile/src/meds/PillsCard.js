@@ -51,7 +51,7 @@ export default function PillsCard({ senior, state, refresh }) {
   return <View style={[st.card, { backgroundColor: c.surface, borderColor: c.line }]}>
     <View style={st.head}><Icon name="pills" size={26} color={c.ink} /><T v="readHeadline">Your pills today</T></View>
     {groups.map((g) => <View key={g.time} style={st.slot}>
-      {g.state === 'now' ? <BigButton tone="lamp" icon="checkmark.circle" title={`I took my ${g.label} ${g.doses.length > 1 ? 'pills' : g.doses[0].name}`} sub={names(g.doses)} hint="Lets your family know you took them." onPress={() => took(g)} /> : <View style={st.row}>
+      {g.state === 'now' ? <BigButton tone="lamp" icon="checkmark.circle" title={g.doses.length > 1 ? `I took my ${g.label} pills` : `I took my ${g.doses[0].name}`} sub={g.doses.length > 1 ? names(g.doses) : `Due at ${g.label}`} hint="Lets your family know you took them." onPress={() => took(g)} /> : <View style={st.row}>
         <View style={[st.mark, { backgroundColor: g.state === 'taken' ? accent.greenSoft : c.sunken }]}>
           <Icon name={g.state === 'taken' ? 'checkmark' : 'clock'} size={20} color={g.state === 'taken' ? accent.greenText : c.muted} />
         </View>
