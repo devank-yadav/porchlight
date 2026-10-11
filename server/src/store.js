@@ -17,14 +17,22 @@ export async function connect() {
     console.log('[store] No MONGODB_URI set, using in-memory store (data resets on restart).');
     return 'memory';
   }
-  const client = new MongoClient(uri);
-  await client.connect();
-  db = client.db(process.env.MONGODB_DB || 'porchlight');
-  console.log('[store] Connected to MongoDB.');
-  return 'mongo';
+  // A bad URI or campus Wi-Fi blocking Atlas must never take the demo down: fall back to memory.
+  try {
+    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+    await client.connect();
+    db = client.db(process.env.MONGODB_DB || 'porchlight');
+    console.log('[store] Connected to MongoDB.');
+    return 'mongo';
+  } catch (e) {
+    console.warn('[store] MongoDB unreachable, using in-memory store instead:', e.message);
+    db = null;
+    return 'memory';
+  }
 }
 
 export const newId = () => randomUUID();
+export const usingMongo = () => Boolean(db);
 
 function matches(doc, filter = {}) {
   return Object.entries(filter).every(([k, v]) => doc[k] === v);

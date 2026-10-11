@@ -41,7 +41,7 @@ careRoutes.get('/api/state', wrap(async (req, res) => {
     seniors, members, checkins, tasks, escalations, events, scamChecks,
     appointments, actions: actionList, notices, digest,
     notifications: recentNotifications(),
-    config: { llm: llmEnabled, twilio: twilioEnabled, mongo: Boolean(process.env.MONGODB_URI) },
+    config: { llm: llmEnabled, twilio: twilioEnabled, mongo: store.usingMongo() },
   });
 }));
 
