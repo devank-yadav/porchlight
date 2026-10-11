@@ -24,14 +24,14 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [ ] B8 ?viewer= filtering
 - [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize
 
-## Person C — iOS app (Claude Code) — name: ____
+## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
-- [ ] C2 Peggy's notices card
-- [ ] C3 Family Today: digest + approval card (approve only if canApprove)
-- [ ] C4 Appointment card with transport chip
-- [ ] C5 Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
-- [ ] C6 Amber unresolved state, red only for help
-- [ ] C7 Med status labels incl. Private
+- [ ] C2 (Manasv, in progress) Peggy's notices card
+- [ ] C3 (Manasv, in progress) Family Today: digest + approval card (approve only if canApprove)
+- [ ] C4 (Manasv, in progress) Appointment card with transport chip
+- [ ] C5 (Manasv, in progress) Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
+- [ ] C6 (Manasv, in progress) Amber unresolved state, red only for help
+- [ ] C7 (Manasv, in progress) Med status labels incl. Private
 - [ ] C8 Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
 
