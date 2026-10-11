@@ -3,6 +3,9 @@
 Claim a task by adding your name, push that change first, then start. Details and acceptance criteria for every task: TEAM_PLAN.md.
 Feature freeze 6:30 PM. Judging 8:00 PM.
 
+## Action product planning — October 11, 2026
+
+- [ ] P1 — Rishi (Codex), `care/action-plan`: in progress. User explicitly requested the PLAN.md update: family customer, calendar-aware ride selection and booking within preauthorized limits, trip updates, Uber demo strategy, and ranked follow-on features. Coordination notice to PLAN owner A and the team: documentation scope is PLAN.md, TASKS.md, and a new implementation note under server/src/care/; runtime code and the existing TEAM_PLAN.md contract are unchanged. Checked origin/main at 4b4ece8, owner branch task queues, and open PRs #20/#21/#24/#25; no overlapping plan edit found. PR #24 already covers daily scheduling; extend it after review rather than duplicate it. This planning task does not reopen the feature freeze or claim implementation work. Next: publish this claim, research official APIs, and submit the revised plan for team review.
 ## Shared context for every agent
 
 This file is the shared work queue. Every teammate's agent updates its own claims, progress, blockers, and handoff here. `TEAM_PLAN.md` defines acceptance criteria and data shapes; `PLAN.md` defines product decisions. Backend details and validation commands are in `server/src/care/INTEGRATION.md`.
