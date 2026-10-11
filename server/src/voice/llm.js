@@ -5,12 +5,15 @@
 const BASE = process.env.LLM_BASE_URL;
 const KEY = process.env.LLM_API_KEY;
 const MODEL = process.env.LLM_MODEL;
+// Optional extra headers as JSON, e.g. a workspace header some providers need with user-level keys.
+let EXTRA_HEADERS = {};
+try { EXTRA_HEADERS = JSON.parse(process.env.LLM_HEADERS || '{}'); } catch { console.warn('[llm] LLM_HEADERS is not valid JSON; ignoring it'); }
 export const llmEnabled = Boolean(BASE && KEY && MODEL);
 
 async function chat(messages, { json = false, maxTokens = 300 } = {}) {
   const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
     body: JSON.stringify({ model: MODEL, messages, temperature: json ? 0.2 : 0.7, max_tokens: maxTokens }),
     // A phone caller is waiting: give up and use the fallback rather than leave dead air.
     signal: AbortSignal.timeout(json ? 20000 : 8000),

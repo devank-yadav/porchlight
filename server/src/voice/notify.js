@@ -42,7 +42,7 @@ export async function sms(member, text) {
 export async function placeCall(to, twimlUrl, statusUrl) {
   return twilio('Calls.json', {
     To: to, From: FROM, Url: twimlUrl, StatusCallback: statusUrl,
-    StatusCallbackEvent: 'completed', Timeout: '25',
+    StatusCallbackEvent: 'completed', // no Timeout: Twilio trial accounts reject it
   });
 }
 
@@ -56,7 +56,7 @@ export async function tellSenior(senior, text) {
     const say = String(text).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
     try {
       await twilio('Calls.json', {
-        To: senior.phone, From: FROM, Timeout: '25',
+        To: senior.phone, From: FROM, // no Timeout: Twilio trial accounts reject it
         Twiml: `<Response><Say voice="Polly.Joanna">Hi ${senior.preferredName}, it's Porchlight. ${say} Have a good day.</Say></Response>`,
       });
       entry.delivered = 'call';
