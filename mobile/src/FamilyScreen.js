@@ -117,7 +117,7 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
     <>
       {state.digest?.line ? <Digest digest={state.digest} /> : null}
 
-      <View style={[st.today, isHelp && { backgroundColor: '#3A1F24' }]} accessibilityLiveRegion="polite">
+      <View style={[st.today, isHelp && { backgroundColor: color.brickSoft }]} accessibilityLiveRegion="polite">
         <View style={st.todayTop}>
           <Lamp state={lamp} size={88} label={headline} />
           <H1 onDusk style={{ flex: 1, fontSize: 27, lineHeight: 31 }}>{headline}</H1>
@@ -128,7 +128,7 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
             {escalation.steps.map((s, i) => (
               <View key={i} style={st.step}>
                 <View style={[st.stepMark, s.status === 'done' && (isHelp ? st.stepDone : st.stepDoneAmber)]} />
-                <Text style={[st.stepText, s.status === 'done' && { color: '#fff' }]}>{s.label}</Text>
+                <Text style={[st.stepText, s.status === 'done' && { color: color.ink }]}>{s.label}</Text>
                 <Text style={st.stepWhen}>{s.status === 'done' ? `sent ${ago(s.at)}` : s.status === 'held' ? 'held for quiet hours' : 'next'}</Text>
               </View>
             ))}
@@ -182,7 +182,7 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
         <View style={st.week}>
           {week.map((c) => (
             <View key={c._id} style={st.weekDay} accessibilityLabel={`${new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'long' })}: ${MOOD[c.mood]}`}>
-              <View style={[st.weekDot, { backgroundColor: c.mood === 'good' ? color.lamp : c.mood === 'low' ? color.brick : '#8A96B3' }]} />
+              <View style={[st.weekDot, { backgroundColor: c.mood === 'good' ? color.lamp : c.mood === 'low' ? color.brick : color.muted }]} />
               <Text style={st.weekLabel}>{new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'short' })}</Text>
               <Text style={st.weekMood}>{MOOD[c.mood]}</Text>
             </View>
@@ -236,7 +236,7 @@ function ActionCard({ action, state, me, run, senior }) {
         <View style={st.steps} accessibilityLabel={`Status: ${STEPS[Math.min(idx ?? 0, 3)][1]}`}>
           {STEPS.map(([key, label], i) => (
             <View key={key} style={st.stepCol}>
-              <View style={[st.bar, i <= (idx ?? 0) && { backgroundColor: i === 3 ? color.sage : color.dusk2 }]} />
+              <View style={[st.bar, i <= (idx ?? 0) && { backgroundColor: i === 3 ? color.sage : color.mutedOnDusk }]} />
               <Text style={[st.stepLabel, i <= (idx ?? 0) && { color: color.ink, fontFamily: font.bodyBold }]}>{label}</Text>
             </View>
           ))}
@@ -307,7 +307,7 @@ function Care({ senior, state, me, run, circle }) {
         {open.length === 0 && <P muted>Nothing open. Add something below.</P>}
         {open.map((t) => <TaskRow key={t._id} t={t} me={me} run={run} name={name} senior={senior} />)}
         <View style={st.addRow}>
-          <TextInput style={st.addInput} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup Sunday’" placeholderTextColor="#7B859C" returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
+          <TextInput style={st.addInput} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup Sunday’" placeholderTextColor={color.muted} returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
           <Button small label="Add" onPress={add} />
         </View>
       </Card>
@@ -436,18 +436,18 @@ function Circle({ state, circle }) {
 const st = StyleSheet.create({
   tabs: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   pad: { padding: 16, paddingBottom: 48, gap: 14 },
-  today: { backgroundColor: color.dusk, borderRadius: radius.lg, padding: 20, gap: 14 },
+  today: { backgroundColor: color.dusk, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, padding: 20, gap: 14 },
   todayTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  summary: { fontFamily: font.body, fontSize: 18, lineHeight: 26, color: '#E6EBF6' },
+  summary: { fontFamily: font.body, fontSize: 18, lineHeight: 26, color: color.ink },
   facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
-  factLabel: { fontFamily: font.body, fontSize: 13, color: '#B8C2DB' },
-  factValue: { fontFamily: font.bodyBold, fontSize: 17, color: '#fff' },
+  factLabel: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
+  factValue: { fontFamily: font.bodyBold, fontSize: 17, color: color.ink },
   note: { fontFamily: font.body, fontSize: 14, color: color.mutedOnDusk },
   step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepMark: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: color.mutedOnDusk },
-  stepDone: { backgroundColor: '#F08A6E', borderColor: '#F08A6E' },
-  stepDoneAmber: { backgroundColor: '#F2C46B', borderColor: '#F2C46B' },
-  digestLine: { fontFamily: font.displaySemi, fontSize: 18, lineHeight: 24, color: color.dusk },
+  stepDone: { backgroundColor: color.brick, borderColor: color.brick },
+  stepDoneAmber: { backgroundColor: color.lamp, borderColor: color.lamp },
+  digestLine: { fontFamily: font.displaySemi, fontSize: 18, lineHeight: 24, color: color.ink },
   digestItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   digestDot: { width: 10, height: 10, borderRadius: 5 },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -459,12 +459,12 @@ const st = StyleSheet.create({
   btnRow: { flexDirection: 'row', gap: 10 },
   stepText: { flex: 1, fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
   stepWhen: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
-  flag: { borderRadius: radius.sm, borderWidth: 1.5, borderColor: color.line, backgroundColor: '#fff', padding: 16, gap: 6 },
+  flag: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: color.hairline, backgroundColor: color.surface, padding: 16, gap: 6 },
   flagScam: { borderColor: color.brick, backgroundColor: color.brickSoft },
-  flagTitle: { fontFamily: font.displaySemi, fontSize: 17, color: color.dusk },
+  flagTitle: { fontFamily: font.displaySemi, fontSize: 17, color: color.ink },
   starter: { borderLeftWidth: 3, borderLeftColor: color.lamp, paddingLeft: 12 },
   week: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  weekDay: { alignItems: 'center', gap: 2, minWidth: 64, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: color.sky },
+  weekDay: { alignItems: 'center', gap: 2, minWidth: 64, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: color.surface2 },
   weekDot: { width: 16, height: 16, borderRadius: 8 },
   weekLabel: { fontFamily: font.body, fontSize: 14, color: color.ink },
   weekMood: { fontFamily: font.body, fontSize: 12, color: color.muted },
@@ -472,14 +472,14 @@ const st = StyleSheet.create({
   quoteSmall: { fontFamily: font.bodyItalic, fontSize: 16, lineHeight: 22, color: color.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: color.line },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  addInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.line, borderRadius: radius.sm, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },
+  addInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.hairline, backgroundColor: color.surface2, borderRadius: radius.sm, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   shareName: { width: 64, fontFamily: font.body, fontSize: 15, color: color.ink },
-  shareBar: { flex: 1, height: 10, borderRadius: 5, backgroundColor: color.sky, overflow: 'hidden' },
-  shareFill: { height: '100%', borderRadius: 5, backgroundColor: color.dusk2 },
+  shareBar: { flex: 1, height: 10, borderRadius: 5, backgroundColor: color.surface2, overflow: 'hidden' },
+  shareFill: { height: '100%', borderRadius: 5, backgroundColor: color.mutedOnDusk },
   shareN: { width: 24, textAlign: 'right', fontFamily: font.body, fontSize: 15, color: color.muted },
   story: { gap: 4, paddingBottom: 8 },
   quote: { fontFamily: font.bodyItalic, fontSize: 17, lineHeight: 26, color: color.ink },
   clock: { fontFamily: font.body, fontSize: 15, color: color.ink, fontVariant: ['tabular-nums'] },
-  text: { backgroundColor: color.sky, borderRadius: radius.sm, padding: 12, gap: 2 },
+  text: { backgroundColor: color.surface2, borderRadius: radius.sm, padding: 12, gap: 2 },
 });

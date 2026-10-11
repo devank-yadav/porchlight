@@ -197,7 +197,7 @@ function Talk({ senior, done, onError }) {
             value={draft}
             onChangeText={setDraft}
             placeholder="Your answer"
-            placeholderTextColor="#7B859C"
+            placeholderTextColor={color.muted}
             returnKeyType="send"
             onSubmitEditing={send}
             editable={phase !== 'ending'}
@@ -232,7 +232,7 @@ function ScamCheck({ senior, back, onError }) {
 
   const tone = result?.verdict === 'likely scam' ? 'danger' : result?.verdict === 'be careful' ? 'warn' : 'safe';
   const bg = { danger: color.brickSoft, warn: color.lampSoft, safe: color.sageSoft }[tone];
-  const fg = { danger: color.brick, warn: '#6A4300', safe: color.sage }[tone];
+  const fg = { danger: color.brick, warn: color.lamp, safe: color.sage }[tone];
 
   return (
     <ScrollView contentContainerStyle={st.pad} keyboardShouldPersistTaps="handled">
@@ -246,7 +246,7 @@ function ScamCheck({ senior, back, onError }) {
             value={text}
             onChangeText={setText}
             placeholder="A man called and said my grandson is in jail…"
-            placeholderTextColor="#7B859C"
+            placeholderTextColor={color.muted}
             accessibilityLabel="Describe the call or message"
           />
           <Text style={st.hint}>Tap the microphone on the keyboard to say it out loud.</Text>
@@ -308,27 +308,27 @@ const st = StyleSheet.create({
   center: { alignItems: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   bigH1: { fontSize: 36, lineHeight: 40, textAlign: 'left' },
-  lead: { fontFamily: font.body, fontSize: 21, lineHeight: 29, color: '#DFE5F3' },
+  lead: { fontFamily: font.body, fontSize: 21, lineHeight: 29, color: color.mutedOnDusk },
   stack: { gap: 14 },
-  notices: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 20, gap: 14 },
-  noticesTitle: { fontFamily: font.displaySemi, fontSize: 22, color: color.dusk },
+  notices: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, padding: 20, gap: 14 },
+  noticesTitle: { fontFamily: font.displaySemi, fontSize: 22, color: color.ink },
   notice: { borderLeftWidth: 4, borderLeftColor: color.sage, paddingLeft: 14, gap: 4 },
   noticeText: { fontFamily: font.body, fontSize: 22, lineHeight: 30, color: color.ink },
   noticeMeta: { fontFamily: font.body, fontSize: 16, color: color.muted },
   talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
-  talkStatus: { flex: 1, fontFamily: font.displaySemi, fontSize: 22, color: '#fff' },
+  talkStatus: { flex: 1, fontFamily: font.displaySemi, fontSize: 22, color: color.ink },
   voiceToggle: { alignItems: 'center', gap: 2 },
-  toggleLabel: { fontFamily: font.body, fontSize: 13, color: '#DFE5F3' },
+  toggleLabel: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
   transcript: { padding: 16, gap: 12 },
   line: { padding: 16, borderRadius: radius.lg, maxWidth: '88%' },
   linePorch: { backgroundColor: color.dusk2, alignSelf: 'flex-start' },
-  lineSenior: { backgroundColor: '#fff', alignSelf: 'flex-end' },
-  lineWho: { fontFamily: font.bodyBold, fontSize: 14, color: '#DFE5F3', marginBottom: 2 },
-  lineText: { fontFamily: font.body, fontSize: 21, lineHeight: 28, color: '#fff' },
-  composer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8, gap: 8, borderTopWidth: 1, borderTopColor: color.dusk2 },
-  hint: { fontFamily: font.body, fontSize: 16, color: '#DFE5F3' },
+  lineSenior: { backgroundColor: color.surface2, alignSelf: 'flex-end' },
+  lineWho: { fontFamily: font.bodyBold, fontSize: 14, color: color.mutedOnDusk, marginBottom: 2 },
+  lineText: { fontFamily: font.body, fontSize: 21, lineHeight: 28, color: color.ink },
+  composer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8, gap: 8, borderTopWidth: 1, borderTopColor: color.hairline },
+  hint: { fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
   typeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, backgroundColor: '#fff', borderRadius: radius.sm, paddingHorizontal: 14, fontFamily: font.body, fontSize: 21, color: color.ink },
+  input: { flex: 1, minHeight: 56, backgroundColor: color.surface2, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.sm, paddingHorizontal: 14, fontFamily: font.body, fontSize: 21, color: color.ink },
   textarea: { minHeight: 140, paddingTop: 14, textAlignVertical: 'top', flex: 0 },
   doneBtn: { alignSelf: 'center' },
   verdict: { borderRadius: radius.lg, padding: 22, gap: 10 },
