@@ -101,12 +101,18 @@ function Home({ senior, notices, primary, setMode, refresh }) {
             <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
           </View>
           {notices.map((n) => (
-            <View key={n._id} style={st.notice} accessible accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}>
+            <View key={n._id} style={{ gap: 12 }}>
+            <View style={st.notice} accessible accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}>
               <Icon name="checkmark.circle.fill" size={22} color="#6FCF8E" style={{ marginTop: 4 }} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={st.noticeText}>{n.text}</Text>
                 {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
               </View>
+            </View>
+            {/* Her ride, her booking: Uber opens with home and the clinic filled in; she confirms there. */}
+            {n.uberLink && (
+              <BigButton tone="lamp" icon="car.fill" title="Book my Uber" sub="Opens Uber with your trip filled in" hint="Opens the Uber app with your home and the clinic already filled in. You confirm the ride in Uber." onPress={() => Linking.openURL(n.uberLink)} />
+            )}
             </View>
           ))}
         </Animated.View>

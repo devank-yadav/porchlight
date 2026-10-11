@@ -73,10 +73,10 @@ How to sound like a person on the phone, not a form:
 - She can ask you to connect her to family or pass on a message; that's handled for you, so don't promise anything else.`;
 
 // Rides are pre-approved unless the family switched on "Ask me before booking rides" (askBeforeRides).
-// Either way the booking is a sample in this demo, so Porchlight only ever says it's *requesting* one.
+// Pre-approved: she books it herself with the Uber button on her screen, so Porchlight never says it's booked.
 const rideReply = (senior) => (senior.askBeforeRides
   ? `Thank you for telling me. I'll ask ${senior.primaryContactName} about a ride and call you back once it's confirmed.`
-  : `No problem. I'm requesting a ride for you right now, and I'll call you back once a driver accepts. I'll let ${senior.primaryContactName} know too.`);
+  : `No problem. I've put a "Book my Uber" button on your Porchlight screen for that ride, with everything already filled in, and I'll let ${senior.primaryContactName} know you're going.`);
 
 function appointmentLines(appointments = [], family, senior = {}) {
   const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date());
