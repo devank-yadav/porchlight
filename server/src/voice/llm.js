@@ -31,21 +31,44 @@ const RULES = `Rules you never break:
 - Never give medical advice or diagnoses. If something sounds urgent (a fall, chest pain, can't breathe), say you are letting the family know right now and suggest calling 911.
 - Keep every reply to one or two short, warm sentences, then one simple question. Speak plainly; the listener may be hard of hearing.`;
 
-function personaPrompt(senior) {
+function appointmentLines(appointments = [], family) {
+  const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date());
+  if (!upcoming.length) return '';
+  return `Upcoming appointments: ${upcoming.map((a) => `${a.title} with ${a.with} at ${a.where}, ${new Date(a.startsAt).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })} (transport: ${a.transport || 'unknown'})`).join('; ')}.
+If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say you'll ask ${family} and call her back once it's confirmed. Never say a ride is booked or arranged.\n`;
+}
+
+function personaPrompt(senior, appointments) {
   return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories.
+${appointmentLines(appointments, senior.primaryContactName)}If she isn't sure whether she took a pill, say "That's okay, I'll let ${senior.primaryContactName} know so she can check with you." Never suggest taking another dose.
 ${RULES}`;
 }
 
 // ---------- Conversation ----------
 
-export async function reply(senior, transcript) {
+// Backend safety policy (A3): these replies are fixed and run before the model, so a
+// scam, an emergency or an unsure-pill answer always gets the same safe wording.
+export function policyReply(senior, text) {
+  const name = senior.preferredName;
+  const family = senior.primaryContactName;
+  if (URGENT_WORDS.test(text)) return `Oh ${name}, I'm sorry. I'm letting ${family} know right now. If you're hurt or can't get up, please press your help button or call 911. Are you safe where you are?`;
+  if (SCAM_WORDS.test(text)) return `That sounds like a scam, ${name}. Real banks and government offices never ask for gift cards, money or codes over the phone. Please don't send anything or share any codes; I'll let ${family} know. Did you give them any information?`;
+  if (MED_UNSURE_WORDS.test(text)) return `That's okay, ${name}. I'll let ${family} know so she can check with you. Please don't take an extra one just in case. How are you feeling otherwise?`;
+  if (NO_RIDE_WORDS.test(text)) return `Thank you for telling me. I'll ask ${family} about a ride and call you back once it's confirmed. Is there anything else you need this week?`;
+  return null;
+}
+
+export async function reply(senior, transcript, { appointments = [] } = {}) {
+  const last = [...transcript].reverse().find((t) => t.who === 'senior')?.text ?? '';
+  const fixed = policyReply(senior, last);
+  if (fixed) return fixed;
   if (llmEnabled) {
     try {
       const messages = [
-        { role: 'system', content: personaPrompt(senior) },
+        { role: 'system', content: personaPrompt(senior, appointments) },
         ...transcript.map((t) => ({ role: t.who === 'porchlight' ? 'assistant' : 'user', content: t.text })),
       ];
       return await chat(messages, { maxTokens: 120 });
@@ -58,6 +81,8 @@ export async function reply(senior, transcript) {
 
 const SCAM_WORDS = /gift ?card|wire|bitcoin|crypto|bank (called|account)|social security|\bssn\b|irs|warrant|arrest|jail|bail|lottery|prize|you(’|')ve won|computer virus|tech support|grandson.*(trouble|jail)|keep it (a )?secret|verification code|medicare card/i;
 const URGENT_WORDS = /\bfell\b|\bfall(en)?\b|can(’|')?t (get up|breathe)|chest pain|bleeding|dizzy|hit my head/i;
+const MED_UNSURE_WORDS = /(not sure|don(’|')?t (remember|know)|can(’|')?t remember|forget|forgot) (if|whether|about)? ?(i )?(took|taken|take)?.*(pill|med|tablet|dose)|(pill|med|tablet|dose).*(not sure|don(’|')?t remember|can(’|')?t remember)/i;
+const NO_RIDE_WORDS = /(don(’|')?t|do not|no) (have )?(a )?ride|no way to get|can(’|')?t get there|nobody to (drive|take) me/i;
 const RIDE_WORDS = /\bride\b|doctor|appointment|dentist|pharmacy|groceries|grocery|store|pick ?up|drive me/i;
 
 function mockReply(senior, transcript) {
@@ -67,7 +92,8 @@ function mockReply(senior, transcript) {
 
   if (URGENT_WORDS.test(last)) return `Oh ${name}, I'm sorry. I'm letting ${senior.primaryContactName} know right now. If you're hurt or can't get up, please press your help button or call 911. Are you safe where you are?`;
   if (SCAM_WORDS.test(last)) return `That sounds like a scam, ${name}. Real banks and government offices never ask for gift cards or codes over the phone. Please don't send anything; I'll let ${senior.primaryContactName} know. Did you give them any information?`;
-  if (RIDE_WORDS.test(last)) return `I'll ask the family to set up a ride for you, and someone will confirm. Is there anything else you need this week?`;
+  if (/milk|bread|eggs|grocer|out of|run(ning)? (out|low)|broken|fix/i.test(last)) return `I'll pass that to your family, and I'll tell you who's helping once someone says yes. Is there anything else you need this week?`;
+  if (RIDE_WORDS.test(last)) return `I'll ask ${senior.primaryContactName} about that and call you back once it's confirmed. Is there anything else you need this week?`;
 
   const script = [
     `How did you sleep last night, ${name}?`,
@@ -86,7 +112,7 @@ export function greeting(senior, opener) {
 
 // ---------- Post-call analysis ----------
 
-export async function analyze(senior, transcript) {
+export async function analyze(senior, transcript, { appointments = [] } = {}) {
   if (llmEnabled) {
     try {
       const text = transcript.map((t) => `${t.who === 'porchlight' ? 'Porchlight' : senior.preferredName}: ${t.text}`).join('\n');
@@ -98,33 +124,47 @@ export async function analyze(senior, transcript) {
 {"summary": "2 sentences, plain and kind",
  "mood": "good" | "okay" | "low",
  "medsTaken": true | false | null,
- "flags": [{"type": "urgent"|"scam"|"health"|"lonely"|"change", "severity": "high"|"medium"|"low", "text": "what she said, briefly"}],
+ "medStatus": "taken" | "not_taken" | "unsure" | "no_answer",
+ "flags": [{"type": "urgent"|"scam"|"health"|"lonely"|"change"|"meds_unsure", "severity": "high"|"medium"|"low", "text": "what she said, briefly"}],
  "starters": ["2-3 specific conversation starters for family based on what she talked about"],
  "stories": [{"title": "short", "text": "a memory she shared, in her words where possible"}],
- "requests": [{"type": "ride"|"groceries"|"refill"|"visit"|"errand"|"repair", "title": "short task", "when": "as she said it or null"}]}
-Never diagnose. "change" means different from her usual.`,
+ "requests": [{"type": "ride"|"groceries"|"refill"|"visit"|"errand"|"repair", "title": "short task", "when": "as she said it or null", "quote": "her exact words asking for it", "blocker": true if she has no way to do it herself (e.g. no ride to an appointment), else false}]}
+Never diagnose. "change" means different from her usual. If she was unsure whether she took a pill, medStatus is "unsure" and add a "meds_unsure" flag.`,
           },
           { role: 'user', content: `About her: ${senior.about.join(' ')}\n\nCall transcript:\n${text}` },
         ],
         { json: true, maxTokens: 700 },
       );
-      return normalize(parseJson(out));
+      return normalize(parseJson(out), transcript);
     } catch (e) {
       console.warn('[llm] analyze failed, using mock:', e.message);
     }
   }
-  return mockAnalyze(senior, transcript);
+  return mockAnalyze(senior, transcript, appointments);
 }
 
-function normalize(a) {
+const MED_STATUSES = ['taken', 'not_taken', 'unsure', 'no_answer'];
+const medStatusFrom = (medsTaken) => (medsTaken === true ? 'taken' : medsTaken === false ? 'not_taken' : 'no_answer');
+
+function normalize(a, transcript) {
+  const said = transcript.filter((t) => t.who === 'senior').map((t) => t.text);
+  const requests = (Array.isArray(a.requests) ? a.requests : []).map((r) => ({
+    ...r,
+    quote: r.quote || said.find((s) => RIDE_WORDS.test(s) || /milk|grocer|refill|fix|broken/i.test(s)) || said[said.length - 1] || '',
+    blocker: Boolean(r.blocker),
+  }));
+  const flags = Array.isArray(a.flags) ? a.flags : [];
+  const unsure = a.medStatus === 'unsure' || said.some((s) => MED_UNSURE_WORDS.test(s));
+  if (unsure && !flags.some((f) => f.type === 'meds_unsure')) flags.push({ type: 'meds_unsure', severity: 'medium', text: said.find((s) => MED_UNSURE_WORDS.test(s)) || 'Not sure about her pills' });
   return {
+    medStatus: unsure ? 'unsure' : MED_STATUSES.includes(a.medStatus) ? a.medStatus : medStatusFrom(a.medsTaken),
     summary: a.summary || 'Check-in completed.',
     mood: ['good', 'okay', 'low'].includes(a.mood) ? a.mood : 'okay',
     medsTaken: typeof a.medsTaken === 'boolean' ? a.medsTaken : null,
-    flags: Array.isArray(a.flags) ? a.flags : [],
+    flags,
     starters: Array.isArray(a.starters) ? a.starters.slice(0, 3) : [],
     stories: Array.isArray(a.stories) ? a.stories : [],
-    requests: Array.isArray(a.requests) ? a.requests : [],
+    requests,
   };
 }
 
@@ -139,7 +179,7 @@ const TOPICS = [
   [/book|reading|library/i, 'reading', 'Ask what she is reading and offer to pick up the next one from the library.'],
 ];
 
-function mockAnalyze(senior, transcript) {
+function mockAnalyze(senior, transcript, appointments = []) {
   const said = transcript.filter((t) => t.who === 'senior').map((t) => t.text);
   const all = said.join(' ');
   const flags = [];
@@ -152,10 +192,12 @@ function mockAnalyze(senior, transcript) {
     if (/lonely|alone|nobody|no one (calls|visits)|bored/i.test(s)) flags.push({ type: 'lonely', severity: 'medium', text: s });
     if (/didn(’|')?t sleep|couldn(’|')?t sleep|not hungry|didn(’|')?t eat|confused|forgot/i.test(s)) flags.push({ type: 'change', severity: 'medium', text: s });
     if (/remember|used to|when i was|back in|years ago/i.test(s)) stories.push({ title: s.split(/[.!?]/)[0].slice(0, 48), text: s });
-    if (/doctor|appointment|dentist/i.test(s)) requests.push({ type: 'ride', title: 'Ride to her appointment', when: (s.match(/(mon|tues|wednes|thurs|fri|satur|sun)day|tomorrow|next week/i) || [null])[0] });
-    else if (/ride|drive me|church/i.test(s)) requests.push({ type: 'ride', title: 'Give her a ride', when: (s.match(/(mon|tues|wednes|thurs|fri|satur|sun)day|tomorrow/i) || [null])[0] });
-    if (/grocer|milk|bread|store/i.test(s)) requests.push({ type: 'groceries', title: 'Pick up groceries', when: null });
-    if (/refill|pharmacy|out of (my )?(pills|medicine)|running low/i.test(s)) requests.push({ type: 'refill', title: 'Pick up her prescription refill', when: null });
+    if (MED_UNSURE_WORDS.test(s)) flags.push({ type: 'meds_unsure', severity: 'medium', text: s });
+    const blocker = NO_RIDE_WORDS.test(s);
+    if (/doctor|appointment|dentist|cardiolog/i.test(s) || (blocker && appointments.length)) requests.push({ type: 'ride', title: 'Ride to her appointment', when: (s.match(/(mon|tues|wednes|thurs|fri|satur|sun)day|tomorrow|next week/i) || [appointments.length ? 'tomorrow' : null])[0], quote: s, blocker });
+    else if (/\bride\b|drive me|church/i.test(s)) requests.push({ type: 'ride', title: 'Give her a ride', when: (s.match(/(mon|tues|wednes|thurs|fri|satur|sun)day|tomorrow/i) || [null])[0], quote: s, blocker });
+    if (/grocer|milk|bread|store/i.test(s)) requests.push({ type: 'groceries', title: /milk/i.test(s) ? 'Bring her milk' : 'Pick up groceries', when: null, quote: s, blocker: false });
+    if (/refill|pharmacy|out of (my )?(pills|medicine)|running low/i.test(s)) requests.push({ type: 'refill', title: 'Pick up her prescription refill', when: null, quote: s, blocker: false });
   }
 
   const starters = TOPICS.filter(([re]) => re.test(all)).map(([, , s]) => s);
@@ -164,16 +206,19 @@ function mockAnalyze(senior, transcript) {
   const low = /sad|tired|lonely|not great|bad day|worn out|aches?/i.test(all);
   const good = /good|great|fine|lovely|wonderful|happy/i.test(all);
   const mood = low ? 'low' : good ? 'good' : 'okay';
-  const medsTaken = /took (my|them|it)|yes.*(pill|med)|already took/i.test(all) ? true : /forgot|didn(’|')?t take/i.test(all) ? false : null;
+  const unsure = said.some((s) => MED_UNSURE_WORDS.test(s));
+  const medsTaken = unsure ? null : /took (my|them|it)|yes.*(pill|med)|already took/i.test(all) ? true : /forgot|didn(’|')?t take/i.test(all) ? false : null;
+  const medStatus = unsure ? 'unsure' : medStatusFrom(medsTaken);
 
   const topics = TOPICS.filter(([re]) => re.test(all)).map(([, t]) => t);
   const summary =
     `${senior.preferredName} sounded ${mood === 'good' ? 'cheerful' : mood === 'low' ? 'a bit down' : 'steady'} today` +
     (topics.length ? ` and talked about ${topics.slice(0, 2).join(' and ')}.` : '.') +
     (requests.length ? ` She asked for help with ${[...new Set(requests.map((r) => ({ ride: 'a ride', groceries: 'groceries', refill: 'a refill' }[r.type] || r.type)))].join(' and ')}.` : '') +
-    (flags.some((f) => f.type === 'scam') ? ' She mentioned a suspicious call.' : '');
+    (flags.some((f) => f.type === 'scam') ? ' She mentioned a suspicious call.' : '') +
+    (unsure ? " She wasn't sure whether she took her pill." : '');
 
-  return { summary, mood, medsTaken, flags, starters: starters.slice(0, 3), stories, requests };
+  return { summary, mood, medsTaken, medStatus, flags, starters: starters.slice(0, 3), stories, requests };
 }
 
 // ---------- Scam check ----------
