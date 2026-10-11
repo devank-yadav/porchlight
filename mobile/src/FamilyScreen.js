@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Linking, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -595,7 +595,13 @@ function TaskRow({ t, me, run, name, senior }) {
   );
 }
 
-// ── Stories & Circle ───────────────────────────────────────────────────────
+// ── Stories: a family keepsake ─────────────────────────────────────────────
+// Each story is kept in her own words. Optional fields from the server (summary, when, place, people,
+// theme, askNext) fill in the details; anything missing is simply left out.
+const THEME_ICON = {
+  love: 'heart', family: 'person.2', work: 'briefcase', home: 'house', travel: 'airplane', food: 'fork.knife',
+  faith: 'sparkles', friends: 'person.3', childhood: 'figure.child', music: 'music.note', garden: 'leaf',
+};
 // While a call is in progress the saved stories don't exist yet (the AI writes them when the call ends),
 // so we pick out the lines that sound like a memory as she says them. The real ones replace these at hang-up.
 const MEMORY = /remember|used to|when i was|back in|years ago|growing up|my (late )?husband|walt|we met|as a girl/i;
@@ -604,41 +610,144 @@ function liveStories(checkin) {
     .filter((t) => t.who === 'senior' && MEMORY.test(t.text))
     .map((t) => ({ title: t.text.split(/[.!?]/)[0].slice(0, 48), text: t.text, at: t.at, live: true }));
 }
+const storyKey = (s) => `${String(s.title || '').toLowerCase().trim()}|${String(s.text || '').toLowerCase().slice(0, 40)}`;
+function toldOn(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const days = Math.round((new Date(new Date().toDateString()) - new Date(d.toDateString())) / 86400000);
+  if (days === 0) return 'Told on today’s call';
+  if (days === 1) return 'Told on yesterday’s call';
+  if (days < 7) return `Told on ${d.toLocaleDateString('en-US', { weekday: 'long' })}’s call`;
+  return `Told on ${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`;
+}
 
 function Stories({ senior, checkins }) {
   const settled = useSettled();
+  const [person, setPerson] = useState(null);
+  const name = senior.preferredName;
   const live = checkins.find((c) => c.seniorId === senior._id && c.status === 'in-progress');
   const heard = live ? liveStories(live) : [];
-  const saved = checkins.filter((c) => c.status !== 'in-progress').flatMap((c) => (c.stories || []).map((s) => ({ ...s, at: c.endedAt })));
+
+  // Newest first, one copy of each story even if she tells it again.
+  const seen = new Set();
+  const saved = [];
+  for (const c of checkins) {
+    if (c.status === 'in-progress' || (c.seniorId && c.seniorId !== senior._id)) continue;
+    for (const st0 of c.stories || []) {
+      const k = storyKey(st0);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      saved.push({ ...st0, at: st0.at || c.endedAt || c.startedAt });
+    }
+  }
+  const people = [...new Set(saved.flatMap((x) => x.people || []))].slice(0, 8);
+  const shown = person ? saved.filter((x) => (x.people || []).includes(person)) : saved;
+  const starters = checkins.find((c) => c.seniorId === senior._id && c.starters?.length)?.starters || [];
+
   return (
-    <Section title={`${senior.preferredName}’s stories`}>
-      <T v="callout" muted style={{ paddingHorizontal: 4 }}>Saved from her calls, for the whole family.</T>
+    <View style={{ gap: 16 }}>
+      <View style={{ gap: 4, paddingHorizontal: 4 }}>
+        <T v="title">{name}’s stories</T>
+        <T v="callout" muted>
+          {saved.length ? `${saved.length} ${saved.length === 1 ? 'story' : 'stories'} in her own words, saved from her calls.` : 'In her own words, saved from her calls.'}
+        </T>
+      </View>
+
       {live && (
         <Appear on={settled}>
-          <Card tone="lamp" style={{ gap: 8 }} accessibilityLabel={`${senior.preferredName} is on her call now`}>
+          <Card style={{ gap: 10 }} accessibilityLabel={`${name} is on her call now. ${heard.length ? 'New stories show up as she tells them.' : 'Listening.'}`}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Dot tone="lamp" />
-              <T v="headline" style={{ color: accent.lampText }}>On her call now</T>
+              <Lamp state="lit" size={22} />
+              <T v="headline" style={{ flex: 1 }}>On her call now</T>
+              <T v="footnote" muted>Live</T>
             </View>
-            <T v="callout" muted>
-              {heard.length ? 'New stories show up here as she tells them.' : 'Listening. Any story she tells will show up here.'}
-            </T>
+            <T v="callout" muted>{heard.length ? 'Here’s what she’s sharing. The full story is saved when the call ends.' : 'Listening. Any story she tells will show up here.'}</T>
           </Card>
         </Appear>
       )}
-      {heard.map((s, i) => <Appear key={`live-${i}`} on={settled}><StoryCard story={s} /></Appear>)}
-      {!live && saved.length === 0 && <Card><T v="callout" muted>Stories she tells on her calls are saved here.</T></Card>}
-      {saved.map((s, i) => <Appear key={`${s.at}-${i}`} on={settled}><StoryCard story={s} /></Appear>)}
-    </Section>
+      {heard.map((x, i) => <Appear key={`live-${i}`} on={settled}><StoryCard story={x} name={name} /></Appear>)}
+
+      {people.length > 1 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }} style={{ marginHorizontal: -4 }}>
+          {[null, ...people].map((p) => {
+            const on = person === p;
+            return (
+              <Press key={p ?? 'all'} onPress={() => { haptic.select(); setPerson(p); }} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={p ? `Stories about ${p}` : 'All stories'} style={[st.chip, on && st.chipOn]}>
+                <Text style={[st.chipText, on && { color: light.onPrimary }]}>{p ?? 'All'}</Text>
+              </Press>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {!live && saved.length === 0 && (
+        <Card style={{ gap: 12 }}>
+          <View style={[st.iconTile, { backgroundColor: light.sunken }]}><Icon name="book.closed" size={17} color={light.ink} /></View>
+          <T v="headline">Her stories will live here</T>
+          <T v="callout" muted>When {name} tells a story on a call, Porchlight saves it in her words with who and when, plus a question you can ask her next time.</T>
+          {starters[0] ? <Quote plain>{starters[0]}</Quote> : null}
+        </Card>
+      )}
+
+      {shown.map((x) => <Appear key={storyKey(x)} on={settled}><StoryCard story={x} name={name} /></Appear>)}
+    </View>
   );
 }
 
-function StoryCard({ story: s }) {
+function StoryCard({ story: s, name }) {
+  const [open, setOpen] = useState(false);
+  const long = String(s.text || '').length > 260;
+  const meta = [s.when, s.place].filter(Boolean).join(' · ');
+  const ask = s.askNext || (s.people?.[0] ? `Ask her to tell you more about ${s.people[0]}.` : 'Ask her to tell this one again. She’ll love that you remembered.');
+  const quote = (
+    <View style={st.storyQuote}>
+      <Text style={st.quoteMark} accessibilityElementsHidden importantForAccessibility="no">“</Text>
+      <Text style={st.storyText} numberOfLines={long && !open ? 6 : undefined}>{s.text}</Text>
+      {long ? <T v="footnote" style={{ color: light.ink, fontWeight: '600', marginTop: 6 }}>{open ? 'Show less' : 'Read the whole story'}</T> : null}
+    </View>
+  );
+  const share = () => {
+    haptic.tap();
+    Share.share({ message: `${s.title}\n\n“${s.text}”\n\n${name}, ${toldOn(s.at).toLowerCase()}. Saved by Porchlight.` }).catch(() => {});
+  };
   return (
-    <Card style={{ gap: 8 }}>
-      <T v="headline">{s.title}</T>
-      <T v="body" style={{ fontStyle: 'italic', color: light.ink2 }}>{s.text}</T>
-      <T v="footnote" muted>{s.live ? 'Just now, on today’s call' : ago(s.at)}</T>
+    <Card style={{ gap: 14 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={[st.iconTile, { backgroundColor: light.sunken }]}>
+          <Icon name={THEME_ICON[s.theme] || 'book.closed'} size={16} color={light.ink2} />
+        </View>
+        <View style={{ flex: 1, gap: 1 }}>
+          <T v="headline">{s.title}</T>
+          {s.summary || meta ? <T v="footnote" muted numberOfLines={2}>{[s.summary, meta].filter(Boolean).join(' · ')}</T> : null}
+        </View>
+      </View>
+
+      {long ? (
+        <Press onPress={() => setOpen((v) => !v)} scaleTo={1} accessibilityLabel={`${name} said: ${s.text}`} accessibilityHint={open ? 'Shows less' : 'Shows the whole story'}>
+          {quote}
+        </Press>
+      ) : <View accessible accessibilityLabel={`${name} said: ${s.text}`}>{quote}</View>}
+
+      {s.people?.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {s.people.map((p) => <Badge key={p} label={p} icon="person" />)}
+        </View>
+      ) : null}
+
+      {ask && !s.live ? (
+        <View style={st.askNext} accessible accessibilityLabel={`Next time you talk: ${ask}`}>
+          <Icon name="bubble.left" size={15} color={light.ink2} style={{ marginTop: 2 }} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <T v="label" muted>Next time you talk</T>
+            <T v="callout" style={{ color: light.ink2 }}>{ask}</T>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <T v="footnote" muted style={{ flex: 1 }}>{s.live ? 'Just now, on today’s call' : toldOn(s.at)}</T>
+        {!s.live && <Button size="sm" variant="ghost" icon="square.and.arrow.up" label="Share" accessibilityLabel={`Share ${s.title} with family`} onPress={share} />}
+      </View>
     </Card>
   );
 }
@@ -714,6 +823,13 @@ const st = StyleSheet.create({
   shareBar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: light.sunken, overflow: 'hidden' },
   shareFill: { height: '100%', borderRadius: 4, backgroundColor: light.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: light.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: light.lineStrong, alignItems: 'center', justifyContent: 'center' },
+  chipOn: { backgroundColor: light.ink, borderColor: light.ink },
+  chipText: { fontSize: 15, fontWeight: '600', color: light.ink },
+  storyQuote: { paddingLeft: 2 },
+  quoteMark: { fontSize: 44, lineHeight: 44, height: 26, color: light.faint, fontWeight: '700', marginBottom: -2 },
+  storyText: { fontSize: 19, lineHeight: 28, color: light.ink, fontStyle: 'italic', letterSpacing: -0.2 },
+  askNext: { flexDirection: 'row', gap: 10, backgroundColor: light.sunken, borderRadius: radius.sm, padding: 12 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 16, fontWeight: '700', color: light.ink },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
