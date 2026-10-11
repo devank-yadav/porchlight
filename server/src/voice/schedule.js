@@ -13,7 +13,11 @@ export function canCall() {
 }
 
 // Ring the senior now. Used by "Call now" in the app and by the daily schedule.
-export async function callSenior(seniorId, reason = 'now') {
+// A missed call is tried again before the family is bothered (demo: 2 minutes; real life ~10).
+export const RETRY_MS = Number(process.env.CALL_RETRY_MS || 120000);
+export const MAX_ATTEMPTS = Number(process.env.CALL_ATTEMPTS || 2);
+
+export async function callSenior(seniorId, reason = 'now', attempt = 1) {
   if (!canCall()) {
     const err = new Error('Phone calls need TWILIO_* and PUBLIC_URL in .env. Use "Talk" in the app instead.');
     err.status = 400;
@@ -21,7 +25,7 @@ export async function callSenior(seniorId, reason = 'now') {
   }
   const senior = await store.get('seniors', seniorId);
   const { checkin } = await startCheckin(senior._id, 'phone');
-  await store.update('checkins', checkin._id, { trigger: reason });
+  await store.update('checkins', checkin._id, { trigger: reason, attempt });
   const base = process.env.PUBLIC_URL.replace(/\/$/, '');
   await placeCall(senior.phone, `${base}/twilio/voice?checkinId=${checkin._id}`, `${base}/twilio/status?checkinId=${checkin._id}`);
   return checkin;
@@ -92,4 +96,22 @@ let timer = null;
 export function startScheduler() {
   if (timer) return;
   timer = setInterval(() => tick().catch((e) => console.warn('[schedule]', e.message)), 20000);
+}
+
+// She didn't pick up. Try again in a little while; only after the last try does the family ladder start.
+// Returns true if a retry is scheduled.
+export function scheduleRetry(checkin, onGiveUp) {
+  const attempt = checkin.attempt || 1;
+  if (attempt >= MAX_ATTEMPTS || !canCall()) return false;
+  console.log(`[schedule] No answer (try ${attempt}/${MAX_ATTEMPTS}); calling again in ${Math.round(RETRY_MS / 1000)} s.`);
+  setTimeout(async () => {
+    const senior = await store.get('seniors', checkin.seniorId);
+    // She checked in some other way meanwhile ("I'm okay" button, or she called back): no need.
+    if (senior.lastCheckinAt && new Date(senior.lastCheckinAt) > new Date(checkin.startedAt)) return;
+    callSenior(checkin.seniorId, checkin.trigger || 'now', attempt + 1).catch((e) => {
+      console.warn('[schedule] retry failed:', e.message);
+      onGiveUp?.();
+    });
+  }, RETRY_MS);
+  return true;
 }
