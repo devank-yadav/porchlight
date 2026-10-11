@@ -124,12 +124,12 @@ function Home({ senior, ride, notices, primary, setMode, refresh }) {
     try {
       await api.phoneCall(senior._id);
       haptic.success();
-      toast.success('Calling your phone now…', { description: 'Pick up when it rings. It’s Porchlight.' });
+      toast.success('Calling your phone now…', { description: 'Pick up when it rings. Porchlight is an AI and will talk first.' });
+      setTimeout(() => setCalling(false), 20000); // one call at a time
     } catch (e) {
       haptic.warn();
       toast.info('Phone calls aren’t set up here', { description: 'Tap “Talk with Porchlight” instead.' });
-    } finally {
-      setTimeout(() => setCalling(false), 4000);
+      setCalling(false);
     }
   };
 
