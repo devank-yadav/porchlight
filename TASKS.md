@@ -3,6 +3,32 @@
 Claim a task by adding your name, push that change first, then start. Details and acceptance criteria for every task: TEAM_PLAN.md.
 Feature freeze 6:30 PM. Judging 8:00 PM.
 
+## Shared context for every agent
+
+This file is the shared work queue. Every teammate's agent updates its own claims, progress, blockers, and handoff here. `TEAM_PLAN.md` defines acceptance criteria and data shapes; `PLAN.md` defines product decisions. Backend details and validation commands are in `server/src/care/INTEGRATION.md`.
+
+### Before starting or taking over work
+
+1. Read the required agent instructions, then fetch `origin` and read the latest `origin/main:TASKS.md`.
+2. Check open PRs and the relevant owner's remote branch, including that branch's `TASKS.md`. A claim pushed on a feature branch may not appear on main yet. An unchecked main row does not mean nobody has claimed it.
+3. Claim one task with your human name, tool, branch, scope, and status; push the claim before implementation. Add the PR link when available.
+4. Keep one owner per file area. A quiet branch or stale task row does not release another owner's claim; record an agreed handoff before taking over.
+5. At each checkpoint, update the task with the commit/PR, validation evidence, remaining blocker, and next step. Distinguish implemented, ready for review, merged, and validated on phones. Preserve other agents' entries when resolving conflicts.
+
+For example: `B9 — Rishi (Codex); care/atlas; in progress; PR #...; scope: persistence; checked: ...; blocker: ...; next: ...`.
+
+### Latest verified handoff
+
+Source: `origin/main` at `349eea6` (PR #8 merged). Refresh before acting on this snapshot.
+
+| Area | Current repository state | Remaining work on the checklist |
+|---|---|---|
+| Voice / Person A | A3–A7 implemented and merged | A1 model key, A2 live call, A8 rehearsal/video/submission |
+| Backend / Rishi | B1–B8 implemented and merged; use the existing workflows | B9 MongoDB URI and persistence check; Devpost paragraph already exists |
+| App / Manasv | C2–C8 implemented and merged | C1 two-phone validation, C9 screenshots/video |
+
+The initial backend implementation overlapped a published B1 claim. PR #8 preserved the merged workflows and added contract checks and seed fixes. Future agents should extend the existing actions, tasks, digest, filtering, and escalation implementations. The contract smoke check passes in empty-env mode with the server in UTC, and all eight voice safety tests pass. Those checks do not establish two-phone or real-call validation.
+
 ## Person A — Voice & AI + demo lead (Claude Code) — name: ____
 - [ ] A1 Model key live in .env
 - [ ] A2 Twilio + ngrok, first real call to a teammate's phone
@@ -36,7 +62,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [ ] C9 Screenshots + screen-recording backup
 
 ## Coordination
-- [ ] Shared task handoff — claimed by Rishi (Codex), branch `care/shared-handoff`; make branch claims and validation evidence visible.
+- [x] Shared task handoff — Rishi (Codex), branch `care/shared-handoff`; ready for review. Added owner-branch checks, claim/handoff rules, merged-work snapshot, and validation limits.
 
 ## Done
 - [x] Research → feature spec (PLAN.md), ranked Phase 1 (TEAM_PLAN.md)
