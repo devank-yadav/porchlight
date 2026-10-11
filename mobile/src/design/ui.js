@@ -25,13 +25,13 @@ const TYPE = {
 };
 
 export function T({ v = 'body', color, muted, center, style, children, ...rest }) {
-  const { c } = useTheme();
+  const { c, isSenior } = useTheme();
   const header = ['display', 'largeTitle', 'title', 'readTitle', 'readHeadline'].includes(v);
   return (
     <Text
       accessibilityRole={header ? 'header' : undefined}
       {...rest}
-      style={[TYPE[v], { color: color ?? (muted ? c.muted : c.ink) }, center && { textAlign: 'center' }, style]}
+      style={[TYPE[v], isSenior && !v.startsWith('read') && { fontFamily: font.read, fontSize: Math.max(20, TYPE[v].fontSize), lineHeight: Math.max(28, TYPE[v].lineHeight) }, { color: color ?? (muted ? c.muted : c.ink) }, center && { textAlign: 'center' }, style]}
     >
       {children}
     </Text>
@@ -78,7 +78,7 @@ function splitLayout(style) {
 // ── Buttons ─────────────────────────────────────────────────────────────────
 // variant: primary | secondary | ghost | danger | lamp. Labels say what happens.
 export function Button({ label, icon, onPress, variant = 'secondary', size = 'md', disabled, busy, style, accessibilityHint, accessibilityLabel }) {
-  const { c, isDark } = useTheme();
+  const { c, isDark, isSenior } = useTheme();
   const V = {
     primary: { bg: isDark ? '#FAFAFA' : c.primary, fg: isDark ? '#0C0C0E' : '#fff', border: 'transparent' },
     secondary: { bg: c.surface, fg: c.ink, border: c.lineStrong },
@@ -86,11 +86,11 @@ export function Button({ label, icon, onPress, variant = 'secondary', size = 'md
     danger: { bg: accent.red, fg: '#fff', border: 'transparent' },
     lamp: { bg: accent.lamp, fg: accent.lampInk, border: 'transparent' },
   }[variant];
-  const h = size === 'sm' ? 40 : size === 'lg' ? 56 : 48;
+  const h = isSenior ? 104 : size === 'sm' ? 44 : size === 'lg' ? 56 : 48;
   return (
     <Press
       onPress={busy ? undefined : onPress}
-      disabled={disabled}
+      disabled={disabled || busy}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       style={[st.btn, { minHeight: h, backgroundColor: V.bg, borderColor: V.border, paddingHorizontal: size === 'sm' ? 14 : 18 }, variant === 'secondary' && !isDark && shadow.card, style]}
@@ -98,7 +98,7 @@ export function Button({ label, icon, onPress, variant = 'secondary', size = 'md
       {busy ? <ActivityIndicator color={V.fg} /> : (
         <>
           {icon ? <Icon name={icon} size={size === 'sm' ? 15 : 17} color={V.fg} /> : null}
-          <Text style={[st.btnText, { color: V.fg, fontSize: size === 'sm' ? 15 : 16 }]} numberOfLines={1}>{label}</Text>
+          <Text style={[st.btnText, { color: V.fg, fontSize: isSenior ? 22 : size === 'sm' ? 15 : 16, flexShrink: 1, textAlign: 'center' }, isSenior && { fontFamily: font.readBold }]}>{label}</Text>
         </>
       )}
     </Press>
@@ -109,8 +109,8 @@ export function Button({ label, icon, onPress, variant = 'secondary', size = 'md
 export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', disabled, style }) {
   const { c } = useTheme();
   const T_ = {
-    lamp: { bg: accent.lamp, fg: accent.lampInk, sub: '#5C3B00', chip: 'rgba(0,0,0,0.08)' },
-    help: { bg: accent.red, fg: '#fff', sub: '#FFE3DE', chip: 'rgba(255,255,255,0.16)' },
+    lamp: { bg: c.primary, fg: c.onPrimary, sub: '#E5EAE7', chip: 'transparent' },
+    help: { bg: accent.redSoft, fg: accent.redText, sub: accent.redText, chip: 'transparent' },
     plain: { bg: c.surface, fg: c.ink, sub: c.muted, chip: c.raised ?? c.sunken },
   }[tone];
   return (
@@ -118,7 +118,7 @@ export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', dis
       onPress={onPress}
       disabled={disabled}
       feedback="press"
-      scaleTo={0.98}
+      scaleTo={0.97}
       accessibilityLabel={sub ? `${title}. ${sub}` : title}
       accessibilityHint={hint}
       style={[st.big, { backgroundColor: T_.bg, borderColor: tone === 'plain' ? c.line : 'transparent' }, style]}
@@ -138,9 +138,9 @@ export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', dis
 
 // ── Surfaces ────────────────────────────────────────────────────────────────
 export function Card({ children, style, tone, ...rest }) {
-  const { c, isDark } = useTheme();
+  const { c } = useTheme();
   const tint = tone === 'lamp' ? { borderColor: '#F3D08A' } : tone === 'red' ? { borderColor: '#F2B8AF' } : null;
-  return <View {...rest} style={[st.card, { backgroundColor: c.surface, borderColor: c.line }, !isDark && shadow.card, tint, style]}>{children}</View>;
+  return <View {...rest} style={[st.card, { backgroundColor: c.surface, borderColor: c.line }, tint, style]}>{children}</View>;
 }
 
 export function Section({ title, action, children, style }) {
@@ -249,28 +249,28 @@ export function Appear({ on, children, style }) {
 export function Fact({ label, value, icon }) {
   const { c } = useTheme();
   return (
-    <View style={{ gap: 3, flex: 1 }}>
+    <View style={{ gap: 3, flexGrow: 1, flexShrink: 1, flexBasis: 120, minWidth: 120 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         {icon ? <Icon name={icon} size={12} color={c.muted} /> : null}
-        <Text style={[TYPE.footnote, { color: c.muted }]}>{label}</Text>
+        <Text style={[TYPE.footnote, { color: c.muted, flexShrink: 1 }]}>{label}</Text>
       </View>
-      <Text style={[TYPE.headline, { color: c.ink, fontSize: 16 }]} numberOfLines={2}>{value}</Text>
+      <Text style={[TYPE.headline, { color: c.ink, fontSize: 16 }]}>{value}</Text>
     </View>
   );
 }
 
 const st = StyleSheet.create({
-  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth },
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
   btnText: { fontWeight: '600', letterSpacing: -0.2 },
-  big: { minHeight: 108, borderRadius: radius.xl, paddingHorizontal: 18, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: 1 },
-  bigIcon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  big: { minHeight: 104, borderRadius: radius.md, paddingHorizontal: 20, paddingVertical: 20, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1 },
+  bigIcon: { width: 32, alignItems: 'center', justifyContent: 'center' },
   card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 18, gap: 12 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 4 },
   badgeText: { fontSize: 12, lineHeight: 15, fontWeight: '600' },
   seg: { flexDirection: 'row', borderRadius: radius.sm, padding: 3 },
   segPill: { position: 'absolute', top: 3, bottom: 3, left: 0, borderRadius: 10, backgroundColor: '#fff' },
-  segBtn: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
+  segBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   segText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.2 },
   segBadge: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   segBadgeText: { fontSize: 11, fontWeight: '700', color: accent.lampInk },

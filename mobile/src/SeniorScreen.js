@@ -1,23 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { router } from 'expo-router';
+import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
-import { HEADER_H, useAppContext } from './AppContext';
+import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { BigButton, Button, Press, T } from './design/ui';
+import PlanRow, { upcomingPlans, isToday, dayLabel } from './design/PlanRow';
 import Icon from './design/Icon';
 import { haptic } from './design/haptics';
 import { toast } from './design/Toaster';
-import { accent, dark, ease, font, radius } from './design/tokens';
-
-// Peggy's side. Evening palette, Atkinson Hyperlegible, text ≥ 20pt, buttons ≥ 104pt.
-
-function greetingFor(d = new Date()) {
-  const h = d.getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-}
+import { accent, seniorPalette as dark, ease, font, radius } from './design/tokens';
 
 function say(text) {
   return new Promise((resolve) => {
@@ -25,150 +20,100 @@ function say(text) {
     Speech.speak(text, { rate: 0.92, language: 'en-US', onDone: resolve, onStopped: resolve, onError: resolve });
   });
 }
+const onError = (e) => toast.error('Please try again', { description: e.message });
+const openLink = (url) => Linking.openURL(url).catch(onError);
+const go = (page) => router.push('/senior/' + page);
+const home = () => router.replace('/senior/today');
 
-const onError = (e) => toast.error('Something went wrong', { description: e.message });
-
-export default function SeniorScreen({ senior }) {
-  const { state, refresh } = useAppContext();
-  const [mode, setMode] = useState('home'); // home | talk | scam | help | thanks
+export default function SeniorScreen({ senior, page = 'today' }) {
+  const { state, refresh, setRole } = useAppContext();
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
-  const home = () => setMode('home');
-  // Confirmed facts only (a ride that's booked, a task someone claimed). Newest first.
-  // Her next ride, if Porchlight is arranging one. Peggy books the real Uber herself; family is only told.
   const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
-  const notices = (state.notices || [])
-    .filter((n) => n.seniorId === senior._id)
-    .sort((a, b) => (a.at < b.at ? 1 : -1))
-    .slice(0, 3);
-
-  return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Animated.View key={mode} entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={{ flex: 1 }}>
-        {mode === 'home' && <Home senior={senior} ride={ride} notices={notices} primary={primary} setMode={setMode} refresh={refresh} />}
-        {mode === 'talk' && <Talk senior={senior} done={() => { setMode('thanks'); refresh(); }} />}
-        {mode === 'scam' && <ScamCheck senior={senior} back={home} />}
-        {mode === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
-        {mode === 'thanks' && <Thanks senior={senior} back={home} />}
-      </Animated.View>
-    </KeyboardAvoidingView>
-  );
+  const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
+  const plans = upcomingPlans(state, senior);
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    {page === 'today' && <Home senior={senior} primary={primary} plans={plans} state={state} refresh={refresh} notices={notices} />}
+    {page === 'plans' && <Page><T v="readTitle">My plans</T><T v="read" muted>What’s coming up, all in one place.</T>
+      {ride && <RideCard ride={ride} />}
+      {plans.length ? plans.map((plan) => <PlanRow key={plan._id} plan={plan} senior={senior} state={state} />) : <T v="read" muted>No upcoming appointments. Your day is open.</T>}
+      <Notices notices={notices} />
+      <BigButton icon="bubble.left.and.bubble.right" title="Ask about my plans" sub="Talk with your AI helper" onPress={() => go('talk')} />
+      <HelpButton />
+    </Page>}
+    {page === 'family' && <Page><T v="readTitle">My family</T><T v="read" muted>A familiar voice is a tap away.</T>
+      {state.members.filter((m) => m.circleId === senior.circleId).map((m) => <BigButton key={m._id} icon="phone" title={'Call ' + m.name.split(' ')[0]} sub={m.relation + (m.primary ? ' · First contact' : '')} disabled={!m.phone} onPress={() => openLink('tel:' + m.phone)} />)}
+      <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check a call, letter or message" onPress={() => go('scam')} />
+      <HelpButton />
+      <T v="readSmall" muted>Sample people. Porchlight is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
+      <BigButton icon="person.crop.circle" title="Switch person" sub="Choose a different sample profile" onPress={() => setRole(null)} />
+    </Page>}
+    {page === 'talk' && <Talk senior={senior} done={() => { router.replace('/senior/thanks'); refresh(); }} />}
+    {page === 'scam' && <ScamCheck senior={senior} back={home} />}
+    {page === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
+    {page === 'thanks' && <Thanks senior={senior} back={home} />}
+  </KeyboardAvoidingView>;
 }
-
-function rideTime(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  const days = Math.round((new Date(d.toDateString()) - new Date(new Date().toDateString())) / 86400000);
-  const day = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'long' });
-  return `${day} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
-}
-
-function RideCard({ ride }) {
-  const d = ride.details || {};
-  const to = String(d.to || '').replace(/\s*\(sample\)/i, '');
-  const pickup = rideTime(d.pickupAt);
-  return (
-    <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={st.notices} accessibilityLiveRegion="polite">
-      <View style={st.noticesHead}>
-        <Icon name="car.fill" size={18} color={accent.lamp} />
-        <Text style={st.noticesTitle} accessibilityRole="header">Your ride</Text>
-      </View>
-      <Text style={st.noticeText}>{pickup ? `Pickup ${pickup.charAt(0).toLowerCase() + pickup.slice(1)}` : 'A ride is being arranged'}{to ? `, to ${to}.` : '.'}</Text>
-      <BigButton
-        tone="lamp"
-        icon="car.side.fill"
-        title="Book with Uber"
-        sub="Your address is filled in"
-        hint="Opens the Uber app with your pickup and drop-off filled in. You confirm the ride there."
-        onPress={() => Linking.openURL(d.uberLink)}
-      />
-      {ride.simulated && <Text style={st.noticeMeta}>Porchlight’s booking is a demo. Uber is the real one.</Text>}
-    </Animated.View>
-  );
-}
-
 function Page({ children, center }) {
   const insets = useSafeAreaInsets();
-  return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={[st.pad, center && st.center, { paddingTop: insets.top + HEADER_H + 16, paddingBottom: insets.bottom + 40 }]}
-    >
-      {children}
-    </ScrollView>
-  );
+  return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[st.pad, center && st.center, { paddingTop: 28, paddingBottom: Math.max(insets.bottom, 24) }]}>
+    {children}
+  </ScrollView>;
 }
-
-function Home({ senior, ride, notices, primary, setMode, refresh }) {
+function HelpButton() {
+  return <BigButton tone="help" icon="hand.raised" title="I need help" sub="Ask your family to contact you" hint="Opens a confirmation before alerting anyone." onPress={() => go('help')} />;
+}
+function Home({ senior, primary, plans, state, refresh, notices }) {
   const [busy, setBusy] = useState(false);
-  const checkedIn = !['help', 'missed'].includes(senior.status) && !!senior.lastCheckinAt && new Date(senior.lastCheckinAt).toDateString() === new Date().toDateString();
-  const lamp = lampState(senior);
-  const primaryFirst = primary?.name.split(' ')[0];
-
+  const { width, fontScale } = useWindowDimensions();
+  const compact = width < 360 || fontScale > 1.2;
+  const checkedIn = !['help', 'missed'].includes(senior.status) && isToday(senior.lastCheckinAt, senior.timezone);
   const imOkay = async () => {
+    if (busy) return;
     setBusy(true);
-    try {
-      await api.ok(senior._id);
-      await refresh();
-      setMode('thanks');
-    } catch (e) {
-      onError(e);
-    } finally {
-      setBusy(false);
-    }
+    try { await api.ok(senior._id); await refresh(); router.push('/senior/thanks'); }
+    catch (e) { onError(e); } finally { setBusy(false); }
   };
-
-  return (
-    <Page>
-      <View style={st.hero}>
-        <Lamp state={lamp} size={96} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
-        <View style={[st.statusPill, checkedIn && { backgroundColor: 'rgba(245,165,36,0.14)' }]}>
-          <View style={[st.statusDot, { backgroundColor: checkedIn ? accent.lamp : dark.muted }]} />
-          <Text style={[st.statusText, checkedIn && { color: '#FFD58A' }]}>{checkedIn ? 'You checked in today' : 'Waiting for today’s check-in'}</Text>
-        </View>
-      </View>
-      <T v="readTitle" style={{ marginTop: -6 }}>{greetingFor()},{'\n'}{senior.preferredName}.</T>
-
-      {notices.length > 0 && (
-        <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} layout={LinearTransition.duration(200)} style={st.notices} accessibilityLiveRegion="polite">
-          <View style={st.noticesHead}>
-            <Icon name="sparkles" size={18} color={accent.lamp} />
-            <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
-          </View>
-          {notices.map((n) => (
-            <View key={n._id} style={{ gap: 12 }}>
-            <View style={st.notice} accessible accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}>
-              <Icon name="checkmark.circle.fill" size={22} color="#6FCF8E" style={{ marginTop: 4 }} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={st.noticeText}>{n.text}</Text>
-                {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
-              </View>
-            </View>
-            {/* Her ride, her booking: Uber opens with home and the clinic filled in; she confirms there. */}
-            {n.uberLink && (
-              <BigButton tone="lamp" icon="car.fill" title="Book my Uber" sub="Opens Uber with your trip filled in" hint="Opens the Uber app with your home and the clinic already filled in. You confirm the ride in Uber." onPress={() => Linking.openURL(n.uberLink)} />
-            )}
-            </View>
-          ))}
-        </Animated.View>
-      )}
-
-      {ride && <RideCard ride={ride} />}
-
-      <View style={st.stack}>
-        <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
-        <BigButton icon="checkmark.circle.fill" title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
-        {primary && (
-          <BigButton icon="phone.fill" title={`Call ${primaryFirst}`} sub={primary.relation} hint={`Opens a phone call to ${primaryFirst}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
-        )}
-        <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
-        <BigButton tone="help" icon="hand.raised.fill" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
-      </View>
-      <Text style={st.footer}>Porchlight is an AI helper. It never asks for money, codes or passwords.</Text>
-    </Page>
-  );
+  const checkinButton = <BigButton tone="lamp" icon="checkmark.circle" title={busy ? 'Checking in…' : checkedIn ? 'Check in again' : 'I’m okay today'} sub="Let your family know" onPress={imOkay} disabled={busy} />;
+  return <Page>
+    <View style={st.dailyTitle}><T v="readTitle" style={{ flex: 1 }}>Today, {senior.preferredName}.</T><Lamp state={lampState(senior)} size={64} /></View>
+    {!compact && <T v="read" muted>Here’s your day, at a glance.</T>}
+    {senior.status === 'help' && <View style={st.attention}><T v="readHeadline" color={accent.redText}>You’ve asked for help.</T><T v="readSmall">If you’re hurt or in danger, call 911.</T><BigButton title="Call 911" icon="phone" tone="help" onPress={() => openLink('tel:911')} /></View>}
+    <T v="readSmall" style={{ marginTop: 8 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: senior.timezone })}</T>
+    <View style={st.agendaRow}>
+      <T v="readHeadline">{checkedIn ? 'You checked in today' : 'Daily check-in'}</T>
+      <T v="readSmall" muted>{checkedIn ? 'Your update is shared with family.' : senior.autoCall ? 'Your daily call is set for ' + senior.checkinTime + '.' : 'Check in whenever you’re ready.'}</T>
+    </View>
+    {compact && checkinButton}
+    {plans[0] ? <PlanRow plan={plans[0]} senior={senior} state={state} /> : <View style={st.agendaRow}><T v="readHeadline">A little room in your day</T><T v="readSmall" muted>No upcoming appointments.</T></View>}
+    {!compact && checkinButton}
+    <BigButton icon="bubble.left.and.bubble.right" title="Talk with Porchlight" sub="Your AI helper for the day" onPress={() => go('talk')} />
+    <HelpButton />
+    <Notices notices={notices} />
+    {primary && <BigButton icon="phone" title={'Call ' + primary.name.split(' ')[0]} sub={primary.relation} onPress={() => openLink('tel:' + primary.phone)} />}
+    <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check before you act" onPress={() => go('scam')} />
+    <T v="readSmall" muted>Porchlight is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
+  </Page>;
+}
+function Notices({ notices }) {
+  if (!notices.length) return null;
+  return <View style={st.stack}><T v="readHeadline">Updates for you</T>{notices.map((n) => <View key={n._id} style={st.agendaRow}>
+    <T v="read">{n.text}</T>
+    {n.simulated && <T v="readSmall" muted>{n.kind === 'ride' ? 'Demo update · not a real booking' : 'Sample update'}</T>}
+    {n.uberLink && <BigButton icon="car" title="Book my Uber" sub="Confirm your ride in Uber" onPress={() => openLink(n.uberLink)} />}
+  </View>)}</View>;
+}
+function RideCard({ ride }) {
+  return <View style={st.notices}>
+    <T v="readHeadline">Your ride</T>
+    <T v="read">{ride.details.to}</T>
+    {ride.details.pickupAt && <T v="readSmall" muted>{dayLabel(ride.details.pickupAt)}</T>}
+    <BigButton tone="lamp" icon="car" title="Book with Uber" sub="Your trip is filled in" hint="Opens Uber. You confirm the booking and price there." onPress={() => openLink(ride.details.uberLink)} />
+    <T v="readSmall" muted>{ride.simulated ? 'Porchlight’s booking is a demo. Confirm a real ride and its price in Uber.' : 'Confirm the ride and its price in Uber.'}</T>
+  </View>;
 }
 
 function Talk({ senior, done }) {
+  const reduced = useReducedMotion();
   const insets = useSafeAreaInsets();
   const [checkin, setCheckin] = useState(null);
   const [lines, setLines] = useState([]);
@@ -215,7 +160,7 @@ function Talk({ senior, done }) {
 
   const send = async () => {
     const text = draft.trim();
-    if (!text || !checkin) return;
+    if (!text || !checkin || !['ready', 'speaking'].includes(phase)) return;
     haptic.tap();
     setDraft('');
     Speech.stop();
@@ -237,8 +182,8 @@ function Talk({ senior, done }) {
   const status = { starting: 'Calling…', speaking: 'Porchlight is talking', ready: 'Your turn', thinking: 'Thinking', ending: 'Saying goodbye…' }[phase];
 
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + HEADER_H }}>
-      <View style={st.talkHead}>
+    <View style={{ flex: 1, paddingTop: 0 }}>
+      <View style={{ paddingHorizontal: 24 }}><BackLink onPress={() => checkin ? phase !== 'ending' && finish() : home()} label={checkin ? 'Finish this chat' : 'Back to Today'} /></View><View style={st.talkHead}>
         <Lamp state="lit" size={56} label="Porch light on" />
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -255,7 +200,7 @@ function Talk({ senior, done }) {
 
       <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={st.transcript} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: true })}>
         {lines.map((l, i) => (
-          <Animated.View key={i} entering={FadeInDown.duration(250).easing(ease.out)} style={[st.bubble, l.who === 'senior' ? st.bubbleMe : st.bubbleThem]}>
+          <Animated.View key={i} entering={reduced ? undefined : FadeInDown.duration(250).easing(ease.out)} style={[st.bubble, l.who === 'senior' ? st.bubbleMe : st.bubbleThem]}>
             <Text style={[st.bubbleWho, l.who === 'senior' && { color: '#52525B' }]}>{l.who === 'porchlight' ? 'Porchlight' : senior.preferredName}</Text>
             <Text style={[st.bubbleText, l.who === 'senior' && { color: '#111' }]}>{l.text}</Text>
           </Animated.View>
@@ -279,8 +224,8 @@ function Talk({ senior, done }) {
             editable={phase !== 'ending'}
             accessibilityLabel="Your answer"
           />
-          <Press onPress={send} disabled={!draft.trim() || phase === 'thinking'} accessibilityLabel="Send" style={st.sendBtn} feedback={null}>
-            <Icon name="arrow.up" size={24} color={accent.lampInk} weight="bold" />
+          <Press onPress={send} disabled={!draft.trim() || !checkin || !['ready', 'speaking'].includes(phase)} accessibilityLabel="Send" style={st.sendBtn} feedback={null}>
+            <Text style={{ fontFamily: font.readBold, fontSize: 22, color: accent.lampInk }}>Send</Text>
           </Press>
         </View>
         <Button label="I’m done talking" variant="ghost" onPress={() => finish()} disabled={!checkin || phase === 'ending'} style={{ alignSelf: 'center' }} />
@@ -330,9 +275,9 @@ function ScamCheck({ senior, back }) {
 
   const tone = result?.verdict === 'likely scam' ? 'danger' : result?.verdict === 'be careful' ? 'warn' : 'safe';
   const V = {
-    danger: { bg: '#2A1311', border: '#5B231B', fg: '#FF9B88', icon: 'exclamationmark.octagon.fill' },
-    warn: { bg: '#2A1F0C', border: '#5A4116', fg: '#FFCF7A', icon: 'exclamationmark.triangle.fill' },
-    safe: { bg: '#10241A', border: '#1F4A33', fg: '#8EE0AC', icon: 'checkmark.shield.fill' },
+    danger: { bg: accent.redSoft, border: accent.red, fg: accent.redText, icon: 'exclamationmark.octagon.fill' },
+    warn: { bg: accent.lampSoft, border: accent.lamp, fg: accent.lampText, icon: 'exclamationmark.triangle.fill' },
+    safe: { bg: accent.greenSoft, border: accent.green, fg: accent.greenText, icon: 'checkmark.shield.fill' },
   }[tone];
 
   return (
@@ -407,8 +352,8 @@ function Help({ senior, back, refresh }) {
       ) : (
         <Animated.View entering={FadeIn.duration(250)} style={{ gap: 18, alignItems: 'center' }}>
           <Lamp state="alert" size={160} label="Help requested" />
-          <T v="readTitle" center>Help is on the way.</T>
-          <T v="read" muted center>Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</T>
+          <T v="readTitle" center>Your help request is sent.</T>
+          <T v="read" muted center>Porchlight has asked your family to contact you. A response is not confirmed yet. If you’re hurt, call 911.</T>
           <BigButton tone="help" icon="phone.fill" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
           <Button label="Back to start" variant="ghost" onPress={back} />
         </Animated.View>
@@ -428,7 +373,7 @@ function Thanks({ senior, back }) {
     <Page center>
       <Lamp state={lit ? 'lit' : 'dim'} size={180} label="Porch light on" />
       <T v="readTitle" center>Thank you, {senior.preferredName}.</T>
-      <T v="read" muted center>Your family will see that you’re doing well today.</T>
+      <T v="read" muted center>Your check-in is saved. Your family can see your update.</T>
       <BigButton icon="house.fill" title="Back to start" onPress={back} style={{ alignSelf: 'stretch', marginTop: 8 }} />
     </Page>
   );
@@ -444,41 +389,41 @@ function BackLink({ onPress, label = 'Back' }) {
 }
 
 const st = StyleSheet.create({
-  pad: { paddingHorizontal: 18, gap: 18 },
+  pad: { paddingHorizontal: 24, gap: 20, width: '100%', maxWidth: 680, alignSelf: 'center' }, dailyTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 }, agendaRow: { paddingVertical: 16, gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: dark.line }, attention: { gap: 14, padding: 20, backgroundColor: accent.redSoft, borderRadius: radius.md },
   center: { alignItems: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: -10 },
   statusPill: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: dark.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
   statusDot: { width: 9, height: 9, borderRadius: 5 },
-  statusText: { fontFamily: font.readBold, fontSize: 17, color: dark.ink2, flexShrink: 1 },
+  statusText: { fontFamily: font.readBold, fontSize: 20, color: dark.ink2, flexShrink: 1 },
   stack: { gap: 12 },
   notices: { backgroundColor: dark.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: dark.lineStrong, padding: 20, gap: 16 },
   noticesHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   noticesTitle: { fontFamily: font.readBold, fontSize: 22, color: dark.ink },
   notice: { flexDirection: 'row', gap: 12 },
   noticeText: { fontFamily: font.read, fontSize: 22, lineHeight: 30, color: dark.ink },
-  noticeMeta: { fontFamily: font.read, fontSize: 17, color: dark.muted },
-  footer: { fontFamily: font.read, fontSize: 16, lineHeight: 22, color: dark.muted, textAlign: 'center', paddingHorizontal: 12 },
-  talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: dark.line },
+  noticeMeta: { fontFamily: font.read, fontSize: 20, color: dark.muted },
+  footer: { fontFamily: font.read, fontSize: 20, lineHeight: 22, color: dark.muted, textAlign: 'center', paddingHorizontal: 12 },
+  talkHead: { flexWrap: 'wrap', flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: dark.line },
   talkStatus: { fontFamily: font.readBold, fontSize: 22, color: dark.ink },
-  talkSub: { fontFamily: font.read, fontSize: 15, color: dark.muted },
+  talkSub: { fontFamily: font.read, fontSize: 20, color: dark.muted },
   voiceToggle: { alignItems: 'center', gap: 4 },
-  toggleLabel: { fontFamily: font.read, fontSize: 13, color: dark.muted },
+  toggleLabel: { fontFamily: font.read, fontSize: 20, color: dark.muted },
   transcript: { padding: 16, gap: 12 },
   bubble: { paddingHorizontal: 18, paddingVertical: 14, borderRadius: 24, maxWidth: '88%' },
   bubbleThem: { backgroundColor: dark.raised, alignSelf: 'flex-start', borderBottomLeftRadius: 8 },
   bubbleMe: { backgroundColor: '#FAFAFA', alignSelf: 'flex-end', borderBottomRightRadius: 8 },
-  bubbleWho: { fontFamily: font.readBold, fontSize: 14, color: dark.muted, marginBottom: 3 },
+  bubbleWho: { fontFamily: font.readBold, fontSize: 20, color: dark.muted, marginBottom: 3 },
   bubbleText: { fontFamily: font.read, fontSize: 22, lineHeight: 30, color: dark.ink },
   composer: { paddingHorizontal: 16, paddingTop: 10, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: dark.line, backgroundColor: dark.bg },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  hint: { fontFamily: font.read, fontSize: 16, color: dark.muted, flex: 1 },
+  hint: { fontFamily: font.read, fontSize: 20, color: dark.muted, flex: 1 },
   typeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 60, backgroundColor: dark.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: dark.lineStrong, paddingHorizontal: 18, fontFamily: font.read, fontSize: 22, color: dark.ink },
+  input: { flex: 1, minWidth: 0, minHeight: 60, backgroundColor: dark.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: dark.lineStrong, paddingHorizontal: 18, fontFamily: font.read, fontSize: 22, color: dark.ink },
   textarea: { minHeight: 150, paddingTop: 16, textAlignVertical: 'top', flex: 0 },
-  sendBtn: { width: 60, height: 60, borderRadius: 30, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 104, minHeight: 104, borderRadius: 16, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center' },
   verdict: { borderRadius: radius.xl, borderWidth: 1, padding: 22, gap: 12 },
   verdictWord: { fontFamily: font.readBold, fontSize: 28, lineHeight: 34, flex: 1 },
   verdictText: { fontFamily: font.read, fontSize: 21, lineHeight: 29, color: dark.ink },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, alignSelf: 'flex-start' },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 104, alignSelf: 'stretch' },
   backText: { fontFamily: font.readBold, fontSize: 20, color: dark.ink },
 });

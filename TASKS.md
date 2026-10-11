@@ -1,5 +1,9 @@
 # TASKS
 
+## Two-experience redesign — October 11, 2026
+
+- [ ] D1 — Rishi (Codex), `app/two-experiences`; redesign implemented at the user's explicit request. Owner notice: this branch changes `mobile/*` plus PRODUCT.md, DESIGN.md and Impeccable design records; existing UI work remains credited to Devank. Preserve senior Uber booking and family information-only rides. Scope: separate senior and family layouts, Expo Router navigation and design-system changes; no new server contract. User reviewed the local preview and now explicitly authorizes pushing and creating a PR, superseding the earlier local-only preference. Checked: iOS export, Expo lint and configured TypeScript check passed; browser interactions and layouts at 390 × 844, 320 × 740 and 768 × 1024; six finish-review findings resolved at web-preview scope. In progress: integrate current main and validate Expo Go package compatibility. Physical iPhone/VoiceOver validation remains a handoff.
+
 Claim a task by adding your name, push that change first, then start. Details and acceptance criteria for every task: TEAM_PLAN.md.
 Feature freeze 6:30 PM. Judging 8:00 PM.
 

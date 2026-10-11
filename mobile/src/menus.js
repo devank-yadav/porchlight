@@ -52,7 +52,7 @@ export function openRoleSheet({ role, setRole }) {
       ))}
       <MenuRow icon="arrow.uturn.backward" title="Back to the start screen" onPress={() => { close(); setTimeout(() => setRole(null), 120); }} />
     </View>
-  ), { theme: role?.id === 'senior' ? 'dark' : 'light' });
+  ), { theme: role?.id === 'senior' ? 'senior' : 'light' });
 }
 
 // Demo controls for presenting. Reached from the ••• button, or a long press on the Porchlight name.

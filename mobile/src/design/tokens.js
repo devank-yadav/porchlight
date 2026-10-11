@@ -6,20 +6,23 @@ import { Easing } from 'react-native-reanimated';
 
 // Family and desk: light.
 export const light = {
-  bg: '#F7F7F5',
+  bg: '#F1F3F4',
   surface: '#FFFFFF',
   sunken: '#F0F0EE',
-  ink: '#111111',
-  ink2: '#3F3F46',
-  muted: '#6B6B73',
-  faint: '#A1A1AA',
+  ink: '#252B2A',
+  ink2: '#454D4A',
+  muted: '#626A67',
+  faint: '#6B736F',
   line: 'rgba(0,0,0,0.08)',
   lineStrong: 'rgba(0,0,0,0.14)',
-  primary: '#111111',
+  primary: '#252B2A',
   onPrimary: '#FFFFFF',
 };
 
-// Peggy's side and the start screen: evening. Near-black ground so the lamp glows and text is high contrast.
+// A spacious reading surface for the older person.
+export const seniorPalette = { ...light, bg: '#F7F7F5', sunken: '#EBEEE9', raised: '#EBEEE9', line: '#DCE0DA', lineStrong: '#B7C0B9', muted: '#59635C' };
+
+// Retained for existing dark sheets and the volunteer experience.
 export const dark = {
   bg: '#0C0C0E',
   surface: '#18181B',
@@ -53,7 +56,7 @@ export const font = {
   ui: undefined,
 };
 
-export const radius = { xs: 8, sm: 12, md: 16, lg: 22, xl: 28, pill: 999 };
+export const radius = { xs: 8, sm: 12, md: 16, lg: 16, xl: 20, pill: 999 };
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
 export const shadow = {

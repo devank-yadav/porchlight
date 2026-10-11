@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, use
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { accent, ease, project, radius, rubberband, shadow, spring } from './tokens';
+import { accent, ease, font, project, radius, rubberband, shadow, spring } from './tokens';
 import { haptic } from './haptics';
 import Icon from './Icon';
 
@@ -52,10 +52,10 @@ const ICON = {
 const GAP = 8;
 const VISIBLE = 3;
 
-export function Toaster({ top = 0 }) {
+export function Toaster({ top = 0, senior = false }) {
   const list = useSyncExternalStore(subscribe, snapshot);
   const insets = useSafeAreaInsets();
-  const [expanded, setExpanded] = useState(false);
+  const [wantsExpanded, setExpanded] = useState(false);
   const [heights, setHeights] = useState({});
   const [appActive, setAppActive] = useState(true);
   const [dragging, setDragging] = useState(false);
@@ -66,23 +66,22 @@ export function Toaster({ top = 0 }) {
   }, []);
 
   const live = list.filter((t) => !t.leaving);
-  useEffect(() => { if (live.length <= 1 && expanded) setExpanded(false); }, [live.length, expanded]);
+  const expanded = wantsExpanded && live.length > 1;
 
   const paused = expanded || dragging || !appActive;
-  let offset = 0;
-  let liveIndex = 0;
+
 
   return (
     <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { top: insets.top + top }]}>
       {expanded && <Pressable style={StyleSheet.absoluteFill} onPress={() => setExpanded(false)} accessibilityLabel="Collapse notifications" />}
       {list.map((t) => {
-        const index = t.leaving ? -1 : liveIndex++;
-        const myOffset = offset;
-        if (!t.leaving) offset += (heights[t.id] ?? 64) + GAP;
+        const index = t.leaving ? -1 : live.findIndex((item) => item.id === t.id);
+        const myOffset = live.slice(0, Math.max(0, index)).reduce((sum, item) => sum + (heights[item.id] ?? 64) + GAP, 0);
         return (
           <ToastItem
             key={t.id}
             t={t}
+            senior={senior}
             index={index}
             expanded={expanded}
             offset={myOffset}
@@ -97,7 +96,7 @@ export function Toaster({ top = 0 }) {
   );
 }
 
-function ToastItem({ t, index, expanded, offset, paused, onHeight, onPress, onDrag }) {
+function ToastItem({ t, senior, index, expanded, offset, paused, onHeight, onPress, onDrag }) {
   const reduced = useReducedMotion();
   const y = useSharedValue(reduced ? 0 : -24);
   const scale = useSharedValue(1);
@@ -162,8 +161,8 @@ function ToastItem({ t, index, expanded, offset, paused, onHeight, onPress, onDr
         <Pressable onPress={onPress} style={st.inner} accessibilityRole="alert" accessibilityLiveRegion="polite" accessibilityLabel={[t.title, t.description].filter(Boolean).join('. ')}>
           <Icon name={icon} size={20} color={tint} />
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={st.title} numberOfLines={expanded || index === 0 ? 3 : 1}>{t.title}</Text>
-            {t.description ? <Text style={st.desc} numberOfLines={expanded || index === 0 ? 4 : 1}>{t.description}</Text> : null}
+            <Text style={[st.title, senior && { fontFamily: font.readBold, fontSize: 22, lineHeight: 28 }]} numberOfLines={expanded || index === 0 ? 3 : 1}>{t.title}</Text>
+            {t.description ? <Text style={[st.desc, senior && { fontFamily: font.read, fontSize: 20, lineHeight: 27 }]} numberOfLines={expanded || index === 0 ? 4 : 1}>{t.description}</Text> : null}
           </View>
         </Pressable>
       </Animated.View>
