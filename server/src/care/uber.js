@@ -10,6 +10,6 @@ export function uberLink({ from, to } = {}) {
   const pickup = clean(process.env.RIDE_HOME_ADDRESS || from);
   if (pickup) { q.set('pickup[formatted_address]', pickup); q.set('pickup[nickname]', 'Home'); } else q.set('pickup', 'my_location');
   const dropoff = clean(process.env.RIDE_DROPOFF_ADDRESS || to);
-  if (dropoff) { q.set('dropoff[formatted_address]', dropoff); q.set('dropoff[nickname]', clean(to) || dropoff); }
+  if (dropoff) { q.set('dropoff[formatted_address]', dropoff); q.set('dropoff[nickname]', dropoff.split(',')[0]); }
   return `https://m.uber.com/ul/?${q.toString()}`;
 }
