@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from './api';
-import { HEADER_H, useAppContext } from './AppContext';
+import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { Appear, Badge, Button, Card, Section, T, useSettled } from './design/ui';
 import { ease, light, radius, shadow } from './design/tokens';
@@ -29,7 +29,7 @@ export default function DeskScreen() {
   const okCount = seniors.filter((s) => s.status === 'ok').length;
 
   return (
-    <ScrollView contentContainerStyle={[st.pad, { paddingTop: insets.top + HEADER_H + 20, paddingBottom: insets.bottom + 40 }]}>
+    <ScrollView contentContainerStyle={[st.pad, { paddingTop: 24, paddingBottom: insets.bottom + 40 }]}>
       <View style={{ gap: 6, paddingHorizontal: 4 }}>
         <T v="largeTitle">Today’s calls</T>
         <T v="callout" muted>Sample reassurance program. Porchlight makes the routine calls; you take the ones that need a person.</T>

@@ -1,10 +1,10 @@
 import { createContext, useContext } from 'react';
-import { dark, light } from './tokens';
+import { dark, light, seniorPalette } from './tokens';
 
-// Which palette a subtree uses. Peggy's side and the start screen are 'dark'; family and desk are 'light'.
+// The older person uses the spacious daily-page palette; family and desk use light.
 const ThemeContext = createContext('light');
 export const ThemeProvider = ThemeContext.Provider;
 export function useTheme() {
   const mode = useContext(ThemeContext);
-  return { mode, c: mode === 'dark' ? dark : light, isDark: mode === 'dark' };
+  return { mode, c: mode === 'dark' ? dark : mode === 'senior' ? seniorPalette : light, isDark: mode === 'dark', isSenior: mode === 'senior' };
 }

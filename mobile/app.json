@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#1E2A47",
+    "backgroundColor": "#F7F7F5",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.porchlight.app",
@@ -29,8 +29,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      ["expo-calendar", { "calendarPermission": "Porchlight reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you." }]
+      "expo-router",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Porchlight reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you."
+        }
+      ]
     ],
+    "scheme": "porchlight",
     "extra": {
       "eas": {
         "projectId": "8d2f5211-dbb6-42b5-a159-69404eb112f3"

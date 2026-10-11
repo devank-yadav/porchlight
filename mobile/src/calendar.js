@@ -176,7 +176,7 @@ export async function syncCalendarNow(senior, state) {
 // Peggy's screen: ask once, then keep her calendar in step while the app is open.
 export function useCalendarSync(senior, state) {
   const latest = useRef({ senior, state });
-  latest.current = { senior, state };
+  useEffect(() => { latest.current = { senior, state }; }, [senior, state]);
   const plan = state && senior ? JSON.stringify(plannedEntries(state, senior).map((e) => [e.key, e.title, +e.startDate])) : '';
 
   useEffect(() => {
