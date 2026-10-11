@@ -6,7 +6,7 @@ All people and organizations are fictional samples. The ride is a **simulated bo
 
 | Time | Say / do | Screen |
 |---|---|---|
-| 0:00 | "Last year Peggy fell on her kitchen floor and lay there for a day before anyone knew. She lives alone, like 16 million older Americans." | Title slide |
+| 0:00 | "Last year Peggy fell on her kitchen floor and lay there for a day before anyone knew. She lives alone, like millions of older Americans." | Title slide |
 | 0:10 | "Porchlight calls her every morning. It says it's an AI, and it never asks for money or codes." Start the call (real phone, or Talk on Peggy's screen). | Peggy's phone |
 | 0:20 | Peggy: *"A man called about gift cards for my grandson's bail."* → fixed scam reply. "That reply is a backend rule, not the model's mood." | Peggy's phone |
 | 0:35 | Peggy: *"I don't have a ride to the heart doctor tomorrow."* → "I'll ask Anne and call you back once it's confirmed." It never claims a booking. | Peggy's phone |
