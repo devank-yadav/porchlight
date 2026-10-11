@@ -6,6 +6,8 @@ import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
 
 export const MAX_TURNS = 6;
+const BYE = /^\s*(ok(ay)?,? )?(bye|goodbye|talk (to you )?tomorrow)\b/i;
+const GOODBYE = /^\s*(no,? )?(that('|’)s (all|it)|nothing else|i('|’)m (all )?(good|fine|set)|bye|goodbye|talk (to you )?tomorrow)\b[\s\S]{0,40}$/i;
 
 // Appointments arrive with B1 (contract seed); until then this is just [].
 async function appointmentsFor(seniorId) {
@@ -47,6 +49,14 @@ export async function addTurn(checkinId, text) {
   transcript.push({ who: 'porchlight', text: answer, at: new Date().toISOString() });
   await store.update('checkins', checkinId, { transcript });
   const turns = transcript.filter((t) => t.who === 'senior').length;
+  // She can end the call herself ("no, that's all", "bye"), unless something is urgent.
+  const askedAnythingElse = /anything else|need anything/i.test(checkin.transcript[checkin.transcript.length - 1]?.text || '');
+  if (turns >= 2 && (BYE.test(text) || (askedAnythingElse && GOODBYE.test(text))) && !URGENT_WORDS.test(text) && !checkin.urgentAlertedAt) {
+    const bye = `Thank you, ${senior.preferredName}. I'll pass everything on to ${senior.primaryContactName}, and I'll only tell you things once they're confirmed. Talk tomorrow!`;
+    transcript[transcript.length - 1] = { who: 'porchlight', text: bye, at: new Date().toISOString() };
+    await store.update('checkins', checkinId, { transcript });
+    return { reply: bye, ended: true };
+  }
   return { reply: answer, ended: turns >= MAX_TURNS };
 }
 
