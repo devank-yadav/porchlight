@@ -48,22 +48,24 @@ export async function proposeRide(senior, appointment, quote) {
   if (open) return open;
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const approver = members.find((m) => m.canApprove) || members.find((m) => m.primary);
+  const ask = senior.askBeforeRides === true;
+  const first = ask ? 'PENDING_APPROVAL' : 'APPROVED'; // the app shows "booked" when history has no PENDING_APPROVAL
   const pickupAt = new Date(new Date(appointment.startsAt).getTime() - 45 * 60000).toISOString();
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}`,
     reason: `${senior.preferredName} said: "${quote}"`,
     details: { pickupAt, from: '12 Maple Ln (sample)', to: appointment.where, needs: 'Uses a cane', uberLink: uberLink({ from: '12 Maple Ln (sample)', to: appointment.where }) },
-    appointmentId: appointment._id, approverId: approver?._id ?? null, simulated: true, status: 'PENDING_APPROVAL',
-    history: [{ status: 'PENDING_APPROVAL', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `From today's check-in call: "${quote}"` } }],
+    appointmentId: appointment._id, approverId: approver?._id ?? null, simulated: true, status: first,
+    history: [{ status: first, at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: ask ? `From today's check-in call: "${quote}"` : `Booked from today's check-in call: "${quote}"; family notified` } }],
   });
-  await store.update('appointments', appointment._id, { transport: 'at_risk', actionId: action._id });
+  await store.update('appointments', appointment._id, { transport: ask ? 'at_risk' : 'requested', actionId: action._id });
   await audit.log('porchlight', 'action.proposed', { seniorId: senior._id, targetId: action._id, detail: action.title });
-  if (senior.askBeforeRides === true) {
+  if (ask) {
     if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
     return action;
   }
   // No approval step: book now, and let the whole family know she's going.
-  const booked = await move(action, 'APPROVED', 'porchlight', { source: 'system', note: 'Booked automatically; family notified' });
+  const booked = action;
   const fam = members.filter((m) => m.role === 'family');
   const where = appointment.where ? ` at ${appointment.where.replace(/\s*\(sample\)/i, '')}` : '';
   for (const m of fam) {
