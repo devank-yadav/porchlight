@@ -29,18 +29,18 @@ export default function StartScreen({ onPick }) {
       <Appear on>
         <HeroCard glowAt="center" style={st.hero}>
           <Chip label="Sample" tone="night" style={st.sample} />
-          <View style={st.lamp}><Lamp state="lit" size={136} /></View>
+          <View style={st.lamp}><Lamp state="lit" size={112} /></View>
           <View style={st.heroText}>
             <Text style={st.wordmark} accessibilityRole="header">Porchlight</Text>
             <T v="readTitle" center>A little closer,{'\n'}every day.</T>
-            <T v="readSmall" muted center style={{ maxWidth: 300 }}>A daily AI check-in, with the people who care about you close at hand.</T>
+            <T v="readSmall" muted center style={{ maxWidth: 280 }}>A daily AI check-in, with family close at hand.</T>
           </View>
         </HeroCard>
       </Appear>
       <Appear on index={2} style={st.doors}>
         <T v="readHeadline" style={{ paddingHorizontal: 2 }}>Who is this phone for?</T>
-        <BigButton tone="lamp" title="I’m Peggy" sub="My day, my plans, my family" icon="house.fill" chevron onPress={() => onPick(PEOPLE[0])} />
-        <BigButton title="I’m family" sub="Stay in the loop. Lend a hand." icon="person.2.fill" chevron onPress={() => setFamily(true)} />
+        <BigButton tone="lamp" title="I’m Peggy" sub="My day, my family" icon="house.fill" chevron onPress={() => onPick(PEOPLE[0])} />
+        <BigButton title="I’m family" sub="Stay in the loop" icon="person.2.fill" chevron onPress={() => setFamily(true)} />
       </Appear>
       <Appear on index={4} style={{ gap: 12, alignItems: 'center' }}>
         <Press onPress={() => onPick(PEOPLE.find((p) => p.id === 'desk'))} accessibilityLabel="Volunteer desk" accessibilityHint="For the nonprofit’s reassurance volunteers" style={st.desk} scaleTo={0.96}>
@@ -55,10 +55,10 @@ export default function StartScreen({ onPick }) {
 }
 
 const st = StyleSheet.create({
-  page: { paddingHorizontal: 20, gap: 28, width: '100%', maxWidth: 620, alignSelf: 'center', flexGrow: 1 },
-  hero: { paddingTop: 30, paddingBottom: 30, alignItems: 'center', gap: 6 },
+  page: { paddingHorizontal: 20, gap: 24, width: '100%', maxWidth: 620, alignSelf: 'center', flexGrow: 1 },
+  hero: { paddingTop: 24, paddingBottom: 28, alignItems: 'center', gap: 4 },
   sample: { position: 'absolute', top: 16, right: 16 },
-  lamp: { marginTop: 8, marginBottom: 2 },
+  lamp: { marginTop: 4, marginBottom: 0 },
   heroText: { alignItems: 'center', gap: 10 },
   wordmark: { fontFamily: font.readBold, fontSize: 20, lineHeight: 24, letterSpacing: 1.6, textTransform: 'uppercase', color: accent.lamp },
   doors: { gap: 14 },

@@ -140,7 +140,7 @@ function Home({ senior, primary, plans, refresh, notices }) {
     </Appear>
 
     <Appear on index={1}>
-      <HeroCard glowAt="left" style={st.hero}>
+      <HeroCard glowAt="left" tone={help ? 'red' : 'lamp'} style={st.hero}>
         <View style={st.heroTop}>
           <Lamp state={lampState(senior)} size={88} />
           <View style={{ flex: 1, gap: 4 }} accessible accessibilityLabel={status + '. ' + detail} accessibilityLiveRegion="polite">

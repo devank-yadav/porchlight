@@ -217,7 +217,8 @@ export function Card({ children, style, tone, ...rest }) {
 
 // The night porch-light card: the one dark, bold surface on a screen, with an amber glow.
 // Children render in the night palette (T, Button, Chip, Lamp adapt). glowAt: left | center | right
-export function HeroCard({ children, style, glow = true, glowAt = 'left', ...rest }) {
+// tone: 'lamp' (amber glow, default) or 'red' (help): the glow follows the porch light's colour.
+export function HeroCard({ children, style, glow = true, glowAt = 'left', tone = 'lamp', ...rest }) {
   const { isSenior } = useTheme();
   const [box, setBox] = useState(null);
   const id = useSvgId('hero');
@@ -238,10 +239,10 @@ export function HeroCard({ children, style, glow = true, glowAt = 'left', ...res
           <Svg width={box.w} height={box.h}>
             <Defs>
               <RadialGradient id={id} cx={gx} cy={gy} r={gr} fx={gx} fy={gy} gradientUnits="userSpaceOnUse">
-                <Stop offset="0" stopColor="#FFB547" stopOpacity="0.50" />
-                <Stop offset="0.28" stopColor="#F5A524" stopOpacity="0.20" />
-                <Stop offset="0.62" stopColor="#E08A12" stopOpacity="0.06" />
-                <Stop offset="1" stopColor="#E08A12" stopOpacity="0" />
+                <Stop offset="0" stopColor={tone === 'red' ? '#FF6A52' : '#FFB547'} stopOpacity={tone === 'red' ? 0.42 : 0.5} />
+                <Stop offset="0.28" stopColor={tone === 'red' ? '#D93F2B' : '#F5A524'} stopOpacity="0.18" />
+                <Stop offset="0.62" stopColor={tone === 'red' ? '#A8291A' : '#E08A12'} stopOpacity="0.06" />
+                <Stop offset="1" stopColor={tone === 'red' ? '#A8291A' : '#E08A12'} stopOpacity="0" />
               </RadialGradient>
               <RadialGradient id={id + 'e'} cx={box.w * 0.96} cy={box.h * 1.08} r={Math.max(box.w, box.h) * 0.6} gradientUnits="userSpaceOnUse">
                 <Stop offset="0" stopColor="#B4560F" stopOpacity="0.16" />

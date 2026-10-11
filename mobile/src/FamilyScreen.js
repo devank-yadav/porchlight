@@ -240,7 +240,7 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
       </Block>
     </Appear>
 
-    <Appear on index={4}><Week checkins={checkins} tz={tz} digest={state.digest?.line} /></Appear>
+    <Appear on index={4}><Week checkins={checkins} tz={tz} /></Appear>
 
     {starters.length > 0 && (
       <Appear on index={5}>
@@ -269,7 +269,7 @@ function PorchHero({ senior, latest, escalation, checkedIn }) {
   const call = () => Linking.openURL('tel:' + senior.phone).catch((e) => toast.error('Couldn’t open the phone', { description: e.message }));
 
   return (
-    <HeroCard glowAt="left" style={st.hero}>
+    <HeroCard glowAt="left" tone={help ? 'red' : 'lamp'} style={st.hero}>
       <View style={st.heroTop}>
         <Lamp state={lampState(senior)} size={76} label={`Porch light: ${label}`} />
         <View style={{ flex: 1, gap: 8 }}>
@@ -351,7 +351,7 @@ function FlagsCard({ flags, name }) {
 }
 
 // The last seven days, one dot each. Tap a day to hear how it went.
-function Week({ checkins, tz, digest }) {
+function Week({ checkins, tz }) {
   const now = useNow();
   const days = [];
   for (let i = 6; i >= 0; i--) {
@@ -376,7 +376,6 @@ function Week({ checkins, tz, digest }) {
           <Legend color={light.sunken} label="No check-in" />
         </View>
       </Card>
-      {digest ? <T v="footnote" muted style={{ paddingHorizontal: 4 }}>{digest}</T> : null}
     </Block>
   );
 }
@@ -494,7 +493,7 @@ function ActionCard({ action, state, me, run, senior }) {
           <Chip label={ended ?? (pending ? 'Needs your OK' : action.simulated ? 'Demo · ' + stepLabel : stepLabel)} icon={booked ? 'checkmark' : pending ? 'hand.raised.fill' : undefined} tone={ended || pending ? 'lamp' : booked ? 'green' : 'neutral'} />
         </View>
       </View>
-      {auto && !ended ? <T v="callout" muted>{action.simulated ? 'This is a sample booking. A real ride still needs confirmation in Uber.' : booked ? `${senior.preferredName}’s ride is confirmed.` : 'The ride request is being processed.'}</T> : null}
+      {auto && !ended && !action.simulated ? <T v="callout" muted>{booked ? `${senior.preferredName}’s ride is confirmed.` : 'The ride request is being processed.'}</T> : null}
       {action.reason ? <Quote>{action.reason}</Quote> : null}
 
       {details.length ? (
@@ -520,7 +519,7 @@ function ActionCard({ action, state, me, run, senior }) {
           <T v="footnote" muted style={{ flex: 1 }}>Simulated booking, not a real ride{last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}</T>
         </View>
       )}
-      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <T v="footnote" muted>{last.evidence.note}</T> : null}
+      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' && !action.reason ? <T v="footnote" muted>{last.evidence.note}</T> : null}
       {d.uberLink && !ended && action.status !== 'COMPLETED' ? (
         <View style={st.uberNote}>
           <Icon name="iphone" size={15} color={accent.lampText} />
@@ -1006,7 +1005,7 @@ function FamilyQuestions({ senior, state, me, run }) {
           accessibilityLabel={`A question for ${name}`}
           maxLength={200}
         />
-        <Button size="sm" variant="primary" icon="arrow.up" label="Ask" accessibilityLabel={`Ask ${name} on her next call`} onPress={send} disabled={!text.trim()} />
+        <Button size="sm" variant={text.trim() ? 'primary' : 'secondary'} icon="arrow.up" label="Ask" accessibilityLabel={`Ask ${name} on her next call`} onPress={send} disabled={!text.trim()} />
       </View>
       {open.length > 0 && (
         <View style={st.qList}>
@@ -1155,7 +1154,7 @@ function DailyCall({ senior, run }) {
         <Switch value={autoCall} onValueChange={(v) => { haptic.select(); setAutoCall(v); }} trackColor={{ true: accent.green }} accessibilityLabel={`Call ${name} every day`} />
       </View>
 
-      <View style={[st.timePanel, !autoCall && { opacity: 0.4 }]} pointerEvents={autoCall ? 'auto' : 'none'}>
+      <View style={[st.timePanel, !autoCall && { opacity: 0.55 }]} pointerEvents={autoCall ? 'auto' : 'none'}>
         <Press onPress={() => step(-15)} feedback={null} accessibilityLabel="Fifteen minutes earlier" style={st.stepBtn} scaleTo={0.92}><Icon name="minus" size={18} color={light.ink} weight="bold" /></Press>
         <View style={{ alignItems: 'center', gap: 2 }}>
           <Text style={st.time} accessibilityLabel={`Call time ${clock(toHHMM(min))}`}>{clock(toHHMM(min)).split(' ')[0]}<Text style={st.ampm}> {clock(toHHMM(min)).split(' ')[1]}</Text></Text>
@@ -1164,12 +1163,12 @@ function DailyCall({ senior, run }) {
         <Press onPress={() => step(15)} feedback={null} accessibilityLabel="Fifteen minutes later" style={st.stepBtn} scaleTo={0.92}><Icon name="plus" size={18} color={light.ink} weight="bold" /></Press>
       </View>
 
-      <View style={[st.days, !autoCall && { opacity: 0.4 }]} pointerEvents={autoCall ? 'auto' : 'none'}>
+      <View style={[st.days, !autoCall && { opacity: 0.55 }]} pointerEvents={autoCall ? 'auto' : 'none'}>
         {DAYS.map((label, d) => {
           const on = days.includes(d);
           return (
-            <Press key={d} onPress={() => toggleDay(d)} feedback={null} scaleTo={0.92} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={DAY_NAMES[d]} style={[st.day, on && st.dayOn]}>
-              <Text style={[st.dayText, on && { color: light.onPrimary }]}>{label}</Text>
+            <Press key={d} onPress={() => toggleDay(d)} feedback={null} scaleTo={0.92} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled: !autoCall }} accessibilityLabel={DAY_NAMES[d]} style={[st.day, on && (autoCall ? st.dayOn : st.dayIdle)]}>
+              <Text style={[st.dayText, on && autoCall && { color: light.onPrimary }, !autoCall && { color: on ? light.ink2 : light.faint }]}>{label}</Text>
             </Press>
           );
         })}
@@ -1299,5 +1298,6 @@ const st = StyleSheet.create({
   days: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   day: { flex: 1, minHeight: 44, borderRadius: 22, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   dayOn: { backgroundColor: light.ink },
+  dayIdle: { backgroundColor: light.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: light.lineStrong },
   dayText: { fontSize: 15, fontWeight: '600', color: light.ink },
 });
