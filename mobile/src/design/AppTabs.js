@@ -1,23 +1,104 @@
+import { useEffect, useState } from 'react';
+import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useWindowDimensions } from 'react-native';
 import Icon from './Icon';
-import { font, light, seniorPalette } from './tokens';
+import { haptic } from './haptics';
+import { TabBarContext } from './ui';
+import { font, light, seniorPalette, shadow } from './tokens';
 
+const SENIOR_ITEMS = [['today', 'Today', 'house'], ['plans', 'My plans', 'calendar'], ['family', 'Family', 'person.2']];
+const FAMILY_ITEMS = [['today', 'Today', 'house'], ['plans', 'Plans', 'calendar'], ['family', 'Family', 'person.2'], ['settings', 'Settings', 'slider.horizontal.3']];
+const FILLS = new Set(['house', 'person.2']);
+
+// A floating, blurred pill tab bar. Screens scroll underneath it; Screen (design/ui) adds the clearance.
 export default function AppTabs({ senior = false }) {
-  const insets = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
   const palette = senior ? seniorPalette : light;
-  const items = senior ? [['today', 'Today', 'house'], ['plans', 'My plans', 'calendar'], ['family', 'Family', 'person.2']] : [['today', 'Today', 'house'], ['plans', 'Plans', 'calendar'], ['family', 'Family', 'person.2'], ['settings', 'Settings', 'slider.horizontal.3']];
-  return <Tabs screenOptions={{
-    headerShown: false, animation: 'none', tabBarHideOnKeyboard: true,
-    sceneStyle: { backgroundColor: palette.bg },
-    tabBarActiveTintColor: palette.ink, tabBarInactiveTintColor: palette.muted,
-    tabBarActiveBackgroundColor: palette.sunken, tabBarLabelPosition: 'below-icon',
-    tabBarStyle: { backgroundColor: palette.surface, borderTopColor: palette.line, elevation: 0, height: (senior ? 104 : 76) + insets.bottom + Math.max(0, fontScale - 1) * 32, paddingTop: 4, paddingBottom: Math.max(4, insets.bottom) },
-    tabBarItemStyle: { paddingVertical: 0 },
-    tabBarLabelStyle: { fontFamily: senior ? font.readBold : undefined, fontSize: senior ? 20 : 12, lineHeight: senior ? 26 : 16, flexShrink: 0, fontWeight: '600', marginTop: 4 },
-  }}>
-    {items.map(([name, title, icon]) => <Tabs.Screen key={name} name={name} options={{ title, tabBarAccessibilityLabel: title, tabBarIcon: ({ color, focused }) => <Icon name={focused && icon !== 'calendar' && icon !== 'slider.horizontal.3' ? icon + '.fill' : icon} size={senior ? 25 : 22} color={color} /> }} />)}
-  </Tabs>;
+  const items = senior ? SENIOR_ITEMS : FAMILY_ITEMS;
+  return (
+    <TabBarContext.Provider value={senior ? 'senior' : 'family'}>
+      <Tabs
+        tabBar={(props) => <FloatingTabBar {...props} senior={senior} items={items} />}
+        screenOptions={{ headerShown: false, animation: 'none', sceneStyle: { backgroundColor: palette.bg } }}
+      >
+        {items.map(([name, title]) => <Tabs.Screen key={name} name={name} options={{ title, tabBarAccessibilityLabel: title }} />)}
+      </Tabs>
+    </TabBarContext.Provider>
+  );
 }
+
+function FloatingTabBar({ state, navigation, descriptors, senior, items }) {
+  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardShown();
+  if (keyboard) return null;
+  const palette = senior ? seniorPalette : light;
+  const height = senior ? 80 : 64;
+  return (
+    <View pointerEvents="box-none" style={[st.wrap, { bottom: Math.max(insets.bottom - 10, 14) }]}>
+      <View style={[st.bar, { height, borderRadius: senior ? 30 : 28 }, shadow.float]}>
+        <View style={[StyleSheet.absoluteFill, st.clip, { borderRadius: senior ? 30 : 28 }]}>
+          <BlurView tint="light" intensity={80} style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(251,248,244,0.62)' : 'rgba(251,248,244,0.88)' }]} />
+        </View>
+        <View style={st.row} accessibilityRole="tablist">
+          {items.map(([name, title, icon]) => {
+            const route = state.routes.find((r) => r.name === name);
+            if (!route) return null;
+            const focused = state.routes[state.index]?.key === route.key;
+            const label = descriptors[route.key]?.options?.tabBarAccessibilityLabel ?? title;
+            const onPress = () => {
+              const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) { haptic.select(); navigation.navigate(route.name, route.params); }
+            };
+            const onLongPress = () => navigation.emit({ type: 'tabLongPress', target: route.key });
+            return (
+              <Pressable
+                key={name}
+                onPress={onPress}
+                onLongPress={onLongPress}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: focused }}
+                accessibilityLabel={label}
+                style={st.item}
+              >
+                <View style={[st.pill, focused && { backgroundColor: 'rgba(30,25,21,0.07)' }, { borderRadius: senior ? 24 : 22 }]}>
+                  <Icon name={focused && FILLS.has(icon) ? icon + '.fill' : icon} size={senior ? 26 : 22} color={focused ? palette.ink : palette.muted} weight={focused ? 'semibold' : 'medium'} />
+                  <Text
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.2}
+                    style={[st.label, { color: focused ? palette.ink : palette.muted }, senior && st.seniorLabel]}
+                  >
+                    {title}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// The bar steps aside while the keyboard is up (iOS dictation and typing).
+function useKeyboardShown() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setShown(true));
+    const b = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setShown(false));
+    return () => { a.remove(); b.remove(); };
+  }, []);
+  return shown;
+}
+
+const st = StyleSheet.create({
+  wrap: { position: 'absolute', left: 16, right: 16, alignItems: 'center' },
+  bar: { width: '100%', maxWidth: 560, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(30,25,21,0.10)', backgroundColor: 'rgba(251,248,244,0.35)' },
+  clip: { overflow: 'hidden' },
+  row: { flex: 1, flexDirection: 'row', alignItems: 'stretch', padding: 6, gap: 2 },
+  item: { flex: 1 },
+  pill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 4 },
+  label: { fontSize: 11, lineHeight: 14, fontWeight: '600', letterSpacing: 0 },
+  seniorLabel: { fontFamily: font.readBold, fontWeight: 'normal', fontSize: 18, lineHeight: 22, letterSpacing: -0.1 },
+});
