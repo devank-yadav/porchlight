@@ -10,7 +10,7 @@ All people and organizations are fictional samples. The ride is a **simulated bo
 | 0:10 | "Porchlight calls her every morning. It says it's an AI, and it never asks for money or codes." Start the call (real phone, or Talk on Peggy's screen). | Peggy's phone |
 | 0:20 | Peggy: *"A man called about gift cards for my grandson's bail."* → fixed scam reply. "That reply is a backend rule, not the model's mood." | Peggy's phone |
 | 0:35 | Peggy: *"I don't have a ride to the heart doctor tomorrow."* → "I'll ask Anne and call you back once it's confirmed." It never claims a booking. | Peggy's phone |
-| 0:45 | Peggy: *"And I'm out of milk."* Hang up. | |
+| 0:45 | Peggy: *"And I'm out of milk."* then *"No, that's all."* The call ends itself. | |
 | 0:50 | Anne's phone: digest line, the ride card with Peggy's own words. Anne taps **Approve**. Status walks: requested → confirmed, labelled "Simulated booking". | Anne's phone |
 | 1:05 | Mark claims the milk. Peggy's screen: "Your ride is confirmed…" and "Mark is bringing your milk." | Both phones |
 | 1:15 | "Peggy only hears confirmed facts. Nonprofits running reassurance calls get this for every senior on their list." | Desk view |
@@ -20,6 +20,7 @@ All people and organizations are fictional samples. The ride is a **simulated bo
 1. "I'm good. A man called about gift cards, I hung up"
 2. "I don't have a ride to the heart doctor tomorrow"
 3. "And I'm out of milk"
+4. "No, that's all" (ends the call; the phone hangs up)
 
 Expected replies and analysis: `server/src/voice/samples.md` ("Demo call" section).
 
