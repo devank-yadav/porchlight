@@ -48,7 +48,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] B6 Digest per viewer
 - [x] B7 Escalation: unresolved (amber) semantics + quiet hours
 - [x] B8 ?viewer= filtering
-- [x] B9 — Rishi (Codex), `care/atlas`: implemented; PR review/merge pending. Atlas credentials configured only in Git-ignored root `.env`. Checked: separate processes insert/update/read one temporary audit record and clean it up; `/api/state` reports `config.mongo: true`; API restart preserves seniors, 12 tasks, 3 check-ins, actions, appointments and notices; empty and invalid URI configurations still serve the demo in memory. Devpost paragraph already exists in A-owned `DEVPOST.md`. No shared API shape changes. Next: review and merge the code; other demo laptops need their own local Atlas configuration.
+- [x] B9 — Rishi (Codex), `care/atlas`: implemented; [PR #25](https://github.com/devank-yadav/porchlight/pull/25): review/merge pending. Code commit `f0115dc`, current main integrated. Atlas credentials configured only in Git-ignored root `.env`. Checked: separate processes insert/update/read one temporary audit record and clean it up; `/api/state` reports `config.mongo: true`; API restart preserves seniors, 12 tasks, 3 check-ins, actions, appointments and notices; empty and invalid URI configurations still serve the demo in memory. Devpost paragraph already exists in A-owned `DEVPOST.md`. No shared API shape changes. Next: review and merge the code; other demo laptops need their own local Atlas configuration.
 
 ## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
