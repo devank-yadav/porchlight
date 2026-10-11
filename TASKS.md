@@ -35,6 +35,9 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] C8 (Manasv) Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
 
+## Coordination
+- [ ] Shared task handoff — claimed by Rishi (Codex), branch `care/shared-handoff`; make branch claims and validation evidence visible.
+
 ## Done
 - [x] Research → feature spec (PLAN.md), ranked Phase 1 (TEAM_PLAN.md)
 - [x] Working iOS app + server with demo mode; server split into voice/ (A) and care/ (B)
