@@ -44,6 +44,7 @@ export const api = {
   help: (seniorId) => call('POST', `/api/seniors/${seniorId}/help`),
   missed: (seniorId) => call('POST', `/api/seniors/${seniorId}/missed`),
   resolve: (seniorId, memberId) => call('POST', `/api/seniors/${seniorId}/resolve`, { memberId }),
+  pushToken: (seniorId, token) => call('POST', `/api/seniors/${seniorId}/push-token`, { token }),
   phoneCall: (seniorId) => call('POST', `/api/seniors/${seniorId}/call`),
   addQuestion: (seniorId, text, memberId) => call('POST', `/api/seniors/${seniorId}/questions`, { text, memberId }),
   deleteQuestion: (seniorId, qid) => call('DELETE', `/api/seniors/${seniorId}/questions/${qid}`),
