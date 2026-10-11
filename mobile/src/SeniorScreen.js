@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import * as Speech from 'expo-speech';
 import { api } from './api';
 import Lamp, { lampState } from './Lamp';
-import { BigButton, Button, H1 } from './ui';
-import { color, font, radius } from './theme';
+import { BigButton, Button, Card, Field, IconCircle, List, Row, Screen, Section, T, Title } from './ui';
+import { color, radius, space } from './theme';
 
 function greetingFor(d = new Date()) {
   const h = d.getHours();
@@ -35,12 +35,12 @@ export default function SeniorScreen({ senior, state, refresh, onError }) {
       {mode === 'scam' && <ScamCheck senior={senior} back={home} onError={onError} />}
       {mode === 'help' && <Help senior={senior} back={home} refresh={refresh} onError={onError} />}
       {mode === 'thanks' && (
-        <ScrollView contentContainerStyle={[st.pad, st.center]}>
-          <Lamp state="lit" size={170} label="Porch light on" />
-          <H1 onDusk style={st.bigH1}>Thank you, {senior.preferredName}.</H1>
-          <Text style={st.lead}>Your family will see that you’re doing well today.</Text>
-          <BigButton title="Back to start" onPress={home} style={{ alignSelf: 'stretch' }} />
-        </ScrollView>
+        <Screen>
+          <Lamp state="lit" size={160} label="Porch light on" />
+          <Title senior>Thank you, {senior.preferredName}.</Title>
+          <T v="seniorBody" tone="soft">Your family will see that you’re doing well today.</T>
+          <BigButton title="Back to start" icon="back" onPress={home} />
+        </Screen>
       )}
     </KeyboardAvoidingView>
   );
@@ -49,6 +49,7 @@ export default function SeniorScreen({ senior, state, refresh, onError }) {
 function Home({ senior, notices, primary, setMode, refresh, onError }) {
   const [busy, setBusy] = useState(false);
   const checkedIn = senior.status === 'ok' && senior.lastCheckinAt && new Date(senior.lastCheckinAt).toDateString() === new Date().toDateString();
+  const primaryName = primary?.name.split(' ')[0];
 
   const imOkay = async () => {
     setBusy(true);
@@ -64,42 +65,46 @@ function Home({ senior, notices, primary, setMode, refresh, onError }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={st.pad}>
-      <View style={st.hero}>
-        <Lamp state={lampState(senior)} size={120} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
-        <View style={{ flex: 1 }}>
-          <H1 onDusk style={st.bigH1}>{greetingFor()}, {senior.preferredName}.</H1>
+    <Screen>
+      <View style={{ gap: 12 }}>
+        <View style={st.hero}>
+          <Lamp state={lampState(senior)} size={96} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
+          <Title senior style={{ flex: 1 }}>{greetingFor()}, {senior.preferredName}.</Title>
         </View>
+        <T v="seniorBody" tone="soft">{checkedIn ? 'You’ve checked in today. Your porch light is on.' : 'Your porch light is waiting for today’s check-in.'}</T>
       </View>
-      <Text style={st.lead}>{checkedIn ? 'You’ve checked in today. Your porch light is on.' : 'Your porch light is waiting for today’s check-in.'}</Text>
 
       {notices.length > 0 && (
-        <View style={st.notices} accessibilityLiveRegion="polite">
-          <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
-          {notices.map((n) => (
-            <View
-              key={n._id}
-              style={st.notice}
-              accessible
-              accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}
-            >
-              <Text style={st.noticeText}>{n.text}</Text>
-              {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
-            </View>
-          ))}
-        </View>
+        <Section label="Good news" senior>
+          <Card flush accessibilityLiveRegion="polite">
+            <List inset={66}>
+              {notices.map((n) => (
+                <Row
+                  key={n._id}
+                  leading={<IconCircle name="check" tone="sage" size={36} />}
+                  style={{ alignItems: 'flex-start' }}
+                  accessible
+                  accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo.' : ''}`}
+                >
+                  <T v="seniorBody">{n.text}</T>
+                  {n.simulated && <T v="seniorSub" tone="muted">{n.kind === 'ride' ? 'Demo booking' : 'Demo'}</T>}
+                </Row>
+              ))}
+            </List>
+          </Card>
+        </Section>
       )}
 
-      <View style={st.stack}>
-        <BigButton tone="lamp" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
-        <BigButton title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
+      <View style={{ gap: 12 }}>
+        <BigButton tone="lamp" icon="chat" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
+        <BigButton icon="check" title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
         {primary && (
-          <BigButton title={`Call ${primary.name.split(' ')[0]}`} sub={primary.relation} hint={`Opens a phone call to ${primary.name.split(' ')[0]}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
+          <BigButton icon="phone" title={`Call ${primaryName}`} sub={primary.relation} hint={`Opens a phone call to ${primaryName}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
         )}
-        <BigButton title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
-        <BigButton tone="help" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
+        <BigButton icon="shield" title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
+        <BigButton tone="help" icon="alert" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
 
@@ -172,44 +177,55 @@ function Talk({ senior, done, onError }) {
   return (
     <View style={{ flex: 1 }}>
       <View style={st.talkHead}>
-        <Lamp state="lit" size={64} label="Porch light on" />
-        <Text style={st.talkStatus} accessibilityLiveRegion="polite">{status}</Text>
-        <View style={st.voiceToggle}>
-          <Text style={st.toggleLabel}>Read aloud</Text>
+        <Lamp state="lit" size={56} label="Porch light on" />
+        <T v="seniorLabel" style={{ flex: 1, fontSize: 22 }} accessibilityLiveRegion="polite">{status}</T>
+        <View style={st.toggle}>
+          <T v="seniorSub" tone="soft">Read aloud</T>
           <Switch value={voiceOn} onValueChange={setVoiceOn} trackColor={{ true: color.lamp }} accessibilityLabel="Read replies aloud" />
         </View>
       </View>
 
       <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={st.transcript} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: true })}>
-        {lines.map((l, i) => (
-          <View key={i} style={[st.line, l.who === 'senior' ? st.lineSenior : st.linePorch]}>
-            <Text style={[st.lineWho, l.who === 'senior' && { color: color.muted }]}>{l.who === 'porchlight' ? 'Porchlight' : senior.preferredName}</Text>
-            <Text style={[st.lineText, l.who === 'senior' && { color: color.ink }]}>{l.text}</Text>
-          </View>
-        ))}
+        {lines.map((l, i) => {
+          const mine = l.who === 'senior';
+          return (
+            <View key={i} style={[st.msg, mine ? { alignSelf: 'flex-end', alignItems: 'flex-end' } : { alignSelf: 'flex-start' }]}>
+              <T v="seniorLabel" tone="muted" style={{ marginHorizontal: 4 }}>{mine ? 'You' : 'Porchlight'}</T>
+              <View style={[st.bubble, mine ? st.bubbleMine : st.bubbleTheirs]}>
+                <T v="seniorBody">{l.text}</T>
+              </View>
+            </View>
+          );
+        })}
       </ScrollView>
 
       <View style={st.composer}>
-        <Text style={st.hint}>Tap the microphone on the keyboard to speak your answer.</Text>
+        <T v="seniorSub" tone="soft">Tap the microphone on the keyboard to speak.</T>
         <View style={st.typeRow}>
-          <TextInput
-            style={st.input}
+          <Field
+            senior
+            style={{ flex: 1 }}
             value={draft}
             onChangeText={setDraft}
             placeholder="Your answer"
-            placeholderTextColor={color.muted}
             returnKeyType="send"
             onSubmitEditing={send}
             editable={phase !== 'ending'}
             accessibilityLabel="Your answer"
           />
-          <Button label="Send" variant="light" onPress={send} disabled={!draft.trim() || phase === 'thinking'} style={{ minHeight: 56 }} />
+          <Button senior label="Send" variant="primary" onPress={send} disabled={!draft.trim() || phase === 'thinking'} />
         </View>
-        <Button label="I’m done talking" variant="quiet" onDusk onPress={() => finish()} disabled={!checkin || phase === 'ending'} style={st.doneBtn} />
+        <Button senior label="I’m done talking" variant="ghost" onPress={() => finish()} disabled={!checkin || phase === 'ending'} style={{ alignSelf: 'center' }} />
       </View>
     </View>
   );
 }
+
+const VERDICT = {
+  'likely scam': { tone: 'urgent', word: 'This looks like a scam.' },
+  'be careful': { tone: 'attention', word: 'Be careful.' },
+  'probably fine': { tone: 'ok', word: 'This looks okay.' },
+};
 
 function ScamCheck({ senior, back, onError }) {
   const [text, setText] = useState('');
@@ -230,40 +246,44 @@ function ScamCheck({ senior, back, onError }) {
     }
   };
 
-  const tone = result?.verdict === 'likely scam' ? 'danger' : result?.verdict === 'be careful' ? 'warn' : 'safe';
-  const bg = { danger: color.brickSoft, warn: color.lampSoft, safe: color.sageSoft }[tone];
-  const fg = { danger: color.brick, warn: color.lamp, safe: color.sage }[tone];
+  const v = VERDICT[result?.verdict] ?? VERDICT['probably fine'];
+  const fg = { urgent: 'brick', attention: 'lamp', ok: 'sage' }[v.tone];
 
   return (
-    <ScrollView contentContainerStyle={st.pad} keyboardShouldPersistTaps="handled">
-      <H1 onDusk style={st.bigH1}>Is this a scam?</H1>
-      <Text style={st.lead}>Tell me who contacted you and what they asked for.</Text>
+    <Screen>
+      <View style={{ gap: 8 }}>
+        <Title senior>Is this a scam?</Title>
+        <T v="seniorBody" tone="soft">Tell me who contacted you and what they asked for.</T>
+      </View>
       {!result ? (
-        <View style={st.stack}>
-          <TextInput
-            style={[st.input, st.textarea]}
+        <View style={{ gap: 12 }}>
+          <Field
+            senior
             multiline
+            style={{ minHeight: 140, paddingTop: 14, textAlignVertical: 'top' }}
             value={text}
             onChangeText={setText}
             placeholder="A man called and said my grandson is in jail…"
-            placeholderTextColor={color.muted}
             accessibilityLabel="Describe the call or message"
           />
-          <Text style={st.hint}>Tap the microphone on the keyboard to say it out loud.</Text>
-          <BigButton tone="lamp" title={busy ? 'Checking…' : 'Check it'} onPress={check} disabled={busy || !text.trim()} />
+          <T v="seniorSub" tone="soft">Tap the microphone on the keyboard to say it out loud.</T>
+          <BigButton tone="lamp" icon="shield" title={busy ? 'Checking…' : 'Check it'} onPress={check} disabled={busy || !text.trim()} />
         </View>
       ) : (
-        <View style={[st.verdict, { backgroundColor: bg }]} accessibilityLiveRegion="polite">
-          <Text style={[st.verdictWord, { color: fg }]}>
-            {result.verdict === 'likely scam' ? 'This looks like a scam.' : result.verdict === 'be careful' ? 'Be careful.' : 'This looks okay.'}
-          </Text>
-          {result.redFlags?.map((f) => <Text key={f} style={st.verdictText}>•  {f}</Text>)}
-          <Text style={st.verdictText}>{result.advice}</Text>
-          {result.verdict !== 'probably fine' && <Text style={[st.verdictText, { fontFamily: font.bodyBold }]}>I’ve let your family know.</Text>}
-        </View>
+        <Card tone={v.tone === 'urgent' ? 'urgent' : 'default'} accessibilityLiveRegion="polite">
+          <T v="seniorTitle" tone={fg}>{v.word}</T>
+          {result.redFlags?.map((f) => (
+            <View key={f} style={st.flagRow}>
+              <View style={[st.bullet, { backgroundColor: color[fg] }]} />
+              <T v="seniorSub" style={{ flex: 1 }}>{f}</T>
+            </View>
+          ))}
+          <T v="seniorSub">{result.advice}</T>
+          {result.verdict !== 'probably fine' && <T v="seniorLabel">I’ve let your family know.</T>}
+        </Card>
       )}
-      <Button label="Back to start" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
-    </ScrollView>
+      <Button senior label="Back to start" variant="ghost" onPress={back} style={{ alignSelf: 'center' }} />
+    </Screen>
   );
 }
 
@@ -278,60 +298,45 @@ function Help({ senior, back, refresh, onError }) {
       onError(e.message);
     }
   };
+  if (!sent) {
+    return (
+      <Screen>
+        <View style={{ gap: 8 }}>
+          <Title senior>Do you need help now?</Title>
+          <T v="seniorBody" tone="soft">I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</T>
+        </View>
+        <View style={{ gap: 12 }}>
+          <BigButton tone="help" icon="alert" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
+          <BigButton icon="phone" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
+        </View>
+        <Button senior label="No, go back" variant="ghost" onPress={back} style={{ alignSelf: 'center' }} />
+      </Screen>
+    );
+  }
   return (
-    <ScrollView contentContainerStyle={[st.pad, st.center]}>
-      {!sent ? (
-        <>
-          <H1 onDusk style={st.bigH1}>Do you need help now?</H1>
-          <Text style={st.lead}>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</Text>
-          <View style={[st.stack, { alignSelf: 'stretch' }]}>
-            <BigButton tone="help" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
-            <BigButton title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
-          </View>
-          <Button label="No, go back" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
-        </>
-      ) : (
-        <>
-          <Lamp state="alert" size={150} label="Help requested" />
-          <H1 onDusk style={st.bigH1}>Help is on the way.</H1>
-          <Text style={st.lead}>Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</Text>
-          <BigButton tone="help" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
-          <Button label="Back to start" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
-        </>
-      )}
-    </ScrollView>
+    <Screen>
+      <Lamp state="alert" size={140} label="Help requested" />
+      <View style={{ gap: 8 }}>
+        <Title senior>Help is on the way.</Title>
+        <T v="seniorBody" tone="soft">Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</T>
+      </View>
+      <BigButton tone="help" icon="phone" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
+      <Button senior label="Back to start" variant="ghost" onPress={back} style={{ alignSelf: 'center' }} />
+    </Screen>
   );
 }
 
 const st = StyleSheet.create({
-  pad: { padding: 20, paddingBottom: 48, gap: 18 },
-  center: { alignItems: 'center' },
   hero: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bigH1: { fontSize: 36, lineHeight: 40, textAlign: 'left' },
-  lead: { fontFamily: font.body, fontSize: 21, lineHeight: 29, color: color.mutedOnDusk },
-  stack: { gap: 14 },
-  notices: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, padding: 20, gap: 14 },
-  noticesTitle: { fontFamily: font.displaySemi, fontSize: 22, color: color.ink },
-  notice: { borderLeftWidth: 4, borderLeftColor: color.sage, paddingLeft: 14, gap: 4 },
-  noticeText: { fontFamily: font.body, fontSize: 22, lineHeight: 30, color: color.ink },
-  noticeMeta: { fontFamily: font.body, fontSize: 16, color: color.muted },
-  talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
-  talkStatus: { flex: 1, fontFamily: font.displaySemi, fontSize: 22, color: color.ink },
-  voiceToggle: { alignItems: 'center', gap: 2 },
-  toggleLabel: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
-  transcript: { padding: 16, gap: 12 },
-  line: { padding: 16, borderRadius: radius.lg, maxWidth: '88%' },
-  linePorch: { backgroundColor: color.dusk2, alignSelf: 'flex-start' },
-  lineSenior: { backgroundColor: color.surface2, alignSelf: 'flex-end' },
-  lineWho: { fontFamily: font.bodyBold, fontSize: 14, color: color.mutedOnDusk, marginBottom: 2 },
-  lineText: { fontFamily: font.body, fontSize: 21, lineHeight: 28, color: color.ink },
-  composer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8, gap: 8, borderTopWidth: 1, borderTopColor: color.hairline },
-  hint: { fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
+  talkHead: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: space.screen, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: color.hairline },
+  toggle: { alignItems: 'center', gap: 4 },
+  transcript: { padding: space.screen, gap: 14 },
+  msg: { maxWidth: '86%', gap: 4 },
+  bubble: { paddingHorizontal: 16, paddingVertical: 14 },
+  bubbleTheirs: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.card, borderBottomLeftRadius: 6 },
+  bubbleMine: { backgroundColor: color.dusk2, borderRadius: radius.card, borderBottomRightRadius: 6 },
+  composer: { paddingHorizontal: space.screen, paddingTop: 12, paddingBottom: 12, gap: 10, borderTopWidth: 1, borderTopColor: color.hairline },
   typeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, backgroundColor: color.surface2, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.sm, paddingHorizontal: 14, fontFamily: font.body, fontSize: 21, color: color.ink },
-  textarea: { minHeight: 140, paddingTop: 14, textAlignVertical: 'top', flex: 0 },
-  doneBtn: { alignSelf: 'center' },
-  verdict: { borderRadius: radius.lg, padding: 22, gap: 10 },
-  verdictWord: { fontFamily: font.display, fontSize: 30, lineHeight: 34 },
-  verdictText: { fontFamily: font.body, fontSize: 20, lineHeight: 28, color: color.ink },
+  flagRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  bullet: { width: 8, height: 8, borderRadius: 4, marginTop: 10 },
 });
