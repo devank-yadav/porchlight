@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useAnimatedSty
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
+import { useCalendarSync } from './calendar';
 import { HEADER_H, useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { BigButton, Button, Press, T } from './design/ui';
@@ -33,6 +34,7 @@ export default function SeniorScreen({ senior }) {
   const [mode, setMode] = useState('home'); // home | talk | scam | help | thanks
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
   const home = () => setMode('home');
+  useCalendarSync(senior, state); // her iPhone calendar in, Porchlight's rides/reminders/call-backs out
   // Confirmed facts only (a ride that's booked, a task someone claimed). Newest first.
   // Her next ride, if Porchlight is arranging one. Peggy books the real Uber herself; family is only told.
   const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));

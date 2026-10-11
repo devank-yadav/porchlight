@@ -40,6 +40,7 @@ export const api = {
   startCheckin: (seniorId) => call('POST', '/api/checkins', { seniorId, channel: 'app' }),
   say: (checkinId, text) => call('POST', `/api/checkins/${checkinId}/message`, { text }),
   finish: (checkinId) => call('POST', `/api/checkins/${checkinId}/finish`),
+  syncCalendar: (seniorId, body) => call('POST', `/api/seniors/${seniorId}/calendar`, body),
   ok: (seniorId) => call('POST', `/api/seniors/${seniorId}/ok`),
   help: (seniorId) => call('POST', `/api/seniors/${seniorId}/help`),
   missed: (seniorId) => call('POST', `/api/seniors/${seniorId}/missed`),

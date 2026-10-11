@@ -131,7 +131,7 @@ const MY_WEEK = /\b(?:what(?:'|’)?s on my (?:calendar|schedule)|what (?:do i h
 
 export function weekSummary(appointments, tz = 'America/New_York', now = new Date()) {
   const soon = appointments
-    .filter((a) => { const t = new Date(a.startsAt).getTime(); return t >= now.getTime() - 3600000 && t <= now.getTime() + 7 * 86400000; })
+    .filter((a) => { const t = new Date(a.startsAt).getTime(); return !a.cancelled && t >= now.getTime() - 3600000 && t <= now.getTime() + 7 * 86400000; })
     .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
   if (!soon.length) return "You don't have any appointments in the next week. Is there anything you'd like me to help plan?";
   const lines = soon.slice(0, 3).map((a) => {
@@ -195,7 +195,7 @@ async function rideNow(senior, text, checkin = {}) {
   // Her appointment: the ride for her next appointment.
   if (forAppointment) {
     const appts = (await store.list('appointments', { seniorId: senior._id }))
-      .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
+      .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed' && a.needsRide !== false && !a.cancelled)
       .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
     if (!appts.length) return place ? null : { reply: 'Sure. Where would you like to go?' };
     const a = appts[0];

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Linking, ScrollView, Share, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
+import * as Calendar from 'expo-calendar/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from './api';
 import { HEADER_H, useAppContext } from './AppContext';
@@ -10,6 +11,7 @@ import { ago } from './useAppState';
 import { Appear, Badge, Button, Card, Divider, Dot, Fact, Press, Section, Segmented, T, useSettled } from './design/ui';
 import Icon from './design/Icon';
 import { haptic } from './design/haptics';
+import { toast } from './design/Toaster';
 import { accent, ease, light, radius } from './design/tokens';
 
 const MOOD = { good: 'Cheerful', okay: 'Steady', low: 'A bit down' };
@@ -160,8 +162,9 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
   const meMember = state.members.find((m) => m._id === me);
   const actions = (state.actions || []).filter((a) => a.seniorId === senior._id && a.status !== 'COMPLETED');
   const appointments = (state.appointments || [])
-    .filter((a) => a.seniorId === senior._id && new Date(a.startsAt).getTime() > Date.now() - 3600000)
-    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+    .filter((a) => a.seniorId === senior._id && !a.cancelled && new Date(a.startsAt).getTime() > Date.now() - 3600000 && new Date(a.startsAt).getTime() < Date.now() + 2 * 86400000)
+    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1))
+    .slice(0, 3); // the rest of the fortnight is on Care → Peggy's calendar
   const name = senior.preferredName;
 
   const headline =
@@ -409,7 +412,7 @@ function Detail({ icon, label, value }) {
 }
 
 function AppointmentCard({ appt }) {
-  const [label, tone] = TRANSPORT[appt.transport] ?? TRANSPORT.unknown;
+  const [label, tone] = appt.needsRide === false ? ['No ride needed', 'neutral'] : TRANSPORT[appt.transport] ?? TRANSPORT.unknown;
   const where = [appt.with, appt.where].filter(Boolean).join(' · ');
   return (
     <Card style={{ flexDirection: 'row', gap: 12 }}>
@@ -445,6 +448,8 @@ function Care({ senior, state, me, run, circle }) {
   return (
     <>
       <DailyCall senior={senior} run={run} />
+
+      <SeniorCalendar senior={senior} state={state} />
 
       <Section title="Care tasks">
         <Card style={{ gap: 0, paddingVertical: 4 }}>
@@ -494,6 +499,70 @@ function Care({ senior, state, me, run, circle }) {
         </Card>
       </Section>
     </>
+  );
+}
+
+// Peggy's iPhone calendar, as synced by her Porchlight app, plus sample appointments.
+function dayLabel(iso) {
+  const d = new Date(iso);
+  const days = Math.round((new Date(d.toDateString()) - new Date(new Date().toDateString())) / 86400000);
+  const day = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', days < 7 ? { weekday: 'long' } : { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${day}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function SeniorCalendar({ senior, state }) {
+  const name = senior.preferredName;
+  const cal = senior.calendar;
+  const list = (state.appointments || [])
+    .filter((a) => a.seniorId === senior._id && !a.cancelled && new Date(a.startsAt).getTime() > Date.now() - 3600000 && new Date(a.startsAt).getTime() < Date.now() + 14 * 86400000)
+    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+  const addToMine = (a) => async () => {
+    try {
+      await Calendar.createEventInCalendarAsync({
+        title: `${name}: ${a.title.replace(/\s*\(sample\)/i, '')}`,
+        startDate: new Date(a.startsAt), endDate: new Date(a.endsAt || new Date(a.startsAt).getTime() + 3600000),
+        location: a.where || undefined, notes: `From ${name}’s Porchlight.`,
+      });
+    } catch (e) {
+      toast.info('Couldn’t open your calendar', { description: e.message });
+    }
+  };
+
+  return (
+    <Section title={`${name}’s calendar`}>
+      <Card style={{ gap: 0, paddingVertical: 4 }}>
+        <View style={[st.row, { alignItems: 'flex-start' }]}>
+          <Icon name={cal?.connected ? 'checkmark.circle.fill' : 'calendar.badge.exclamationmark'} size={17} color={cal?.connected ? accent.green : light.muted} style={{ marginTop: 2 }} />
+          <T v="footnote" muted style={{ flex: 1 }}>
+            {cal?.connected
+              ? `Synced from ${name}’s iPhone ${ago(cal.syncedAt)}. Calls and rides use these events, and Porchlight adds her rides, reminders and call-backs to her calendar.`
+              : `Open Porchlight on ${name}’s phone and allow calendar access. Her real appointments then show here and on her calls.`}
+          </T>
+        </View>
+        {list.length === 0 && <><Divider /><T v="callout" muted style={{ paddingVertical: 14 }}>Nothing in the next two weeks.</T></>}
+        {list.map((a) => {
+          const [label, tone] = a.needsRide === false ? ['No ride needed', 'neutral'] : TRANSPORT[a.transport] ?? TRANSPORT.unknown;
+          return (
+            <View key={a._id}>
+              <Divider />
+              <View style={st.row}>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <T v="headline">{a.title}</T>
+                  <T v="footnote" muted>{[dayLabel(a.startsAt), a.where].filter(Boolean).join(' · ')}</T>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                    <Badge label={label} tone={tone} />
+                    <Badge label={a.source === 'calendar' ? `Her calendar${a.calendar ? `: ${a.calendar}` : ''}` : 'Sample'} icon={a.source === 'calendar' ? 'calendar' : undefined} />
+                  </View>
+                </View>
+                <Press onPress={addToMine(a)} accessibilityLabel={`Add ${a.title} to my calendar`} style={st.calBtn}>
+                  <Icon name="calendar.badge.plus" size={15} color={light.ink} />
+                </Press>
+              </View>
+            </View>
+          );
+        })}
+      </Card>
+    </Section>
   );
 }
 
@@ -899,6 +968,7 @@ const st = StyleSheet.create({
   askBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: light.sunken, borderRadius: radius.sm, paddingLeft: 12, paddingRight: 6, minHeight: 48 },
   askInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: 44, fontSize: 16, color: light.ink },
   qRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  calBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   qRemove: { width: 28, height: 28, borderRadius: 14, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   answering: { flexDirection: 'row', gap: 6 },
   askNext: { flexDirection: 'row', gap: 10, backgroundColor: light.sunken, borderRadius: radius.sm, padding: 12 },

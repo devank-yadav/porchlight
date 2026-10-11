@@ -32,6 +32,7 @@ mobile/src/design/          Design system: tokens.js, ui.js (T, Press, Button, B
                             Toaster.js (toast()), Sheet.js (sheet.open()), Icon.js (SF Symbols), theme.js, haptics.js
 mobile/src/api.js           Server calls + API base URL
 mobile/src/useAppState.js   Polls /api/state every 2s
+mobile/src/calendar.js      Peggy's iPhone calendar (expo-calendar/legacy): her events → server, rides/reminders/call-backs → a "Porchlight" calendar
 server/src/index.js          SHARED wiring only (mounts voice + care routes). Don't add routes here
 server/src/store.js          MongoDB or in-memory, same API (owner: B)
 server/src/wrap.js, env.js   SHARED helpers
@@ -44,6 +45,7 @@ server/src/care/             OWNER: Person B
   outcomes.js                handleCheckinOutcome(): analysis → tasks, actions, statuses, alerts
   escalation.js              Missed check-in / help ladder
   routes.js                  /api/state, senior buttons, tasks, demo reset (+ actions, handoffs)
+  calendar.js                Phone calendar events → appointments (POST /api/seniors/:id/calendar)
   audit.js                   Audit log helper
   seed.js                    Fictional demo data (Peggy Hollis and her circle)
 ```
