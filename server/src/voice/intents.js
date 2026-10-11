@@ -145,7 +145,8 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
 // ---------- "Book an Uber for me" ----------
 export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
 
-const STEPS = 'Your Porchlight screen now shows a big Book my Uber button. Tap it, and Uber opens with your home and where you\'re going already filled in. Check the price, then press Request. Your driver\'s name, car and plate will show on the screen.';
+// Spoken on the call: short, so it isn't cut off. The screen notice carries the full steps.
+const STEPS = 'Just tap the big Book my Uber button on your Porchlight screen, then press Request in Uber.';
 const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
 
 // "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
@@ -154,8 +155,11 @@ export function rideDestination(text) {
   const all = [...String(text || '').matchAll(/\bto ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=\s+(?:at|by|around|tomorrow|tonight|today|now|right now|in \d|in an?|please|for|this)\b|[,!?]|\.(?:\s|$)|$)/gi)];
   const m = all.at(-1);
   const place = m?.[1]?.trim().replace(/^(?:(?:go|get|come|head|drive me)\s+to\s+)+/i, '').replace(/\s+(please|now)$/i, '');
-  return place && !/^(go|get|be|talk|speak|book|call)$/i.test(place.replace(/^(the|my|a|an) /i, '')) ? place : null;
+  // A place is a name, not a sentence: "I just need an Uber" or "listen to me" is never a destination.
+  if (!place || place.split(/\s+/).length > 6 || NOT_A_PLACE.test(place)) return null;
+  return /^(go|get|be|talk|speak|book|call)$/i.test(place.replace(/^(the|my|a|an) /i, '')) ? null : place;
 }
+const NOT_A_PLACE = /\b(i|me|you|we|it|need|want|wanna|just|uber|lyft|ride|cab|taxi|listen|talk|say|said|tell|know|help|that|this)\b/i;
 
 // A short answer to "Where would you like to go?": "Target", "the library please", "to Walmart".
 export function bareDestination(text) {
@@ -165,7 +169,8 @@ export function bareDestination(text) {
     .replace(/\s+(please|now|right now|today)$/i, '').trim();
   if (!t || t.split(/\s+/).length > 5) return null;
   if (/^(yes|yeah|no|nope|okay|ok|sure|fine|i don'?t know|not sure|nothing|nowhere|never ?mind)$/i.test(t)) return null;
-  if (/\b(i|you|me|book|uber|ride|car|want|need|feel|am|is|was)\b/i.test(t)) return null;
+  if (/\b(i|you|me|book|uber|ride|car|want|need|feel|am|is|was)\b/i.test(t) || NOT_A_PLACE.test(t)) return null;
+  if (/^(listen|wait|hold on|hang on|hello|hi|what|huh|sorry|pardon|excuse me|one (second|moment|minute)|hmm+|um+|uh+)$/i.test(t)) return null;
   return t;
 }
 
@@ -175,7 +180,9 @@ const GO_TO = /\b(want|need|have|like|wanna) to go to\b|\btake me to\b|\bi('m| a
 // Is this turn about a ride? An explicit ask ("book me an Uber"), or an answer to "Where would you like to go?".
 export function rideTurn(text, checkin) {
   const last = [...(checkin.transcript || [])].reverse().find((t) => t.who === 'porchlight')?.text || '';
-  return RIDE.test(text) || (ASKED_WHERE.test(last) && (bareDestination(text) || rideDestination(text))) || (checkin.rideAsked && GO_TO.test(text));
+  // "Where would you like to go?" stays open across a "Listen" or "Hello?" until she names a place.
+  const waiting = ASKED_WHERE.test(last) || checkin.rideAsked;
+  return RIDE.test(text) || (waiting && Boolean(bareDestination(text) || rideDestination(text))) || (waiting && GO_TO.test(text));
 }
 
 async function rideNow(senior, text, checkin = {}) {
@@ -222,7 +229,7 @@ async function rideNow(senior, text, checkin = {}) {
     history: [{ status: 'APPROVED', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `She asked on her call: "${text}"; family notified` } }],
   });
   if (checkin._id) await store.update('checkins', checkin._id, { rideTo: bare, rideAsked: false });
-  await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber, then Request.` });
+  await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber. Uber opens with your home and ${where} filled in. Check the price, then press Request. Your driver's name, car and plate will show in Uber.` });
   await audit.log('porchlight', 'voice.ride', { seniorId: senior._id, targetId: action._id, detail: `${where} ${leavingNow ? 'now' : pickupAt}` });
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const time = leavingNow ? 'now' : sayTime(new Date(pickupAt), tz);
