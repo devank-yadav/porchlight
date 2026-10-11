@@ -611,7 +611,11 @@ function liveStories(checkin) {
     .map((t) => ({ title: t.text.split(/[.!?]/)[0].slice(0, 48), text: t.text, at: t.at, live: true }));
 }
 // Accept both field spellings while the server shape settles (quote/text, about/people, followUp/askNext).
-const normStory = (s) => ({ ...s, text: s.text || s.quote || '', people: s.people || s.about || [], askNext: s.askNext || s.followUp });
+// quote = her most vivid sentence, exactly as said; text = the memory retold in her words.
+const normStory = (s) => {
+  const words = s.quote || s.text || '';
+  return { ...s, text: words, retold: s.quote && s.text && s.text !== s.quote ? s.text : null, people: s.people || s.about || [], askNext: s.askNext || s.followUp };
+};
 const storyKey = (s) => `${String(s.title || '').toLowerCase().trim()}|${String(s.text || '').toLowerCase().slice(0, 40)}`;
 function toldOn(iso) {
   if (!iso) return '';
@@ -646,6 +650,10 @@ function Stories({ senior, checkins, state, me, run }) {
   const people = [...new Set(saved.flatMap((x) => x.people || []))].slice(0, 8);
   const shown = person ? saved.filter((x) => (x.people || []).includes(person)) : saved;
   const starters = checkins.find((c) => c.seniorId === senior._id && c.starters?.length)?.starters || [];
+  const askerOf = (qText) => {
+    const q = qText && (senior.familyQuestions || []).find((f) => f.text === (qText.text || qText));
+    return first(state.members.find((m) => m._id === q?.askedBy)?.name);
+  };
 
   return (
     <View style={{ gap: 16 }}>
@@ -694,7 +702,7 @@ function Stories({ senior, checkins, state, me, run }) {
         </Card>
       )}
 
-      {shown.map((x) => <Appear key={storyKey(x)} on={settled}><StoryCard story={x} name={name} /></Appear>)}
+      {shown.map((x) => <Appear key={storyKey(x)} on={settled}><StoryCard story={x} name={name} asker={askerOf(x.question)} /></Appear>)}
     </View>
   );
 }
@@ -703,7 +711,7 @@ function Stories({ senior, checkins, state, me, run }) {
 function FamilyQuestions({ senior, state, me, run }) {
   const [text, setText] = useState('');
   const name = senior.preferredName;
-  const open = (senior.familyQuestions || []).filter((q) => !q.answeredCheckinId);
+  const open = (senior.familyQuestions || []).filter((q) => !q.answeredAt && !q.answeredCheckinId);
   const who = (id) => first(state.members.find((m) => m._id === id)?.name) ?? 'Family';
   const send = () => {
     const t = text.trim();
@@ -720,7 +728,7 @@ function FamilyQuestions({ senior, state, me, run }) {
         <TextInput
           value={text}
           onChangeText={setText}
-          placeholder="What was your first job?"
+          placeholder="Ask her about her first job…"
           placeholderTextColor={light.faint}
           style={st.askInput}
           returnKeyType="send"
@@ -731,19 +739,22 @@ function FamilyQuestions({ senior, state, me, run }) {
         <Button size="sm" variant="primary" icon="arrow.up" label="Ask" accessibilityLabel={`Ask ${name} on her next call`} onPress={send} disabled={!text.trim()} />
       </View>
       {open.map((q) => (
-        <View key={q._id} style={st.qRow} accessible accessibilityLabel={`${q.text}. Asked by ${who(q.askedBy)}. Porchlight asks on her next call.`}>
+        <View key={q._id} style={st.qRow}>
           <Icon name="clock" size={14} color={light.muted} style={{ marginTop: 3 }} />
           <View style={{ flex: 1, gap: 1 }}>
             <T v="callout">{q.text}</T>
             <T v="footnote" muted>{who(q.askedBy)} asked · on her next call</T>
           </View>
+          <Press onPress={run(() => api.deleteQuestion(senior._id, q._id), 'Question removed')} accessibilityRole="button" accessibilityLabel={`Remove the question: ${q.text}`} style={st.qRemove}>
+            <Icon name="xmark" size={12} color={light.muted} />
+          </Press>
         </View>
       ))}
     </Card>
   );
 }
 
-function StoryCard({ story: s, name }) {
+function StoryCard({ story: s, name, asker }) {
   const [open, setOpen] = useState(false);
   const long = String(s.text || '').length > 260;
   const meta = [s.when, s.place].filter(Boolean).join(' · ');
@@ -753,15 +764,21 @@ function StoryCard({ story: s, name }) {
       <Text style={st.quoteMark} accessibilityElementsHidden importantForAccessibility="no">“</Text>
       <Text style={st.storyText} numberOfLines={long && !open ? 6 : undefined}>{s.text}</Text>
       {long ? <T v="footnote" style={{ color: light.ink, fontWeight: '600', marginTop: 6 }}>{open ? 'Show less' : 'Read the whole story'}</T> : null}
+      {s.retold ? <T v="callout" style={{ color: light.ink2, marginTop: 10 }}>{s.retold}</T> : null}
     </View>
   );
   const share = () => {
     haptic.tap();
-    Share.share({ message: `${s.title}\n\n“${s.text}”\n\n${name}, ${toldOn(s.at).toLowerCase()}. Saved by Porchlight.` }).catch(() => {});
+    Share.share({ message: `${s.title}\n\n“${s.text}”${s.retold ? `\n\n${s.retold}` : ""}\n\n${name}, ${toldOn(s.at).toLowerCase()}. Saved by Porchlight.` }).catch(() => {});
   };
   return (
     <Card style={{ gap: 14 }}>
-      {s.question ? <T v="footnote" muted>You asked: “{typeof s.question === 'string' ? s.question : s.question.text}”</T> : null}
+      {s.question ? (
+        <View style={st.answering}>
+          <Icon name="questionmark.bubble" size={14} color={light.muted} style={{ marginTop: 1 }} />
+          <T v="footnote" muted style={{ flex: 1 }}>Answering {asker ? `${asker}’s` : 'a family'} question: “{s.question.text || s.question}”</T>
+        </View>
+      ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={[st.iconTile, { backgroundColor: light.sunken }]}>
           <Icon name={THEME_ICON[s.theme] || 'book.closed'} size={16} color={light.ink2} />
@@ -785,10 +802,10 @@ function StoryCard({ story: s, name }) {
       ) : null}
 
       {ask && !s.live ? (
-        <View style={st.askNext} accessible accessibilityLabel={`Next time you talk: ${ask}`}>
+        <View style={st.askNext} accessible accessibilityLabel={`Ask her more: ${ask}`}>
           <Icon name="bubble.left" size={15} color={light.ink2} style={{ marginTop: 2 }} />
           <View style={{ flex: 1, gap: 2 }}>
-            <T v="label" muted>Next time you talk</T>
+            <T v="label" muted>Ask her more</T>
             <T v="callout" style={{ color: light.ink2 }}>{ask}</T>
           </View>
         </View>
@@ -881,7 +898,9 @@ const st = StyleSheet.create({
   storyText: { fontSize: 19, lineHeight: 28, color: light.ink, fontStyle: 'italic', letterSpacing: -0.2 },
   askBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: light.sunken, borderRadius: radius.sm, paddingLeft: 12, paddingRight: 6, minHeight: 48 },
   askInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: 44, fontSize: 16, color: light.ink },
-  qRow: { flexDirection: 'row', gap: 10 },
+  qRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  qRemove: { width: 28, height: 28, borderRadius: 14, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
+  answering: { flexDirection: 'row', gap: 6 },
   askNext: { flexDirection: 'row', gap: 10, backgroundColor: light.sunken, borderRadius: radius.sm, padding: 12 },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 16, fontWeight: '700', color: light.ink },
