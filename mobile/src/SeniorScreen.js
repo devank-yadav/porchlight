@@ -91,13 +91,13 @@ function Home({ senior, notices, primary, setMode, refresh, onError }) {
       )}
 
       <View style={st.stack}>
-        <BigButton tone="lamp" title="Talk with Porchlight" sub="A friendly chat about your day" onPress={() => setMode('talk')} />
-        <BigButton title="I’m okay today" sub="One tap lets your family know" onPress={imOkay} disabled={busy} />
+        <BigButton tone="lamp" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
+        <BigButton title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
         {primary && (
-          <BigButton title={`Call ${primary.name.split(' ')[0]}`} sub={primary.relation} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
+          <BigButton title={`Call ${primary.name.split(' ')[0]}`} sub={primary.relation} hint={`Opens a phone call to ${primary.name.split(' ')[0]}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
         )}
-        <BigButton title="Is this a scam?" sub="Tell me about a call or letter" onPress={() => setMode('scam')} />
-        <BigButton tone="help" title="I need help" sub="Your family and neighbor are alerted" onPress={() => setMode('help')} />
+        <BigButton title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
+        <BigButton tone="help" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
       </View>
     </ScrollView>
   );
@@ -285,8 +285,8 @@ function Help({ senior, back, refresh, onError }) {
           <H1 onDusk style={st.bigH1}>Do you need help now?</H1>
           <Text style={st.lead}>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</Text>
           <View style={[st.stack, { alignSelf: 'stretch' }]}>
-            <BigButton tone="help" title="Yes, alert my family" onPress={send} />
-            <BigButton title="Call 911" onPress={() => Linking.openURL('tel:911')} />
+            <BigButton tone="help" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
+            <BigButton title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
           </View>
           <Button label="No, go back" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
         </>
@@ -295,7 +295,7 @@ function Help({ senior, back, refresh, onError }) {
           <Lamp state="alert" size={150} label="Help requested" />
           <H1 onDusk style={st.bigH1}>Help is on the way.</H1>
           <Text style={st.lead}>Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</Text>
-          <BigButton tone="help" title="Call 911" onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
+          <BigButton tone="help" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
           <Button label="Back to start" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
         </>
       )}
