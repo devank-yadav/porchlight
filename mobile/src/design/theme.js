@@ -1,14 +1,10 @@
 import { createContext, useContext } from 'react';
-import { dark, light, night, seniorPalette } from './tokens';
+import { dark, light, seniorPalette } from './tokens';
 
-// Modes: 'light' (family), 'senior' (Peggy), 'dark' (dark sheets),
-// 'night' / 'senior-night' (inside a HeroCard; text and controls switch to the night palette).
+// The older person uses the spacious daily-page palette; family and desk use light.
 const ThemeContext = createContext('light');
 export const ThemeProvider = ThemeContext.Provider;
 export function useTheme() {
   const mode = useContext(ThemeContext);
-  const isNight = mode === 'night' || mode === 'senior-night';
-  const isSenior = mode === 'senior' || mode === 'senior-night';
-  const c = isNight ? night : mode === 'dark' ? dark : isSenior ? seniorPalette : light;
-  return { mode, c, isDark: mode === 'dark' || isNight, isSenior, isNight };
+  return { mode, c: mode === 'dark' ? dark : mode === 'senior' ? seniorPalette : light, isDark: mode === 'dark', isSenior: mode === 'senior' };
 }

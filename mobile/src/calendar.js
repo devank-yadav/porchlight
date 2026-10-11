@@ -32,7 +32,7 @@ async function readUpcoming() {
   const raw = await Calendar.getEventsAsync(calendars.map((c) => c.id), from, to);
   const names = Object.fromEntries(calendars.map((c) => [c.id, c.title]));
   const events = raw
-    .filter((e) => e.status !== Calendar.EventStatus.CANCELED && !keyOf(e.notes)) // not the entries Porchlight wrote
+    .filter((e) => e.status !== Calendar.EventStatus.CANCELED)
     .map((e) => ({
       // Each occurrence of a repeating event is its own appointment.
       id: e.recurrenceRule ? `${e.id}@${new Date(e.startDate).toISOString()}` : e.id,
@@ -47,32 +47,26 @@ async function readUpcoming() {
   return { events, from, to };
 }
 
-let target = null; // the calendar Porchlight writes to, once found
-let noTarget = false; // this phone allows no calendar Porchlight can write to: stop trying (reading still works)
-
 async function porchlightCalendar() {
-  if (target || noTarget) return target;
   const all = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
   const found = all.find((c) => c.title === OURS && c.allowsModifications);
-  if (found) return (target = found.id);
+  if (found) return found.id;
   const make = (source) => Calendar.createCalendarAsync({
     title: OURS, color: accent.lamp, entityType: Calendar.EntityTypes.EVENT,
     sourceId: source?.id, source: Platform.OS === 'ios' ? source : { isLocalAccount: true, name: OURS },
     name: 'porchlight', ownerAccount: 'personal', accessLevel: Calendar.CalendarAccessLevel.OWNER,
   });
+  if (Platform.OS !== 'ios') return make();
   // Her default account (usually iCloud, so it reaches her iPad too); else a calendar on this phone only.
-  const def = Platform.OS === 'ios' ? await Calendar.getDefaultCalendarAsync().catch(() => null) : null;
-  const sources = Platform.OS === 'ios' ? await Calendar.getSourcesAsync().catch(() => []) : [];
+  const def = await Calendar.getDefaultCalendarAsync().catch(() => null);
+  const sources = await Calendar.getSourcesAsync();
   const local = sources.find((x) => x.type === Calendar.SourceType.LOCAL);
-  const tries = Platform.OS === 'ios' ? [def?.source, local].filter((x, i, a) => x && a.findIndex((y) => y?.id === x.id) === i) : [undefined];
-  for (const source of tries) {
-    try { return (target = await make(source)); } catch { /* e.g. "That account does not allow calendars to be added" */ }
+  try {
+    return await make(def?.source || local || sources[0]);
+  } catch (e) {
+    if (!local || def?.source?.id === local.id) throw e;
+    return make(local);
   }
-  // Some accounts won't take a new calendar: use her default one. Only entries tagged porchlight: are ever changed there.
-  if (def?.allowsModifications) return (target = def.id);
-  noTarget = true;
-  console.warn('[calendar] this phone won’t let Porchlight add calendar entries; rides and reminders stay in the app');
-  return null;
 }
 
 const OPEN_RIDE = ['PENDING_APPROVAL', 'APPROVED', 'REQUESTED', 'CONFIRMED'];
@@ -136,7 +130,6 @@ function writeBack(entries) {
 
 async function writeNow(entries) {
   const calId = await porchlightCalendar();
-  if (!calId) return;
   const existing = await Calendar.getEventsAsync([calId], new Date(Date.now() - 86400000), new Date(Date.now() + 60 * 86400000));
   const byKey = new Map(existing.map((e) => [keyOf(e.notes), e]));
   const want = new Set();
