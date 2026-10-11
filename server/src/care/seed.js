@@ -1,5 +1,5 @@
 // Demo data. Every person and organization here is fictional sample data.
-import * as store from './store.js';
+import * as store from '../store.js';
 
 const daysAgo = (n, hour = 10) => {
   const d = new Date();

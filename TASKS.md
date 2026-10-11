@@ -1,37 +1,40 @@
 # TASKS
 
-Put your name on a task before starting. Feature freeze 6:30 PM. Judging 8:00 PM.
+Claim a task by adding your name, push that change first, then start. Details and acceptance criteria for every task: TEAM_PLAN.md.
+Feature freeze 6:30 PM. Judging 8:00 PM.
 
-## Now (2:00–2:45)
-- [ ] (everyone) Install Expo Go on your iPhone. `npm run setup`, `npm run dev`, scan the QR, click through all roles
-- [ ] (everyone) If the phone can't reach the server on campus Wi-Fi: ngrok + EXPO_PUBLIC_API_URL + `npm run app:tunnel` (see README). Or use a phone hotspot
-- [ ] (ai) Get a model key working in .env (Luminal if 1B requires it; check their docs for base URL + model names). Confirm Talk replies come from the model
-- [ ] (pitch) MongoDB Atlas free cluster → MONGODB_URI in the shared .env (send privately, never commit)
-- [ ] (pitch) Ask organizers: how is 1B judged? Must we use Luminal models?
+## Person A — Voice & AI + demo lead (Claude Code) — name: ____
+- [ ] A1 Model key live in .env
+- [ ] A2 Twilio + ngrok, first real call to a teammate's phone
+- [ ] A3 Scam policy rule (backend, not prompt)
+- [ ] A4 Ride detection with appointment context, never claims a booking
+- [ ] A5 Med "not sure" status + safe wording
+- [ ] A6 Quotes on every request
+- [ ] A7 tellSenior() + greeting mentions confirmed notices
+- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal
 
-## Core (2:45–5:00)
-- [ ] (ai) Tune the conversation prompt in llm.js: warmer, shorter, natural questions about meds/food/plans/needs
-- [ ] (ai) Test 10 transcripts (scam, fall, lonely, ride, normal); fix analysis misses
-- [ ] (phone) Twilio trial + number, ngrok → PUBLIC_URL. One real call to a teammate's phone, end to end. This is the demo's best moment
-- [ ] (phone) Real SMS alerts to teammates' numbers (set phones in seed.js)
-- [ ] (app) Family-voice opener: record Anne's hello with expo-audio and play it at the start of Talk (check it works in Expo Go first)
-- [ ] (app) Local notification on the family phone when an alert appears (expo-notifications local only; check Expo Go support for SDK 57)
-- [ ] (app) Story sharing: share button on a story using React Native's Share API
-- [ ] (app) Buddy calls on the volunteer desk: suggest pairing two lonely seniors with shared interests
-- [ ] (pitch) Talk to local business/nonprofit connections at the event about reassurance-call programs. Goal: one quote or "we'd pilot this"
+## Person B — Backend & workflows (Codex) — name: ____
+- [ ] B1 Contract seed + new fields in /api/state (by 2:45, push early)
+- [ ] B2 actions.js: state machine, idempotent approve, 403 for non-approvers, history, audit
+- [ ] B3 Sandbox ride provider (clearly simulated), appointment transport, notice on confirm
+- [ ] B4 outcomes.js: ride → action, other requests → tasks with quote + suggested owner, meds unsure → sensitive task
+- [ ] B5 Task handoff/accept/decline + notice when claimed
+- [ ] B6 Digest per viewer
+- [ ] B7 Escalation: unresolved (amber) semantics + quiet hours
+- [ ] B8 ?viewer= filtering
+- [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize
 
-## Polish (5:00–6:30)
-- [ ] (app) VoiceOver pass on Peggy's screen (Settings → Accessibility → VoiceOver)
-- [ ] (pitch) 3-minute demo script from PLAN.md, with two phones: Peggy and Anne. Rehearse twice
-- [ ] (pitch) Record a 2-minute backup video (iPhone screen recording)
-- [ ] (all) Devpost: problem, evidence, what we built, sponsors used, team
-
-## Stretch
-- [ ] TestFlight build via EAS (needs an Apple Developer account, $99/yr)
-- [ ] Spanish / Hindi check-ins
-- [ ] Weekly family digest
+## Person C — iOS app (Claude Code) — name: ____
+- [ ] C1 Two phones running in Expo Go
+- [ ] C2 Peggy's notices card
+- [ ] C3 Family Today: digest + approval card (approve only if canApprove)
+- [ ] C4 Appointment card with transport chip
+- [ ] C5 Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
+- [ ] C6 Amber unresolved state, red only for help
+- [ ] C7 Med status labels incl. Private
+- [ ] C8 Desk restyle + VoiceOver labels on Peggy's screen
+- [ ] C9 Screenshots + screen-recording backup
 
 ## Done
-- [x] Research: senior + caregiver pain points → feature spec (PLAN.md)
-- [x] iOS app (Expo): role picker, Peggy's screen with talk/scam/help, family Today/Care/Stories/Circle, volunteer desk
-- [x] Server: AI conversation + analysis (with offline fallback), escalation ladder, scam check, tasks, Twilio hooks
+- [x] Research → feature spec (PLAN.md), ranked Phase 1 (TEAM_PLAN.md)
+- [x] Working iOS app + server with demo mode; server split into voice/ (A) and care/ (B)

@@ -1,7 +1,7 @@
 // The escalation ladder: when a check-in is missed or help is requested,
 // widen the circle step by step until someone confirms the senior is okay.
-import * as store from './store.js';
-import { sms } from './notify.js';
+import * as store from '../store.js';
+import { sms } from '../voice/notify.js';
 
 const STEP_MS = Number(process.env.ESCALATION_STEP_MS || 5000); // demo speed; real life ~15 min
 const timers = new Map();
