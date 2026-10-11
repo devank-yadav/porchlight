@@ -35,3 +35,10 @@ test('only real numbers are dialed; DEMO_FAMILY_PHONE stands in for the primary 
   assert.equal(dialableNumber(members[0]), '+18145550000');
   delete process.env.DEMO_FAMILY_PHONE;
 });
+
+test('misheard names still find the right person ("Annie", "Marc", "Delores")', () => {
+  assert.equal(detectIntent('Can you connect me to Annie?', members).member._id, 'anne');
+  assert.equal(detectIntent('Tell Marc thanks for the milk', members).member._id, 'mark');
+  assert.equal(detectIntent('I want to talk to Delores', members).member._id, 'dolores');
+  assert.equal(detectIntent('Tell Mary hello', members), null);
+});
