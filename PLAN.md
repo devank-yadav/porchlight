@@ -33,8 +33,8 @@
 5. (40s) Volunteer desk: one volunteer covers many seniors. Business model, nonprofit pilot.
 
 ## Timeline (build ends 8:00)
-- 1:45–2:30 Everyone runs the app locally; get LLM key working; Mongo Atlas URI in .env
+- 1:45–2:30 Everyone runs the iOS app in Expo Go; get LLM key working; Mongo Atlas URI in .env
 - 2:30–4:30 Each owner deepens their area (see TASKS.md)
-- 4:30–5:30 Optional real phone calls via Twilio; polish
+- 4:30–5:30 Real phone calls via Twilio; polish
 - 5:30–6:30 Talk to local nonprofits / business connections; get a quote or pilot interest
 - 6:30–7:30 Rehearse, record backup video, Devpost

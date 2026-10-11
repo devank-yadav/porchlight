@@ -1,9 +1,6 @@
 import './env.js'; // must stay first
 import express from 'express';
 import cors from 'cors';
-import path from 'node:path';
-import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import * as store from './store.js';
 import { seed } from './seed.js';
 import { reply, analyze, scamCheck, greeting, llmEnabled } from './llm.js';
@@ -219,17 +216,12 @@ app.post('/twilio/status', wrap(async (req, res) => {
   res.sendStatus(204);
 }));
 
-// ---------- Serve the built client in production ----------
-const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
-if (fs.existsSync(dist)) {
-  app.use(express.static(dist));
-  app.get(/^\/(?!api|twilio).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
-}
+app.get('/', (_req, res) => res.send('Porchlight API is running. Open the Porchlight app on your iPhone.'));
 
 const PORT = Number(process.env.PORT || 3001);
 await store.connect();
 const existing = await store.list('seniors');
 if (!existing.length || process.env.RESEED === '1') await seed();
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[porchlight] API on http://localhost:${PORT}  (LLM: ${llmEnabled ? 'on' : 'mock'}, Twilio: ${twilioEnabled ? 'on' : 'off'})`);
 });

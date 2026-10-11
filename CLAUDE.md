@@ -1,50 +1,62 @@
 # CLAUDE.md — Porchlight (c0mpiled hackathon, Track 1B)
 
 Every teammate's Claude reads this first. Keep it current. Full spec: PLAN.md. Work queue: TASKS.md.
+Also read mobile/AGENTS.md before touching Expo APIs: Expo changes every SDK, don't trust memory.
 
 ## What we're building
-Porchlight: a daily AI check-in for older adults living alone. The senior just answers a phone call (or taps big buttons). Porchlight chats, notices problems, and brings in family, neighbors and volunteers when needed.
+Porchlight: an **iOS app** (Expo / React Native, SDK 57) plus a Node server. It's a daily AI check-in for older adults living alone. The senior answers a phone call or taps big buttons; Porchlight chats, notices problems, and brings in family, neighbors and volunteers when needed.
 Wedge: senior-services nonprofits running telephone reassurance programs. Track 1B, YC RFS "AI for the Aging Population". Also aiming for Bloomerang (nonprofits) and MongoDB prizes.
-Demo deadline: judging at 8:00 PM, Oct 11 2026. Feature freeze 6:30 PM.
+Judging 8:00 PM, Oct 11 2026. Feature freeze 6:30 PM.
 
 ## Run it
 ```
-npm run setup      # once
-cp .env.example .env
-npm run dev        # API on :3001, web on :5173
+npm run setup            # once
+cp .env.example .env     # optional keys (server)
+npm run dev              # server on :3001 + Expo dev server
 ```
+On your iPhone: install **Expo Go** from the App Store, scan the QR code in the terminal with the Camera app.
+The app finds the server on the laptop automatically (same Wi-Fi). If campus Wi-Fi blocks it:
+`ngrok http 3001`, put the https URL in `mobile/.env` as EXPO_PUBLIC_API_URL, and run `npm run app:tunnel`.
 Works with an empty .env (demo mode: rule-based AI, in-memory data, texts logged not sent).
-Open http://localhost:5173/?view=senior | family | desk
 
 ## Layout
 ```
-server/src/index.js       Express routes (API + Twilio webhooks)
-server/src/llm.js         AI: conversation, post-call analysis, scam check (OpenAI-compatible + mock fallback)
-server/src/escalation.js  Missed check-in / help ladder
-server/src/notify.js      SMS + outbound calls via Twilio REST (logs when not configured)
-server/src/store.js       MongoDB or in-memory, same API
-server/src/seed.js        Fictional demo data (Peggy Hollis and her circle)
-client/src/App.jsx        View switcher, polling /api/state every 2s
-client/src/SeniorView.jsx Big-button screen, voice talk, scam check, help
-client/src/FamilyView.jsx Family circle: today, alerts, tasks, stories, events
-client/src/DeskView.jsx   Volunteer desk for the nonprofit
-client/src/styles.css     All styles + design tokens
+mobile/App.js               Fonts, role picker ("Who's using this phone?"), header, demo menu
+mobile/src/SeniorScreen.js  Peggy: big buttons, talk (speech out + keyboard dictation in), scam check, help
+mobile/src/FamilyScreen.js  Family: Today / Care / Stories / Circle tabs
+mobile/src/DeskScreen.js    Volunteer desk for the nonprofit
+mobile/src/Lamp.js          The porch light (status icon, animated)
+mobile/src/ui.js            Shared components: Button, BigButton, Card, Segmented, text styles
+mobile/src/theme.js         Design tokens (colors, fonts, radii)
+mobile/src/api.js           Server calls + API base URL
+mobile/src/useAppState.js   Polls /api/state every 2s
+server/src/index.js         Express routes (API + Twilio webhooks)
+server/src/llm.js           AI: conversation, post-call analysis, scam check (OpenAI-compatible + mock fallback)
+server/src/escalation.js    Missed check-in / help ladder
+server/src/notify.js        SMS + outbound calls via Twilio REST (logs when not configured)
+server/src/store.js         MongoDB or in-memory, same API
+server/src/seed.js          Fictional demo data (Peggy Hollis and her circle)
 ```
+
+## Expo rules
+- Install native packages with versions from `mobile/node_modules/expo/bundledNativeModules.json` (`npx expo install <pkg>` if it can reach the network).
+- Only use modules that work in **Expo Go** (no custom native code), or the team can't run the app on their phones.
+- Voice input = the iOS keyboard's dictation mic. Speech output = expo-speech. Real phone calls = Twilio on the server.
 
 ## Team and ownership (fill in names)
 | Person | Owns | Branch prefix |
 |---|---|---|
-| TBD | AI quality: prompts in llm.js, real model hookup | `ai/` |
+| TBD | AI quality: prompts in server/src/llm.js, real model hookup | `ai/` |
 | TBD | Phone + SMS: Twilio calls, ngrok, real demo call | `phone/` |
-| TBD | Family + senior UI, new features | `ui/` |
+| TBD | iOS app screens and new features | `app/` |
 | TBD | Pitch, Devpost, nonprofit outreach, MongoDB Atlas | `pitch/` |
 Edit only your area unless you've told the owner.
 
 ## Design rules (keep the look consistent)
-- One bold element: the porch light (Lamp.jsx). lit = checked in, dim = waiting, alert = missed/help. Don't add other bright accents.
-- Tokens live in `:root` in styles.css. Use them; don't add new colors.
-- Fonts: Atkinson Hyperlegible (body, made for low vision) + Bricolage Grotesque (headings).
-- Senior screen: huge type (≥1.3rem), buttons ≥112px tall, plain words, no jargon, no icons-only buttons.
+- One bold element: the porch light (Lamp.js). lit = checked in, dim = waiting, alert = missed/help. Don't add other bright accents.
+- Use tokens from theme.js and components from ui.js. Don't add new colors or one-off button styles.
+- Fonts: Atkinson Hyperlegible (body, designed for low vision) + Bricolage Grotesque (headings).
+- Senior screens: text ≥ 20pt, buttons ≥ 104pt tall, plain words, every button labelled for VoiceOver.
 - Copy: plain, warm, sentence case. Buttons say what happens ("Offer a ride", not "Submit").
 
 ## Product rules (never break these)
@@ -54,11 +66,11 @@ Edit only your area unless you've told the owner.
 - All demo people and organizations are fictional and labelled "sample".
 
 ## Working rules for Claude
-- Check TASKS.md; work on one task at a time. Small, commit-sized changes.
-- The app must always run with an empty .env. Any new external service needs a fallback.
-- Never commit secrets. Add new env vars to .env.example.
-- After a change: say how to see it in the app. Run `npm run build` before pushing UI changes.
+- Check TASKS.md; one task at a time; small, commit-sized changes.
+- The app must run with an empty .env. Any new external service needs a fallback.
+- Never commit secrets. Add new env vars to .env.example (server) or mobile/.env.example (app, must start with EXPO_PUBLIC_).
+- Before pushing app changes: `cd mobile && npx expo export --platform ios` must succeed.
 - Prefer working and simple over clever. Demo reliability beats features.
 
 ## Git
-`git pull` before starting → branch `<prefix>/<task>` → small commits → PR → quick review → merge. `main` must always run. Demo from `main`.
+`git pull` → branch `<prefix>/<task>` → small commits → PR → quick review → merge. `main` must always run. Demo from `main`.
