@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
 import { useCalendarSync } from './calendar';
+import { notifyLocally, pushRegistered, startPush } from './push';
 import { HEADER_H, useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { BigButton, Button, Press, T } from './design/ui';
@@ -42,6 +43,20 @@ export default function SeniorScreen({ senior }) {
     .filter((n) => n.seniorId === senior._id)
     .sort((a, b) => (a.at < b.at ? 1 : -1))
     .slice(0, 3);
+
+  // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
+  useEffect(() => startPush(senior._id), [senior._id]);
+  // Fallback when push isn't set up: the app shows the Uber notification itself for rides that arrive while it's open.
+  const seen = useRef(null);
+  useEffect(() => {
+    const ubers = (state.notices || []).filter((n) => n.seniorId === senior._id && n.kind === 'uber');
+    if (seen.current === null) { seen.current = new Set(ubers.map((n) => n._id)); return; }
+    for (const n of ubers) {
+      if (seen.current.has(n._id)) continue;
+      seen.current.add(n._id);
+      if (!pushRegistered) notifyLocally({ title: 'Your Uber is ready to book', body: 'Tap to open Uber with your trip filled in, then press Request.', url: n.uberLink });
+    }
+  }, [state.notices, senior._id]);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

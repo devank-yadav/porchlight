@@ -35,6 +35,7 @@ async function call(method, path, body) {
 }
 
 export const api = {
+  savePushToken: (seniorId, token) => call('POST', `/api/seniors/${seniorId}/push-token`, { token }),
   // viewer = a family member id; the server hides meds/transcripts from people who shouldn't see them.
   state: (viewer) => call('GET', viewer ? `/api/state?viewer=${encodeURIComponent(viewer)}` : '/api/state'),
   startCheckin: (seniorId) => call('POST', '/api/checkins', { seniorId, channel: 'app' }),

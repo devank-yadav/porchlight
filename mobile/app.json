@@ -11,7 +11,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.porchlight.app",
       "infoPlist": {
-        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {
@@ -28,6 +30,12 @@
     },
     "plugins": [
       ["expo-calendar", { "calendarPermission": "Porchlight reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you." }]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8d2f5211-dbb6-42b5-a159-69404eb112f3"
+      }
+    },
+    "owner": "devank22yadav"
   }
 }
