@@ -1,5 +1,9 @@
 # TASKS
 
+## Medications and daily reminders — October 11, 2026
+
+- [ ] M1 — Devank (Claude Code), `claude/project-thread-ssbp17`; in progress. Scope: medication list (name, dose, times) Peggy or family can edit; daily local reminders on Peggy's phone with a Taken button and a gentle repeat; calls ask about doses still due and "I took my pill" marks them; family taken/missed view respecting seesMeds. Files: new server/src/care/meds.js, care/routes.js, care/outcomes.js, store.js (new `doses` collection), seed meds; new mobile/src/meds/*, api.js, mount lines agreed with the app redesign thread; voice prompt/intent agreed with the voice thread. Never dosing or medical advice. Next: server contract + tests, then app.
+
 ## Two-experience redesign — October 11, 2026
 
 - [x] D1 — Rishi (Codex), `app/two-experiences`; implemented; [PR #66](https://github.com/devank-yadav/porchlight/pull/66), ready for review at the user's explicit request. Owner notice: this branch changes `mobile/*` plus PRODUCT.md, DESIGN.md and Impeccable design records; existing UI work remains credited to Devank. Preserve senior Uber booking and family information-only rides. Scope: separate senior and family layouts, Expo Router navigation and design-system changes; no new server contract. User reviewed the local preview and explicitly authorized pushing and creating a PR, superseding the earlier local-only preference. Integrated origin/main at `0c96cda`, preserving phone calls, family story questions, Uber phone notifications and legacy calendar integration. Checked: Expo Doctor 21/21, SDK 57 package alignment, iOS export, clean Expo lint and configured TypeScript check; 25/25 server voice/calendar tests and contract smoke in sample mode; browser interactions and layouts at 390 × 844, 320 × 740 and 768 × 1024; six finish-review findings resolved at web-preview scope. Physical iPhone/VoiceOver validation remains a handoff. Next: PR review and phone rehearsal.
