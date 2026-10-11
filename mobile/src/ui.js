@@ -66,6 +66,22 @@ export function BigButton({ title, sub, onPress, tone = 'plain', disabled, style
   );
 }
 
+// Small status pill. tone: 'urgent' | 'attention' | 'ok' | 'neutral'
+const CHIP_TONE = {
+  urgent: [color.brickSoft, color.brick],
+  attention: [color.lampSoft, '#6A4300'],
+  ok: [color.sageSoft, color.sage],
+  neutral: [color.sky, color.dusk],
+};
+export function Chip({ label, tone = 'neutral', style }) {
+  const [bg, fg] = CHIP_TONE[tone] ?? CHIP_TONE.neutral;
+  return (
+    <View style={[s.chip, { backgroundColor: bg }, style]}>
+      <Text style={[s.chipText, { color: fg }]}>{label}</Text>
+    </View>
+  );
+}
+
 export function Segmented({ options, value, onChange, dark }) {
   return (
     <View style={[s.seg, dark && { backgroundColor: color.dusk2 }]} accessibilityRole="tablist">
@@ -103,6 +119,8 @@ export const s = StyleSheet.create({
   big: { minHeight: 104, borderRadius: radius.lg, paddingHorizontal: 22, paddingVertical: 18, justifyContent: 'center', gap: 4 },
   bigTitle: { fontFamily: font.display, fontSize: 27, lineHeight: 31 },
   bigSub: { fontFamily: font.body, fontSize: 18, lineHeight: 24 },
+  chip: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { fontFamily: font.bodyBold, fontSize: 13 },
   seg: { flexDirection: 'row', backgroundColor: '#DDE4F1', borderRadius: 999, padding: 4, gap: 4 },
   segBtn: { flex: 1, minHeight: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   segText: { fontFamily: font.bodyBold, fontSize: 15 },

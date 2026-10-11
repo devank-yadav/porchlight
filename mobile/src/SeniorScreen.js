@@ -22,10 +22,15 @@ export default function SeniorScreen({ senior, state, refresh, onError }) {
   const [mode, setMode] = useState('home'); // home | talk | scam | help | thanks
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
   const home = () => setMode('home');
+  // Confirmed facts only (a ride that's booked, a task someone claimed). Newest first.
+  const notices = (state.notices || [])
+    .filter((n) => n.seniorId === senior._id)
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, 3);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {mode === 'home' && <Home senior={senior} primary={primary} setMode={setMode} refresh={refresh} onError={onError} />}
+      {mode === 'home' && <Home senior={senior} notices={notices} primary={primary} setMode={setMode} refresh={refresh} onError={onError} />}
       {mode === 'talk' && <Talk senior={senior} done={() => { setMode('thanks'); refresh(); }} onError={onError} />}
       {mode === 'scam' && <ScamCheck senior={senior} back={home} onError={onError} />}
       {mode === 'help' && <Help senior={senior} back={home} refresh={refresh} onError={onError} />}
@@ -41,7 +46,7 @@ export default function SeniorScreen({ senior, state, refresh, onError }) {
   );
 }
 
-function Home({ senior, primary, setMode, refresh, onError }) {
+function Home({ senior, notices, primary, setMode, refresh, onError }) {
   const [busy, setBusy] = useState(false);
   const checkedIn = senior.status === 'ok' && senior.lastCheckinAt && new Date(senior.lastCheckinAt).toDateString() === new Date().toDateString();
 
@@ -67,6 +72,23 @@ function Home({ senior, primary, setMode, refresh, onError }) {
         </View>
       </View>
       <Text style={st.lead}>{checkedIn ? 'You’ve checked in today. Your porch light is on.' : 'Your porch light is waiting for today’s check-in.'}</Text>
+
+      {notices.length > 0 && (
+        <View style={st.notices} accessibilityLiveRegion="polite">
+          <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
+          {notices.map((n) => (
+            <View
+              key={n._id}
+              style={st.notice}
+              accessible
+              accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}
+            >
+              <Text style={st.noticeText}>{n.text}</Text>
+              {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={st.stack}>
         <BigButton tone="lamp" title="Talk with Porchlight" sub="A friendly chat about your day" onPress={() => setMode('talk')} />
@@ -288,6 +310,11 @@ const st = StyleSheet.create({
   bigH1: { fontSize: 36, lineHeight: 40, textAlign: 'left' },
   lead: { fontFamily: font.body, fontSize: 21, lineHeight: 29, color: '#DFE5F3' },
   stack: { gap: 14 },
+  notices: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 20, gap: 14 },
+  noticesTitle: { fontFamily: font.displaySemi, fontSize: 22, color: color.dusk },
+  notice: { borderLeftWidth: 4, borderLeftColor: color.sage, paddingLeft: 14, gap: 4 },
+  noticeText: { fontFamily: font.body, fontSize: 22, lineHeight: 30, color: color.ink },
+  noticeMeta: { fontFamily: font.body, fontSize: 16, color: color.muted },
   talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
   talkStatus: { flex: 1, fontFamily: font.displaySemi, fontSize: 22, color: '#fff' },
   voiceToggle: { alignItems: 'center', gap: 2 },

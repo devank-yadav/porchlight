@@ -3,10 +3,49 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from './api';
 import Lamp, { lampState } from './Lamp';
 import { ago } from './useAppState';
-import { Button, Card, H1, H2, Meta, P, Segmented } from './ui';
+import { Button, Card, Chip, H1, H2, Meta, P, Segmented } from './ui';
 import { color, font, radius } from './theme';
 
 const MOOD = { good: 'Cheerful', okay: 'Steady', low: 'A bit down' };
+
+// Pills: we only report what she said. Never a judgement.
+const MED = { taken: 'Taken (she said)', not_taken: 'Not yet', unsure: 'Not sure', no_answer: 'No answer', private: 'Private' };
+function medLabel(c) {
+  if (!c) return null;
+  if (c.medStatus && MED[c.medStatus]) return MED[c.medStatus];
+  return c.medsTaken === true ? 'Taken (she said)' : c.medsTaken === false ? 'Not yet' : 'No answer';
+}
+
+const TRANSPORT = {
+  unknown: ['Ride not sorted', 'neutral'],
+  self: ['Has a ride', 'ok'],
+  at_risk: ['Needs a ride', 'attention'],
+  requested: ['Ride requested', 'attention'],
+  confirmed: ['Ride confirmed', 'ok'],
+};
+
+// Ride steps shown on the approval card.
+const STEPS = [
+  ['PENDING_APPROVAL', 'Needs OK'],
+  ['APPROVED', 'Approved'],
+  ['REQUESTED', 'Requested'],
+  ['CONFIRMED', 'Confirmed'],
+];
+const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 3, COMPLETED: 4 };
+const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
+
+const TONE_DOT = { urgent: color.brick, attention: color.lamp, ok: color.sage };
+
+function when(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const today = new Date();
+  const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1);
+  const day = d.toDateString() === today.toDateString() ? 'Today'
+    : d.toDateString() === tomorrow.toDateString() ? 'Tomorrow'
+    : d.toLocaleDateString('en-US', { weekday: 'long' });
+  return `${day} ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
 
 function localTime(tz) {
   try {
@@ -61,27 +100,36 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
   const otherFlags = (latestTalk?.flags || []).filter((f) => f.type !== 'scam');
   const week = checkins.filter((c) => c.channel !== 'button').slice(0, 7).reverse();
   const lamp = lampState(senior);
+  const isHelp = escalation?.reason === 'help';
+  const meMember = state.members.find((m) => m._id === me);
+  const actions = (state.actions || []).filter((a) => a.seniorId === senior._id && a.status !== 'COMPLETED');
+  const appointments = (state.appointments || [])
+    .filter((a) => a.seniorId === senior._id && new Date(a.startsAt).getTime() > Date.now() - 3600000)
+    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
 
   const headline =
-    escalation ? (escalation.reason === 'help' ? `${senior.preferredName} pressed her help button` : `${senior.preferredName} hasn’t answered today`)
+    escalation ? (isHelp ? `${senior.preferredName} pressed her help button` : `${senior.preferredName}’s check-in is unresolved`)
     : senior.status === 'talking' ? `${senior.preferredName} is talking with Porchlight`
     : latest && new Date(latest.endedAt).toDateString() === new Date().toDateString() ? `${senior.preferredName} checked in ${ago(latest.endedAt)}`
     : `Waiting for ${senior.preferredName}’s ${senior.checkinTime} check-in`;
 
   return (
     <>
-      <View style={[st.today, escalation && { backgroundColor: '#3A1F24' }]} accessibilityLiveRegion="polite">
+      {state.digest?.line ? <Digest digest={state.digest} /> : null}
+
+      <View style={[st.today, isHelp && { backgroundColor: '#3A1F24' }]} accessibilityLiveRegion="polite">
         <View style={st.todayTop}>
           <Lamp state={lamp} size={88} label={headline} />
           <H1 onDusk style={{ flex: 1, fontSize: 27, lineHeight: 31 }}>{headline}</H1>
         </View>
         {escalation ? (
           <View style={{ gap: 12 }}>
+            {!isHelp && <Text style={st.summary}>She may just be out or asleep. Porchlight is working down the list below.</Text>}
             {escalation.steps.map((s, i) => (
               <View key={i} style={st.step}>
-                <View style={[st.stepMark, s.status === 'done' && st.stepDone]} />
+                <View style={[st.stepMark, s.status === 'done' && (isHelp ? st.stepDone : st.stepDoneAmber)]} />
                 <Text style={[st.stepText, s.status === 'done' && { color: '#fff' }]}>{s.label}</Text>
-                <Text style={st.stepWhen}>{s.status === 'done' ? `sent ${ago(s.at)}` : 'next'}</Text>
+                <Text style={st.stepWhen}>{s.status === 'done' ? `sent ${ago(s.at)}` : s.status === 'held' ? 'held for quiet hours' : 'next'}</Text>
               </View>
             ))}
             <Button label={`I reached ${senior.preferredName}, she’s okay`} variant="light" onPress={run(() => api.resolve(senior._id, me))} />
@@ -91,7 +139,7 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
             {latest && <Text style={st.summary}>{latest.summary}</Text>}
             <View style={st.facts}>
               {latest?.mood && <Fact label="Mood" value={MOOD[latest.mood]} />}
-              {latest && <Fact label="Pills" value={latest.medsTaken === true ? 'Taken' : latest.medsTaken === false ? 'Not yet' : 'Didn’t say'} />}
+              {latest && <Fact label="Pills" value={medLabel(latest)} />}
               <Fact label="Next call" value={`Tomorrow ${senior.checkinTime}`} />
             </View>
             {lastResolved && Date.now() - new Date(lastResolved.resolvedAt).getTime() < 3600000 && (
@@ -100,6 +148,12 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
           </>
         )}
       </View>
+
+      {actions.map((a) => (
+        <ActionCard key={a._id} action={a} state={state} me={meMember} run={run} senior={senior} />
+      ))}
+
+      {appointments.map((a) => <AppointmentCard key={a._id} appt={a} />)}
 
       {scamFlags.slice(0, 2).map((f, i) => (
         <View key={`s${i}`} style={[st.flag, st.flagScam]}>
@@ -139,6 +193,88 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
   );
 }
 
+function Digest({ digest }) {
+  return (
+    <Card style={{ gap: 10 }}>
+      <Text style={st.digestLine} accessibilityRole="header">{digest.line}</Text>
+      {(digest.items || []).slice(0, 4).map((it, i) => (
+        <View key={i} style={st.digestItem}>
+          <View style={[st.digestDot, { backgroundColor: TONE_DOT[it.tone] ?? color.line }]} />
+          <P style={{ flex: 1 }}>{it.text}</P>
+        </View>
+      ))}
+    </Card>
+  );
+}
+
+function ActionCard({ action, state, me, run, senior }) {
+  const approver = state.members.find((m) => m._id === action.approverId);
+  const approverName = approver?.name.split(' ')[0] ?? 'the primary contact';
+  const idx = STEP_INDEX[action.status];
+  const ended = ENDED[action.status];
+  const pending = action.status === 'PENDING_APPROVAL';
+  const canApprove = Boolean(me?.canApprove);
+  const last = action.history?.[action.history.length - 1];
+  const d = action.details || {};
+
+  return (
+    <View style={[st.flag, pending && { borderColor: color.lamp }]} accessibilityLiveRegion="polite">
+      <View style={st.cardHead}>
+        <Text style={[st.flagTitle, { flex: 1 }]}>{action.title}</Text>
+        <Chip label={ended ?? (pending ? 'Needs your OK' : STEPS[Math.min(idx ?? 0, 3)][1])} tone={ended ? 'urgent' : pending ? 'attention' : idx >= 3 ? 'ok' : 'neutral'} />
+      </View>
+      {action.reason ? <Text style={st.quote}>{action.reason}</Text> : null}
+
+      <View style={{ gap: 4 }}>
+        {d.pickupAt && <P><Text style={st.label}>Pickup </Text>{when(d.pickupAt)}</P>}
+        {d.from && <P><Text style={st.label}>From </Text>{d.from}</P>}
+        {d.to && <P><Text style={st.label}>To </Text>{d.to}</P>}
+        {d.needs && <P><Text style={st.label}>Note </Text>{d.needs}</P>}
+      </View>
+
+      {!ended && (
+        <View style={st.steps} accessibilityLabel={`Status: ${STEPS[Math.min(idx ?? 0, 3)][1]}`}>
+          {STEPS.map(([key, label], i) => (
+            <View key={key} style={st.stepCol}>
+              <View style={[st.bar, i <= (idx ?? 0) && { backgroundColor: i === 3 ? color.sage : color.dusk2 }]} />
+              <Text style={[st.stepLabel, i <= (idx ?? 0) && { color: color.ink, fontFamily: font.bodyBold }]}>{label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {action.simulated && <Meta>Simulated booking, not a real ride{last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}</Meta>}
+      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <Meta>{last.evidence.note}</Meta> : null}
+
+      {pending && (canApprove ? (
+        <View style={st.btnRow}>
+          <Button variant="solid" label="Approve ride" style={{ flex: 1 }} onPress={run(() => api.approve(action._id, me._id))} />
+          <Button label="Not now" style={{ flex: 1 }} onPress={run(() => api.reject(action._id, me._id))} />
+        </View>
+      ) : (
+        <Meta>Waiting for {approverName} to approve.</Meta>
+      ))}
+      {action.status === 'CONFIRMED' && canApprove && (
+        <Button small label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id, me._id))} />
+      )}
+    </View>
+  );
+}
+
+function AppointmentCard({ appt }) {
+  const [label, tone] = TRANSPORT[appt.transport] ?? TRANSPORT.unknown;
+  return (
+    <Card style={{ gap: 6 }}>
+      <View style={st.cardHead}>
+        <H2 style={{ flex: 1 }}>{appt.title}</H2>
+        <Chip label={label} tone={tone} />
+      </View>
+      <P bold>{when(appt.startsAt)}</P>
+      <Meta>{[appt.with, appt.where].filter(Boolean).join(' · ')}</Meta>
+    </Card>
+  );
+}
+
 function Fact({ label, value }) {
   return (
     <View>
@@ -169,17 +305,7 @@ function Care({ senior, state, me, run, circle }) {
       <Card>
         <H2>Care tasks</H2>
         {open.length === 0 && <P muted>Nothing open. Add something below.</P>}
-        {open.map((t) => (
-          <View key={t._id} style={st.row}>
-            <View style={{ flex: 1 }}>
-              <P bold>{t.title}</P>
-              <Meta>{t.due}{t.source === 'checkin' ? ' · she asked on her call' : ''}{t.assignee ? ` · ${name(t.assignee)} has it` : ''}</Meta>
-            </View>
-            {t.assignee
-              ? <Button small label="Mark done" onPress={run(() => api.done(t._id))} />
-              : <Button small variant="solid" label="I’ll do it" onPress={run(() => api.claim(t._id, me))} />}
-          </View>
-        ))}
+        {open.map((t) => <TaskRow key={t._id} t={t} me={me} run={run} name={name} senior={senior} />)}
         <View style={st.addRow}>
           <TextInput style={st.addInput} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup Sunday’" placeholderTextColor="#7B859C" returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
           <Button small label="Add" onPress={add} />
@@ -211,6 +337,51 @@ function Care({ senior, state, me, run, circle }) {
         ))}
       </Card>
     </>
+  );
+}
+
+function TaskRow({ t, me, run, name, senior }) {
+  const ho = t.handoff?.status === 'pending' ? t.handoff : null;
+  const who = t.requestedBy === 'peggy' || t.source === 'checkin' ? senior.preferredName : t.requestedBy ? name(t.requestedBy) : null;
+  const suggested = !t.assignee && t.suggestedOwner ? t.suggestedOwner : null;
+
+  let buttons;
+  if (ho && ho.to === me) {
+    buttons = (
+      <View style={st.btnRow}>
+        <Button small variant="solid" label="Accept" onPress={run(() => api.accept(t._id, me))} />
+        <Button small label="Decline" onPress={run(() => api.decline(t._id, me))} />
+      </View>
+    );
+  } else if (ho) {
+    buttons = <Meta>Asked {name(ho.to)}, waiting for an answer</Meta>;
+  } else if (t.assignee) {
+    buttons = <Button small label="Mark done" onPress={run(() => api.done(t._id))} />;
+  } else {
+    buttons = (
+      <View style={st.btnRow}>
+        <Button small variant="solid" label="I’ll do it" onPress={run(() => api.claim(t._id, me))} />
+        {suggested && suggested !== me && (
+          <Button small label={`Ask ${name(suggested)}`} onPress={run(() => api.handoff(t._id, me, suggested))} />
+        )}
+      </View>
+    );
+  }
+
+  const meta = [
+    t.due,
+    t.assignee ? `${t.assignee === me ? 'You have' : `${name(t.assignee)} has`} it` : null,
+    ho && ho.to === me ? `${name(ho.from)} asked you` : null,
+    suggested ? `Suggested: ${suggested === me ? 'you' : name(suggested)}` : null,
+  ].filter(Boolean).join(' · ');
+
+  return (
+    <View style={[st.taskRow]}>
+      <P bold>{t.title}</P>
+      {t.quote && who ? <Text style={st.quoteSmall}>{who} said: “{t.quote}”</Text> : null}
+      {meta ? <Meta>{meta}</Meta> : null}
+      {buttons}
+    </View>
   );
 }
 
@@ -275,6 +446,17 @@ const st = StyleSheet.create({
   step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stepMark: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: color.mutedOnDusk },
   stepDone: { backgroundColor: '#F08A6E', borderColor: '#F08A6E' },
+  stepDoneAmber: { backgroundColor: '#F2C46B', borderColor: '#F2C46B' },
+  digestLine: { fontFamily: font.displaySemi, fontSize: 18, lineHeight: 24, color: color.dusk },
+  digestItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  digestDot: { width: 10, height: 10, borderRadius: 5 },
+  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  label: { fontFamily: font.bodyBold, color: color.muted },
+  steps: { flexDirection: 'row', gap: 6 },
+  stepCol: { flex: 1, gap: 4 },
+  bar: { height: 6, borderRadius: 3, backgroundColor: color.line },
+  stepLabel: { fontFamily: font.body, fontSize: 12, color: color.muted },
+  btnRow: { flexDirection: 'row', gap: 10 },
   stepText: { flex: 1, fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
   stepWhen: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
   flag: { borderRadius: radius.sm, borderWidth: 1.5, borderColor: color.line, backgroundColor: '#fff', padding: 16, gap: 6 },
@@ -286,6 +468,8 @@ const st = StyleSheet.create({
   weekDot: { width: 16, height: 16, borderRadius: 8 },
   weekLabel: { fontFamily: font.body, fontSize: 14, color: color.ink },
   weekMood: { fontFamily: font.body, fontSize: 12, color: color.muted },
+  taskRow: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: color.line },
+  quoteSmall: { fontFamily: font.bodyItalic, fontSize: 16, lineHeight: 22, color: color.ink },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: color.line },
   addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   addInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.line, borderRadius: radius.sm, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },

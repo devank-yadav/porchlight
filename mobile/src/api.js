@@ -35,7 +35,8 @@ async function call(method, path, body) {
 }
 
 export const api = {
-  state: () => call('GET', '/api/state'),
+  // viewer = a family member id; the server hides meds/transcripts from people who shouldn't see them.
+  state: (viewer) => call('GET', viewer ? `/api/state?viewer=${encodeURIComponent(viewer)}` : '/api/state'),
   startCheckin: (seniorId) => call('POST', '/api/checkins', { seniorId, channel: 'app' }),
   say: (checkinId, text) => call('POST', `/api/checkins/${checkinId}/message`, { text }),
   finish: (checkinId) => call('POST', `/api/checkins/${checkinId}/finish`),
@@ -48,5 +49,11 @@ export const api = {
   addTask: (task) => call('POST', '/api/tasks', task),
   claim: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/claim`, { memberId }),
   done: (taskId) => call('POST', `/api/tasks/${taskId}/done`),
+  approve: (actionId, memberId) => call('POST', `/api/actions/${actionId}/approve`, { memberId }),
+  reject: (actionId, memberId) => call('POST', `/api/actions/${actionId}/reject`, { memberId }),
+  complete: (actionId, memberId) => call('POST', `/api/actions/${actionId}/complete`, { memberId }),
+  handoff: (taskId, from, to) => call('POST', `/api/tasks/${taskId}/handoff`, { from, to }),
+  accept: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/accept`, { memberId }),
+  decline: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/decline`, { memberId }),
   reset: () => call('POST', '/api/demo/reset'),
 };
