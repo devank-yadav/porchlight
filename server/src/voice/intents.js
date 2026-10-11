@@ -3,10 +3,13 @@
 //   "Tell Mark thanks for the milk"      → Mark gets a text with her words, and she hears them read back.
 //   "Put me through to Anne"              → on a phone call, Porchlight connects her live to Anne.
 //   "Remind me to call the pharmacy tomorrow" → saved; the next call that day opens with it.
+//   "Call me back later, I'm busy"        → the call ends kindly and Porchlight rings again (in an hour, or when she says).
+//   "What do I have this week?"           → her appointments for the next 7 days, and only confirmed rides called confirmed.
 // Rule-based (works with no AI key) and checked before the model replies.
 import * as store from '../store.js';
 import * as audit from '../care/audit.js';
 import { sms } from './notify.js';
+import { parseWhen, sayTime } from './when.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -108,8 +111,47 @@ export async function dueReminders(senior) {
   return due;
 }
 
-// Runs the intent. Returns { reply, transfer? } or null when nothing matched.
+// ---------- Call me back later ----------
+const BUSY = /\b(?:(?:call|ring) me (?:back )?(?:later|another time|in (?:a bit|a while|an? hour|\w+ (?:minutes?|hours?))|at \S+|tonight|tomorrow)|(?:can|could) you (?:call|ring) (?:me )?(?:back )?later|i(?:'|’)?m (?:busy|in the middle of)|i am (?:busy|in the middle of)|(?:not|isn(?:'|’)?t) a good time|bad time)\b/i;
+
+// "call me back at 4" → 4 PM; "I'm busy" → an hour from now. Never sooner than 5 minutes, never more than a day.
+export function callbackTime(text, tz = 'America/New_York', now = new Date()) {
+  if (!BUSY.test(String(text || ''))) return null;
+  const said = parseWhen(text, tz, now);
+  const min = now.getTime() + 5 * 60000; const max = now.getTime() + 24 * 3600000;
+  return said && said.getTime() >= min && said.getTime() <= max ? said : new Date(now.getTime() + 60 * 60000);
+}
+
+// ---------- What do I have this week? ----------
+const MY_WEEK = /\b(?:what(?:'|’)?s on my (?:calendar|schedule)|what (?:do i have|have i got|is coming up|'?s coming up)|any(?:thing| appointments)? (?:coming up|this week|tomorrow)|when is my (?:doctor|appointment|next appointment)|my (?:appointments|schedule) (?:this week|tomorrow)|do i have (?:any )?(?:appointments|anything))\b/i;
+
+export function weekSummary(appointments, tz = 'America/New_York', now = new Date()) {
+  const soon = appointments
+    .filter((a) => { const t = new Date(a.startsAt).getTime(); return t >= now.getTime() - 3600000 && t <= now.getTime() + 7 * 86400000; })
+    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+  if (!soon.length) return "You don't have any appointments in the next week. Is there anything you'd like me to help plan?";
+  const lines = soon.slice(0, 3).map((a) => {
+    const ride = a.transport === 'confirmed' ? ' Your ride is confirmed.'
+      : ['at_risk', 'requested'].includes(a.transport) ? ` Your family is sorting out the ride, and I'll tell you once it's confirmed.` : '';
+    return `Your ${a.title.replace(/\s*\(sample\)/i, '').toLowerCase()} is ${sayTime(new Date(a.startsAt), tz, now)}${a.where ? ` at ${a.where.replace(/\s*\(sample\)/i, '')}` : ''}.${ride}`;
+  });
+  return `${lines.join(' ')} Anything else?`;
+}
+
+// Runs the intent. Returns { reply, transfer?, end? } or null when nothing matched.
 export async function handleIntent(senior, checkin, text) {
+  const tz = senior.timezone || 'America/New_York';
+  const callback = checkin.channel === 'phone' ? callbackTime(text, tz) : null;
+  if (callback) {
+    // Not a missed check-in: she picked up and asked for later.
+    await store.update('seniors', senior._id, { callbackAt: callback.toISOString() });
+    await store.update('checkins', checkin._id, { callbackAt: callback.toISOString() });
+    await audit.log('porchlight', 'voice.callback', { seniorId: senior._id, detail: callback.toISOString() });
+    return { reply: `No problem at all. I'll call you back ${sayTime(callback, tz)}. Bye for now!`, end: true };
+  }
+  if (MY_WEEK.test(text)) {
+    return { reply: weekSummary(await store.list('appointments', { seniorId: senior._id }), tz) };
+  }
   const reminder = parseReminder(text, senior.timezone);
   if (reminder) {
     const entry = { ...reminder, createdOn: localDate(senior.timezone), createdAt: new Date().toISOString(), checkinId: checkin._id };

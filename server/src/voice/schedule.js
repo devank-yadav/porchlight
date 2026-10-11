@@ -66,6 +66,14 @@ export async function setSchedule(seniorId, body) {
 async function tick() {
   const seniors = await store.list('seniors');
   for (const senior of seniors) {
+    // "Call me back later": ring once at the time she asked for.
+    if (senior.callbackAt && new Date(senior.callbackAt) <= new Date()) {
+      await store.update('seniors', senior._id, { callbackAt: null });
+      if (canCall()) {
+        console.log(`[schedule] Calling ${senior.preferredName} back, as she asked.`);
+        callSenior(senior._id, 'callback').catch((e) => console.warn('[schedule] callback failed:', e.message));
+      } else console.log(`[schedule] ${senior.preferredName}'s callback is due, but Twilio is off (logged only).`);
+    }
     const s = scheduleOf(senior);
     if (!s.autoCall || !senior.phone || senior.phone.startsWith('+1555')) continue; // +1555 = fictional demo numbers
     const now = localNow(s.timezone);

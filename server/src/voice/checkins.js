@@ -47,6 +47,11 @@ export async function addTurn(checkinId, text) {
     await store.update('checkins', checkinId, { transcript, transferredTo: intent.transfer });
     return { reply: intent.reply, ended: true, transfer: intent.transfer };
   }
+  if (intent?.end) { // "call me back later": a kind goodbye, and a callback is booked
+    transcript.push({ who: 'porchlight', text: intent.reply, at: new Date().toISOString() });
+    await store.update('checkins', checkinId, { transcript });
+    return { reply: intent.reply, ended: true };
+  }
   const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id) });
   // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
   if (URGENT_WORDS.test(text) && !checkin.urgentAlertedAt) {

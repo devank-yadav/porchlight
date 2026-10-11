@@ -52,3 +52,18 @@ test('"remind me to call the pharmacy tomorrow" → a reminder due tomorrow', as
   assert.equal(parseReminder('remind me to water my roses', 'America/New_York', now).due, null);
   assert.equal(parseReminder('I forgot my keys', 'America/New_York', now), null);
 });
+
+test('"call me back later" books a callback; "what do I have this week" reads appointments', async () => {
+  const { callbackTime, weekSummary } = await import('./intents.js');
+  const now = new Date('2026-10-11T19:00:00Z'); // 3 PM in New York
+  assert.equal(callbackTime("I'm busy right now", 'America/New_York', now).toISOString(), '2026-10-11T20:00:00.000Z');
+  assert.equal(callbackTime('Can you call me back at 5?', 'America/New_York', now).toISOString(), '2026-10-11T21:00:00.000Z');
+  assert.equal(callbackTime('call me back in 20 minutes', 'America/New_York', now).toISOString(), '2026-10-11T19:20:00.000Z');
+  assert.equal(callbackTime('I had a busy day in the garden', 'America/New_York', now), null);
+  const appts = [{ title: 'Cardiology follow-up', where: 'Valley Heart Clinic (sample)', startsAt: '2026-10-12T18:00:00Z', transport: 'at_risk' }];
+  const said = weekSummary(appts, 'America/New_York', now);
+  assert.match(said, /cardiology follow-up is tomorrow at 2 PM at Valley Heart Clinic/);
+  assert.doesNotMatch(said, /ride is confirmed/);
+  assert.match(weekSummary([{ ...appts[0], transport: 'confirmed' }], 'America/New_York', now), /ride is confirmed/);
+  assert.match(weekSummary([], 'America/New_York', now), /don't have any appointments/);
+});
