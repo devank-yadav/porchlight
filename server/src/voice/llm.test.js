@@ -73,9 +73,9 @@ test('scam check: everyday words are fine, real scams are caught', async () => {
 test('phone greeting is short, skips the family opener, still says it is an AI', () => {
   const g = greeting(peggy, 'Hi Mom, it’s Anne.', [], { phone: true });
   assert.doesNotMatch(g, /it’s Anne/);
-  assert.match(g, /I'm an AI/);
-  assert.match(g, /never ask for money/);
-  assert.ok(g.split(' ').length < 30, g);
+  assert.match(g, /\bAI\b/);
+  assert.doesNotMatch(g, /money/);
+  assert.ok(g.split(' ').length < 15, g);
 });
 
 test('guard blocks the model claiming it set up an Uber button', () => {

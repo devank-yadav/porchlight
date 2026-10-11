@@ -285,8 +285,9 @@ export function greeting(senior, opener, notices = [], { phone = false, reminder
   const goodNews = `${remind}${news ? ` Good news first: ${news}` : ''}`;
   // On a call every second counts: no family opener (a robot voice saying "it's Anne" confuses), shorter intro.
   if (phone) {
-    const helper = senior.primaryContactName ? `${senior.primaryContactName}'s check-in helper` : 'your check-in helper';
-    return `Hi ${senior.preferredName}, it's Porchlight, ${helper}. I'm an AI, and I never ask for money.${goodNews} How are you today?`;
+    // Short and warm: still says it's an AI (a rule), without a speech about money; it never asks anyway.
+    const helper = senior.primaryContactName ? `${senior.primaryContactName}'s AI helper` : 'your AI helper';
+    return `Hi ${senior.preferredName}, it's Porchlight, ${helper}.${goodNews} How are you today?`;
   }
   return `${opener ? opener + ' ' : ''}Hi ${senior.preferredName}, it's Porchlight, your family's check-in helper. I'm an AI, and I'll never ask you for money or codes.${goodNews} How are you feeling today?`;
 }
