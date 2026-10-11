@@ -8,6 +8,9 @@ import * as Speech from 'expo-speech';
 import { api } from './api';
 import { useCalendarSync } from './calendar';
 import { notifyLocally, pushRegistered, startPush } from './push';
+import { useMedReminders } from './meds/reminders';
+import PillsCard from './meds/PillsCard';
+import MedsList from './meds/MedsList';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { Appear, Avatar, BigButton, Button, Card, HeroCard, IconTile, ListGroup, Press, Screen, Section, T, Tile, useSettled } from './design/ui';
@@ -65,6 +68,8 @@ export default function SeniorScreen({ senior, page = 'today' }) {
   const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
   // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
   useEffect(() => Platform.OS === 'web' ? undefined : startPush(senior._id), [senior._id]);
+  // Daily pill reminders on this phone, with an "I took it" button (meds/reminders.js).
+  useMedReminders(senior, state, refresh);
   // Fallback when push isn't set up: the app shows the Uber notification itself for rides that arrive while it's open.
   const seen = useRef(null);
   useEffect(() => {
@@ -79,8 +84,8 @@ export default function SeniorScreen({ senior, page = 'today' }) {
 
   const plans = upcomingPlans(state, senior);
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    {page === 'today' && <Home senior={senior} primary={primary} plans={plans} refresh={refresh} notices={notices} />}
-    {page === 'plans' && <Plans senior={senior} plans={plans} state={state} ride={ride} notices={notices} />}
+    {page === 'today' && <Home senior={senior} primary={primary} plans={plans} state={state} refresh={refresh} notices={notices} />}
+    {page === 'plans' && <Plans senior={senior} plans={plans} state={state} refresh={refresh} ride={ride} notices={notices} />}
     {page === 'family' && <Family members={members} setRole={setRole} />}
     {page === 'talk' && <Talk senior={senior} done={() => { router.replace('/senior/thanks'); refresh(); }} />}
     {page === 'scam' && <ScamCheck senior={senior} back={home} />}
@@ -91,7 +96,7 @@ export default function SeniorScreen({ senior, page = 'today' }) {
 }
 
 // ── Today ───────────────────────────────────────────────────────────────────
-function Home({ senior, primary, plans, refresh, notices }) {
+function Home({ senior, primary, plans, state, refresh, notices }) {
   const [busy, setBusy] = useState(false);
   const [calling, setCalling] = useState(false);
   const callReset = useRef(null);
@@ -162,6 +167,8 @@ function Home({ senior, primary, plans, refresh, notices }) {
       <T v="readHeadline" color={accent.redText}>If you’re hurt or in danger, call 911.</T>
       <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
     </Card>}
+
+    <PillsCard senior={senior} state={state} refresh={refresh} />
 
     <Appear on index={2}>
       <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="Your AI helper" chevron onPress={() => go('talk')} />
@@ -255,7 +262,7 @@ function RideCard({ ride }) {
 }
 
 // ── My plans ────────────────────────────────────────────────────────────────
-function Plans({ senior, plans, state, ride, notices }) {
+function Plans({ senior, plans, state, refresh, ride, notices }) {
   const settled = useSettled();
   // The ride card already carries this ride's Uber button.
   const rest = ride ? notices.filter((n) => n.actionId !== ride._id) : notices;
@@ -269,6 +276,7 @@ function Plans({ senior, plans, state, ride, notices }) {
         <T v="readSmall" muted center>No upcoming appointments.</T>
       </Card>}
     {ride && <RideCard ride={ride} />}
+    <MedsList senior={senior} state={state} refresh={refresh} />
     <Notices notices={rest} settled={settled} />
     <BigButton icon="bubble.left.and.bubble.right.fill" title="Ask about my plans" sub="Talk with your AI helper" chevron onPress={() => go('talk')} />
     <HelpButton />

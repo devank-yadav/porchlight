@@ -7,7 +7,7 @@
 import * as store from '../store.js';
 import * as audit from './audit.js';
 import { sms, tellSenior, push } from '../voice/notify.js';
-import { uberLink } from './uber.js';
+import { uberLink, geocode } from './uber.js';
 
 const SANDBOX_STEP_MS = Number(process.env.SANDBOX_STEP_MS || 2000);
 const OPEN = ['PENDING_APPROVAL', 'APPROVED', 'REQUESTED', 'CONFIRMED'];
@@ -51,10 +51,15 @@ export async function proposeRide(senior, appointment, quote) {
   const ask = senior.askBeforeRides === true;
   const first = ask ? 'PENDING_APPROVAL' : 'APPROVED'; // the app shows "booked" when history has no PENDING_APPROVAL
   const pickupAt = new Date(new Date(appointment.startsAt).getTime() - 45 * 60000).toISOString();
+  const destination = appointment.where?.trim();
+  // A sample address isn't a real place: leave it to uberLink, which can swap in RIDE_DROPOFF_ADDRESS for the demo.
+  const real = destination && !/\(sample\)/i.test(destination) ? destination : '';
+  const spot = real ? await geocode(real) : null;
+  const rideLink = uberLink({ from: '12 Maple Ln (sample)', to: destination || appointment.title, place: real ? spot?.address || real : undefined, placeLatLng: spot?.latlng });
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}`,
     reason: `${senior.preferredName} said: "${quote}"`,
-    details: { pickupAt, from: '12 Maple Ln (sample)', to: appointment.where || appointment.title, needs: 'Uses a cane', uberLink: uberLink({ from: '12 Maple Ln (sample)', to: appointment.where || appointment.title }) },
+    details: { pickupAt, from: '12 Maple Ln (sample)', to: destination || appointment.title, needs: 'Uses a cane', uberLink: rideLink },
     appointmentId: appointment._id, approverId: approver?._id ?? null, simulated: true, status: first,
     history: [{ status: first, at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: ask ? `From today's check-in call: "${quote}"` : `Booked from today's check-in call: "${quote}"; family notified` } }],
   });

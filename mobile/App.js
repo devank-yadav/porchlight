@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, ThemeProvider as NavThemeProvider, router, useGlobalSearchParams, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold, AtkinsonHyperlegible_400Regular_Italic } from '@expo-google-fonts/atkinson-hyperlegible';
 import { useAppState } from './src/useAppState';
+import { startPushResponseListener } from './src/push';
 import { AppContext, useAppContext, PEOPLE, HEADER_H } from './src/AppContext';
 import { openDemoMenu, openRoleSheet } from './src/menus';
 import Lamp, { lampState } from './src/Lamp';
@@ -17,6 +18,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { accent, font, light, seniorPalette, shadow } from './src/design/tokens';
 
 export default function App({ children }) {
+  useEffect(startPushResponseListener, []);
   const [loaded, fontError] = useFonts({ AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold, AtkinsonHyperlegible_400Regular_Italic });
   return <GestureHandlerRootView style={{ flex: 1, backgroundColor: light.bg }}>
     <SafeAreaProvider><SheetProgressProvider>

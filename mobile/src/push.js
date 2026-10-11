@@ -10,18 +10,36 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
 });
 
-const openFrom = (response) => {
+// Handle taps even when a notification cold-starts the app before Peggy's screen mounts.
+const handledResponses = new Set();
+const openFrom = async (response) => {
+  const id = response?.notification?.request?.identifier;
+  if (id && handledResponses.has(id)) return;
   const url = response?.notification?.request?.content?.data?.url;
-  if (url) Linking.openURL(url).catch(() => {});
+  if (typeof url !== 'string' || !url.startsWith('https://m.uber.com/ul/?')) return;
+  if (id) handledResponses.add(id);
+  try {
+    // Native app deep links open Uber directly; retain the universal link for phones without Uber.
+    await Linking.openURL(url.replace('https://m.uber.com/ul/?action=setPickup&', 'uber://riderequest?'));
+  } catch {
+    await Linking.openURL(url).catch((e) => console.warn('[push] could not open Uber:', e.message));
+  } finally {
+    Notifications.clearLastNotificationResponseAsync().catch(() => {});
+  }
 };
+
+export function startPushResponseListener() {
+  if (Platform.OS === 'web') return () => {};
+  const sub = Notifications.addNotificationResponseReceivedListener(openFrom);
+  Notifications.getLastNotificationResponseAsync().then(openFrom).catch(() => {});
+  return () => sub.remove();
+}
 
 // True once the server can push to this phone (then the app doesn't also notify locally).
 export let pushRegistered = false;
 
 // Call once when Peggy's side opens. Returns a cleanup function.
 export function startPush(seniorId) {
-  const sub = Notifications.addNotificationResponseReceivedListener(openFrom);
-  Notifications.getLastNotificationResponseAsync().then(openFrom).catch(() => {});
   (async () => {
     try {
       let { status } = await Notifications.getPermissionsAsync();
@@ -35,7 +53,7 @@ export function startPush(seniorId) {
       console.warn('[push] not registered:', e.message);
     }
   })();
-  return () => sub.remove();
+  return () => {};
 }
 
 // Same notification, shown by the app itself (used when it sees a new Uber notice while open).

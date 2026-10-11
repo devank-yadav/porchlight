@@ -9,6 +9,7 @@ import { toast } from './design/Toaster';
 import { api } from './api';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
+import MedsList, { MedsSummary } from './meds/MedsList';
 import { ago } from './useAppState';
 import { Appear, Avatar, Button, Card, Chip, Divider, HeroCard, IconTile, LargeTitle, ListGroup, ListRow, Press, Screen, SectionHeader, Segmented, T, useSettled } from './design/ui';
 import Icon from './design/Icon';
@@ -232,6 +233,8 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
       </Block>
     </Appear>
 
+    <MedsSummary senior={senior} state={state} viewer={circle.find((m) => m._id === me)} onOpen={() => familyPath('plans')} />
+
     <Appear on index={3}>
       <Block title="Coming up" action="All plans" onAction={() => familyPath('plans')}>
         {plans.length ? (
@@ -451,6 +454,7 @@ function Plans(ctx) {
         {actions.map((action) => <ActionCard key={action._id} action={action} state={state} me={circle.find((m) => m._id === me)} run={run} senior={senior} />)}
       </Block>
     )}
+    <MedsList senior={senior} state={state} viewer={circle.find((m) => m._id === me)} refresh={ctx.app.refresh} />
     <Care {...ctx} />
   </>;
 }
