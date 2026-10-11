@@ -4,7 +4,7 @@ import { Router } from 'express';
 import * as store from '../store.js';
 import { scamCheck } from './llm.js';
 import { sms, VOICE } from './notify.js';
-import { callSenior, setSchedule, scheduleOf, startScheduler } from './schedule.js';
+import { callSenior, setSchedule, scheduleOf, startScheduler, scheduleRetry } from './schedule.js';
 import { relayEnabled, relayTwiml } from './relay.js';
 import { transcribeRecording } from './stt.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
@@ -146,8 +146,10 @@ voiceRoutes.post('/twilio/status', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
   const answered = checkin.transcript.some((t) => t.who === 'senior');
   if (!answered && ['no-answer', 'busy', 'failed', 'completed'].includes(req.body.CallStatus)) {
-    await store.update('checkins', checkin._id, { status: 'missed', endedAt: new Date().toISOString() });
-    await escalation.start(await store.get('seniors', checkin.seniorId), 'missed');
+    const escalate = async () => escalation.start(await store.get('seniors', checkin.seniorId), 'missed');
+    const retrying = scheduleRetry(checkin, escalate);
+    await store.update('checkins', checkin._id, { status: 'missed', endedAt: new Date().toISOString(), ...(retrying ? { retrying: true } : {}) });
+    if (!retrying) await escalate();
   } else if (answered) {
     await finishCheckin(checkin._id);
   }

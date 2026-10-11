@@ -23,6 +23,36 @@ async function chat(messages, { json = false, maxTokens = 300 } = {}) {
   return data.choices?.[0]?.message?.content?.trim() ?? '';
 }
 
+// Streaming version for live calls: calls onText(chunk) as words arrive. Returns the full text.
+async function chatStream(messages, { maxTokens = 120, onText }) {
+  const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
+    body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: maxTokens, stream: true }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok || !res.body) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const decoder = new TextDecoder();
+  let buf = '';
+  let full = '';
+  for await (const chunk of res.body) {
+    buf += decoder.decode(chunk, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+      if (data === '[DONE]') return full;
+      try {
+        const delta = JSON.parse(data).choices?.[0]?.delta?.content;
+        if (delta) { full += delta; if (onText(delta) === false) return full; }
+      } catch { /* keep-alive or partial line */ }
+    }
+  }
+  return full;
+}
+
 function parseJson(text) {
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
@@ -42,11 +72,17 @@ How to sound like a person on the phone, not a form:
 - If what she said seems garbled or doesn't make sense, gently check ("Sorry, did you say a headache?") rather than guessing.
 - She can ask you to connect her to family or pass on a message; that's handled for you, so don't promise anything else.`;
 
-function appointmentLines(appointments = [], family) {
+// Rides are pre-approved unless the family switched on "Ask me before booking rides" (askBeforeRides).
+// Either way the booking is a sample in this demo, so Porchlight only ever says it's *requesting* one.
+const rideReply = (senior) => (senior.askBeforeRides
+  ? `Thank you for telling me. I'll ask ${senior.primaryContactName} about a ride and call you back once it's confirmed.`
+  : `No problem. I'm requesting a ride for you right now, and I'll call you back once a driver accepts. I'll let ${senior.primaryContactName} know too.`);
+
+function appointmentLines(appointments = [], family, senior = {}) {
   const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date());
   if (!upcoming.length) return '';
   return `Upcoming appointments: ${upcoming.map((a) => `${a.title} with ${a.with} at ${a.where}, ${new Date(a.startsAt).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })} (transport: ${a.transport || 'unknown'})`).join('; ')}.
-If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say you'll ask ${family} and call her back once it's confirmed. Never say a ride is booked or arranged.\n`;
+If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say: "${rideReply({ ...senior, primaryContactName: family })}" Never say a ride is booked, arranged or confirmed.\n`;
 }
 
 function personaPrompt(senior, appointments) {
@@ -54,7 +90,7 @@ function personaPrompt(senior, appointments) {
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories.
-${appointmentLines(appointments, senior.primaryContactName)}If she isn't sure whether she took a pill, say "That's okay, I'll let ${senior.primaryContactName} know so she can check with you." Never suggest taking another dose.
+${appointmentLines(appointments, senior.primaryContactName, senior)}If she isn't sure whether she took a pill, say "That's okay, I'll let ${senior.primaryContactName} know so she can check with you." Never suggest taking another dose.
 ${RULES}`;
 }
 
@@ -68,7 +104,7 @@ export function policyReply(senior, text) {
   if (URGENT_WORDS.test(text)) return `Oh ${name}, I'm sorry. I'm letting ${family} know right now. If you're hurt or can't get up, please press your help button or call 911. Are you safe where you are?`;
   if (SCAM_WORDS.test(text)) return `That sounds like a scam, ${name}. Real banks and government offices never ask for gift cards, money or codes over the phone. Please don't send anything or share any codes; I'll let ${family} know. Did you give them any information?`;
   if (MED_UNSURE_WORDS.test(text)) return `That's okay, ${name}. I'll let ${family} know so she can check with you. Please don't take an extra one just in case. How are you feeling otherwise?`;
-  if (NO_RIDE_WORDS.test(text)) return `Thank you for telling me. I'll ask ${family} about a ride and call you back once it's confirmed. Is there anything else you need this week?`;
+  if (NO_RIDE_WORDS.test(text)) return `${rideReply(senior)} Is there anything else you need this week?`;
   return null;
 }
 
@@ -87,10 +123,45 @@ export function guardReply(senior, text) {
   return t;
 }
 
-export async function reply(senior, transcript, { appointments = [] } = {}) {
+// onSentence (live calls): each sentence is checked by the guard and handed over as soon as it's
+// complete, so Porchlight starts speaking while the rest is still being written.
+export async function reply(senior, transcript, { appointments = [], onSentence } = {}) {
   const last = [...transcript].reverse().find((t) => t.who === 'senior')?.text ?? '';
   const fixed = policyReply(senior, last);
-  if (fixed) return fixed;
+  if (fixed) { onSentence?.(fixed); return fixed; }
+  if (llmEnabled && onSentence) {
+    const messages = [
+      { role: 'system', content: personaPrompt(senior, appointments) },
+      ...transcript.map((t) => ({ role: t.who === 'porchlight' ? 'assistant' : 'user', content: t.text })),
+    ];
+    let pending = '';
+    let spoken = '';
+    let blocked = false;
+    const flush = (final) => {
+      // Sentence = up to . ! ? (or the end), at least a few words so TTS doesn't sound choppy.
+      const re = final ? /^[\s\S]+$/ : /^[\s\S]*?[.!?](?=\s|$)/;
+      let m;
+      while (!blocked && (m = pending.match(re)) && m[0].trim()) {
+        const sentence = m[0].trim();
+        if (!final && sentence.split(/\s+/).length < 3 && pending.length === m[0].length) break;
+        pending = pending.slice(m[0].length);
+        if (!guardReply(senior, sentence)) { blocked = true; break; }
+        spoken += (spoken ? ' ' : '') + sentence;
+        onSentence(sentence);
+        if (final) break;
+      }
+    };
+    try {
+      await chatStream(messages, { maxTokens: 120, onText: (t) => { pending += t; flush(false); return !blocked; } });
+      flush(true);
+    } catch (e) {
+      console.warn('[llm] streamed reply failed:', e.message);
+    }
+    if (spoken) return spoken;
+    const fallback = mockReply(senior, transcript);
+    onSentence(fallback);
+    return fallback;
+  }
   if (llmEnabled) {
     try {
       const messages = [
@@ -103,7 +174,9 @@ export async function reply(senior, transcript, { appointments = [] } = {}) {
       console.warn('[llm] reply failed, using mock:', e.message);
     }
   }
-  return mockReply(senior, transcript);
+  const fallback = mockReply(senior, transcript);
+  onSentence?.(fallback);
+  return fallback;
 }
 
 // Word-bounded so "stairs", "first", "wired" or "fell asleep" never trip an alarm.
@@ -136,9 +209,11 @@ function mockReply(senior, transcript) {
 }
 
 // notices: confirmed facts since her last check-in (A7). Only confirmed facts are read out.
-export function greeting(senior, opener, notices = [], { phone = false } = {}) {
+export function greeting(senior, opener, notices = [], { phone = false, reminders = [] } = {}) {
   const news = notices.slice(0, 2).map((n) => n.text.trim().replace(/([^.!?])$/, '$1.')).join(' ');
-  const goodNews = news ? ` Good news first: ${news}` : '';
+  // Reminders she asked for ("remind me to call the pharmacy tomorrow") come before the news.
+  const remind = reminders.length ? ` You asked me to remind you to ${reminders.map((r) => r.what).join(', and to ')}.` : '';
+  const goodNews = `${remind}${news ? ` Good news first: ${news}` : ''}`;
   // On a call every second counts: no family opener (a robot voice saying "it's Anne" confuses), shorter intro.
   if (phone) {
     const helper = senior.primaryContactName ? `${senior.primaryContactName}'s check-in helper` : 'your check-in helper';

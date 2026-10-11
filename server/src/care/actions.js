@@ -2,9 +2,12 @@
 // Actions: anything the AI wants to DO that needs a human OK (Phase 1: rides).
 // PENDING_APPROVAL → APPROVED → REQUESTED → CONFIRMED → COMPLETED, or REJECTED / FAILED / CANCELLED.
 // The ride provider is a sandbox: every booking is simulated and labelled that way.
+// Rides no longer wait for the family (Devank, 2026-10-11): Porchlight books right away and the
+// family gets a heads-up text with an Uber link. A family can turn "Ask me before booking rides" back on (senior.askBeforeRides).
 import * as store from '../store.js';
 import * as audit from './audit.js';
 import { sms, tellSenior } from '../voice/notify.js';
+import { uberLink } from './uber.js';
 
 const SANDBOX_STEP_MS = Number(process.env.SANDBOX_STEP_MS || 2000);
 const OPEN = ['PENDING_APPROVAL', 'APPROVED', 'REQUESTED', 'CONFIRMED'];
@@ -20,11 +23,13 @@ export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+// Her local time (Peggy is in New York), even when the server runs in UTC.
+const TZ = 'America/New_York';
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
 const fmtDay = (iso) => {
-  const d = new Date(iso);
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-  return d.toDateString() === tomorrow.toDateString() ? 'tomorrow' : d.toLocaleDateString('en-US', { weekday: 'long' });
+  const day = (x) => x.toLocaleDateString('en-US', { timeZone: TZ });
+  const tomorrow = new Date(Date.now() + 86400000);
+  return day(new Date(iso)) === day(tomorrow) ? 'tomorrow' : new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long' });
 };
 
 async function move(action, status, actor, evidence) {
@@ -47,14 +52,25 @@ export async function proposeRide(senior, appointment, quote) {
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}`,
     reason: `${senior.preferredName} said: "${quote}"`,
-    details: { pickupAt, from: '12 Maple Ln (sample)', to: appointment.where, needs: 'Uses a cane' },
+    details: { pickupAt, from: '12 Maple Ln (sample)', to: appointment.where, needs: 'Uses a cane', uberLink: uberLink({ from: '12 Maple Ln (sample)', to: appointment.where }) },
     appointmentId: appointment._id, approverId: approver?._id ?? null, simulated: true, status: 'PENDING_APPROVAL',
     history: [{ status: 'PENDING_APPROVAL', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `From today's check-in call: "${quote}"` } }],
   });
   await store.update('appointments', appointment._id, { transport: 'at_risk', actionId: action._id });
   await audit.log('porchlight', 'action.proposed', { seniorId: senior._id, targetId: action._id, detail: action.title });
-  if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
-  return action;
+  if (senior.askBeforeRides === true) {
+    if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
+    return action;
+  }
+  // No approval step: book now, and let the whole family know she's going.
+  const booked = await move(action, 'APPROVED', 'porchlight', { source: 'system', note: 'Booked automatically; family notified' });
+  const fam = members.filter((m) => m.role === 'family');
+  const where = appointment.where ? ` at ${appointment.where.replace(/\s*\(sample\)/i, '')}` : '';
+  for (const m of fam) {
+    await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}. Porchlight is booking her ride (simulated), pickup ${fmtTime(pickupAt)}.${m.primary || m.canApprove ? ` Book a real Uber instead: ${booked.details.uberLink}` : ''}`);
+  }
+  runSandbox(booked._id).catch((e) => console.error('[actions] sandbox failed:', e));
+  return booked;
 }
 
 async function load(id, memberId, { mustApprove = false } = {}) {

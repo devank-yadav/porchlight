@@ -46,8 +46,12 @@ B ships the **shapes and seed data first (by 2:45)**, even before the logic work
 // actions (new) — anything the AI wants to DO that needs a human OK
 { _id, seniorId, kind: 'ride', title: 'Ride to cardiology tomorrow',
   reason: 'Peggy said: "I don't have a ride."',            // her words
-  details: { pickupAt: ISO, from: '12 Maple Ln (sample)', to: 'Valley Heart Clinic (sample)', needs: 'Uses a cane' },
+  details: { pickupAt: ISO, from: '12 Maple Ln (sample)', to: 'Valley Heart Clinic (sample)', needs: 'Uses a cane',
+             uberLink: 'https://m.uber.com/ul/?action=setPickup&…' /* opens Uber with the trip filled in; a person confirms there */ },
   appointmentId, approverId: 'anne', simulated: true,
+  // Change (Devank, Oct 11): rides no longer wait for approval. Proposed rides go straight to APPROVED
+  // (actor 'porchlight') and the family gets a heads-up text. Only when senior.askBeforeRides === true
+  // does a ride start at PENDING_APPROVAL and wait for Anne, as before.
   status: 'PENDING_APPROVAL'|'APPROVED'|'REQUESTED'|'CONFIRMED'|'COMPLETED'|'REJECTED'|'FAILED'|'CANCELLED',
   history: [{ status, at, actor, evidence: { source: 'system'|'caregiver'|'sandbox', note, ref } }] }
 
