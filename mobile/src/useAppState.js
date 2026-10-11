@@ -3,20 +3,21 @@ import { AppState } from 'react-native';
 import { api } from './api';
 
 // Polls the server every 2 seconds while the app is in the foreground.
-export function useAppState() {
+// viewer: family member id (filtered view) or null (everything: Peggy's screen and the desk).
+export function useAppState(viewer = null) {
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
   const active = useRef(true);
 
   const refresh = useCallback(async () => {
     try {
-      const s = await api.state();
+      const s = await api.state(viewer);
       setState(s);
       setError(null);
     } catch (e) {
       setError(e.message);
     }
-  }, []);
+  }, [viewer]);
 
   useEffect(() => {
     refresh();

@@ -48,8 +48,8 @@ assert.equal(at.minute, 0);
 assert.equal(state.actions.length, 0, 'a fresh demo has no invented ride booking');
 
 for (const task of state.tasks) {
-  assert.equal(typeof task.quote, 'string');
-  assert.ok(state.members.some((m) => m._id === task.requestedBy));
+  assert.ok(task.quote === null || typeof task.quote === 'string');
+  assert.ok(task.requestedBy === 'peggy' || state.members.some((m) => m._id === task.requestedBy));
   assert.ok(state.members.some((m) => m._id === task.suggestedOwner));
   assert.equal(task.handoff, null);
   assert.equal(typeof task.sensitive, 'boolean');

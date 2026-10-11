@@ -17,7 +17,6 @@ const tomorrowAt = (hour, timeZone = 'America/New_York') => {
   const today = partsAt(new Date());
   const local = Date.UTC(today.year, today.month - 1, today.day + 1, hour);
   let instant = local;
-  // A second pass accounts for an overnight daylight-saving offset change.
   for (let i = 0; i < 2; i++) {
     const p = partsAt(new Date(instant));
     const offset = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - instant;
@@ -63,12 +62,6 @@ export async function seed() {
     status: 'waiting',
   });
 
-  await store.insert('appointments', {
-    _id: 'peggy-cardiology', seniorId: peggy._id, title: 'Cardiology follow-up',
-    with: 'Dr. Lena Ortiz (sample)', where: 'Valley Heart Clinic (sample)',
-    startsAt: tomorrowAt(14), transport: 'unknown', actionId: null,
-  });
-
   const others = [
     ['frank', 'Frank Delgado', 'Frank', 88, 'ok', 'Talked about the Penn State game. Took his pills.'],
     ['ruth', 'Ruth Abernathy', 'Ruth', 79, 'needs-human', 'Said she has felt lonely since her friend moved away. Asked if someone could visit.'],
@@ -104,25 +97,30 @@ export async function seed() {
   for (const h of history) {
     await store.insert('checkins', {
       seniorId: peggy._id, channel: 'phone', status: 'completed', startedAt: h.at, endedAt: h.at,
-      transcript: [], summary: h.summary, mood: h.mood,
-      medsTaken: h.medsTaken, medStatus: h.medStatus, flags: [],
+      transcript: [], summary: h.summary, mood: h.mood, medsTaken: h.medsTaken, medStatus: h.medStatus, flags: [],
       starters: [], stories: h.stories, requests: [],
     });
   }
 
+  // Tomorrow 2:00 PM: the appointment the ride rescue is about.
+  await store.insert('appointments', {
+    _id: 'cardiology', seniorId: peggy._id, title: 'Cardiology follow-up', with: 'Dr. Lena Ortiz (sample)',
+    where: 'Valley Heart Clinic (sample)', startsAt: tomorrowAt(14), transport: 'unknown', actionId: null,
+  });
+
   const tasks = [
-    { title: 'Pick up blood pressure refill at the pharmacy', type: 'refill', due: 'Thursday', assignee: null, status: 'open', quote: 'My blood pressure pill needs a refill.', suggestedOwner: 'anne', sensitive: true },
-    { title: 'Fix the loose porch step', type: 'repair', due: 'This weekend', assignee: 'mark', status: 'open', quote: 'The porch step feels loose.', suggestedOwner: 'mark', sensitive: false },
+    { title: 'Pick up blood pressure refill at the pharmacy', type: 'refill', due: 'Thursday', assignee: null, status: 'open',
+      quote: 'I only have three pills left.', requestedBy: 'peggy', suggestedOwner: 'anne', handoff: null, sensitive: true },
+    { title: 'Fix the loose porch step', type: 'repair', due: 'This weekend', assignee: 'mark', status: 'open',
+      quote: null, requestedBy: 'anne', suggestedOwner: 'mark', handoff: null, sensitive: false },
   ];
   const done = [['anne', 6], ['dolores', 3], ['mark', 1]];
-  for (const t of tasks) await store.insert('tasks', {
-    seniorId: peggy._id, source: 'family', requestedBy: 'anne', handoff: null, ...t,
-  });
+  for (const t of tasks) await store.insert('tasks', { seniorId: peggy._id, source: 'family', ...t });
   for (const [who, n] of done) {
     for (let i = 0; i < n; i++) {
       await store.insert('tasks', {
         seniorId: peggy._id, title: 'Earlier task', type: 'errand', assignee: who,
-        status: 'done', source: 'history', hidden: true, quote: '', requestedBy: 'anne',
+        status: 'done', source: 'history', hidden: true, quote: null, requestedBy: 'anne',
         suggestedOwner: who, handoff: null, sensitive: false,
       });
     }
