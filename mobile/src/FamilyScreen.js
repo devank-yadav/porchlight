@@ -26,6 +26,16 @@ function medLabel(c) {
   return c.medsTaken === true ? 'Taken (she said)' : c.medsTaken === false ? 'Not yet' : 'No answer';
 }
 
+// Today's doses from her pill reminders (meds/), which beat what she said on the call.
+function pillsLabel(state, senior) {
+  const doses = (state.medsToday || []).filter((d) => d.seniorId === senior._id);
+  if (!doses.length) return null;
+  const missed = doses.filter((d) => d.status === 'missed').length;
+  const taken = doses.filter((d) => d.status === 'taken').length;
+  if (missed) return [`${missed} ${missed === 1 ? 'dose' : 'doses'} missed`, 'lamp'];
+  return [taken === doses.length ? 'All pills taken' : `Pills: ${taken} of ${doses.length} taken`, 'night'];
+}
+
 // Daily call schedule (server: voice/schedule.js). Times are the senior's local time.
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -201,7 +211,7 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
 
   return <>
     <Appear on index={0}><LargeTitle title="Today" subtitle={`${name} · ${date}`} /></Appear>
-    <Appear on index={1}><PorchHero senior={senior} latest={latest} escalation={escalation} checkedIn={checkedIn} /></Appear>
+    <Appear on index={1}><PorchHero senior={senior} state={state} viewer={circle.find((m) => m._id === me)} latest={latest} escalation={escalation} checkedIn={checkedIn} /></Appear>
 
     <Appear on index={2}>
       <Block title="Needs you" right={needs ? <CountPill n={needs} /> : null}>
@@ -256,7 +266,7 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
 }
 
 // The porch light at dusk: the one dark card on the screen, and the single most important line.
-function PorchHero({ senior, latest, escalation, checkedIn }) {
+function PorchHero({ senior, state, viewer, latest, escalation, checkedIn }) {
   const tz = tzOf(senior);
   const name = senior.preferredName;
   const help = escalation?.reason === 'help';
@@ -268,7 +278,8 @@ function PorchHero({ senior, latest, escalation, checkedIn }) {
   const summary = help ? `${name} pressed her help button. Please reach her now.`
     : escalation ? 'We haven’t heard from her yet today. She may be out or asleep.'
     : latest?.summary || 'Her next check-in will appear here.';
-  const med = medLabel(latest);
+  const med = viewer?.seesMeds === false ? 'Private' : medLabel(latest);
+  const pills = pillsLabel(state, senior);
   const call = () => Linking.openURL('tel:' + senior.phone).catch((e) => toast.error('Couldn’t open the phone', { description: e.message }));
 
   return (
@@ -283,7 +294,9 @@ function PorchHero({ senior, latest, escalation, checkedIn }) {
       <T v="body" style={st.heroSummary}>{summary}</T>
       <View style={st.chips}>
         {latest?.mood ? <Chip label={MOOD[latest.mood] || latest.mood} icon="face.smiling" tone={latest.mood === 'low' ? 'lamp' : 'night'} /> : null}
-        {med ? <Chip label={med === 'Private' ? 'Medicine private' : `Medicine: ${med.replace('Taken (she said)', 'taken, she said').toLowerCase()}`} icon={med === 'Private' ? 'lock.fill' : 'pills.fill'} /> : null}
+        {med === 'Private' ? <Chip label="Medicine private" icon="lock.fill" />
+          : pills ? <Chip label={pills[0]} icon="pills.fill" tone={pills[1]} />
+          : med ? <Chip label={`Medicine: ${med.replace('Taken (she said)', 'taken, she said').toLowerCase()}`} icon="pills.fill" /> : null}
         <Chip label={`Next call ${nextCallLabel(senior)}`.replace('Next call Not scheduled', 'No call scheduled')} icon="phone.fill" />
       </View>
       <View style={st.heroFoot}>
