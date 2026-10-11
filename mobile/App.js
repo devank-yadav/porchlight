@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold, AtkinsonHyperlegible_400Regular_Italic } from '@expo-google-fonts/atkinson-hyperlegible';
@@ -10,8 +10,8 @@ import SeniorScreen from './src/SeniorScreen';
 import FamilyScreen from './src/FamilyScreen';
 import DeskScreen from './src/DeskScreen';
 import Lamp from './src/Lamp';
-import { H1, Meta, P, tap } from './src/ui';
-import { color, font, radius } from './src/theme';
+import { BigButton, Card, Icon, IconCircle, List, Row, Screen, Section, T, Title, tap } from './src/ui';
+import { color, radius, space } from './src/theme';
 
 export default function App() {
   const [loaded] = useFonts({
@@ -19,7 +19,7 @@ export default function App() {
     BricolageGrotesque_600SemiBold, BricolageGrotesque_800ExtraBold,
   });
   if (!loaded) {
-    return <View style={{ flex: 1, backgroundColor: color.dusk, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={color.lamp} /></View>;
+    return <View style={[st.root, st.center]}><ActivityIndicator color={color.lamp} /></View>;
   }
   return (
     <SafeAreaProvider>
@@ -65,27 +65,39 @@ function Main() {
     ]);
   };
 
+  const roleLabel = !role ? null : role.id === 'senior' ? role.title : role.id === 'family' ? role.title : 'Volunteer desk';
+
   return (
     <View style={st.root}>
       <StatusBar style="light" />
-      <View style={[st.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Switch who is using this phone" accessibilityHint="Long press for demo controls" onPress={() => { tap(); setRole(null); }} onLongPress={demoMenu} delayLongPress={600} style={st.brand}>
+      <View style={[st.header, { paddingTop: insets.top + 4 }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Porchlight. Switch who is using this phone"
+          accessibilityHint="Long press for demo controls"
+          onPress={() => { tap(); setRole(null); }}
+          onLongPress={demoMenu}
+          delayLongPress={600}
+          style={st.brand}
+        >
           <View style={st.brandDot} />
-          <Text style={st.brandText}>Porchlight</Text>
+          <T v="heading" style={{ fontSize: 17 }}>Porchlight</T>
         </Pressable>
-        {role && <Text style={st.roleText} numberOfLines={1}>{role.id === 'senior' ? `${role.title}’s side` : role.id === 'family' ? `Family · ${role.title}` : 'Volunteer desk'}</Text>}
+        <View style={{ flex: 1 }} />
         {/* Peggy never sees demo controls; on her side they're behind a long press on the name. */}
-        {role?.id !== 'senior' && (
-          <Pressable accessibilityRole="button" accessibilityLabel="Demo controls" onPress={demoMenu} style={st.demoBtn}>
-            <Text style={st.demoText}>Demo</Text>
+        {role && role.id !== 'senior' && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Demo controls" onPress={demoMenu} style={st.headerBtn}>
+            <T v="small" tone="muted">Demo</T>
           </Pressable>
         )}
+        {roleLabel && <View style={st.rolePill}><T v="small" tone="soft">{roleLabel}</T></View>}
       </View>
 
       {error && (
-        <Pressable onPress={() => setError(null)} style={st.error} accessibilityRole="alert">
-          <Text style={st.errorText}>{error}</Text>
-          <Text style={[st.errorText, { textDecorationLine: 'underline' }]}>Dismiss</Text>
+        <Pressable onPress={() => setError(null)} style={st.error} accessibilityRole="alert" accessibilityHint="Dismisses this message">
+          <Icon name="alert" size={20} tint={color.brick} />
+          <T v="caption" tone="brick" style={{ flex: 1 }}>{error}</T>
+          <T v="small" tone="brick" style={{ textDecorationLine: 'underline' }}>Dismiss</T>
         </Pressable>
       )}
 
@@ -93,7 +105,7 @@ function Main() {
         {!role ? (
           <RolePicker onPick={setRole} />
         ) : !state || !peggy ? (
-          <View style={st.loading}><ActivityIndicator color={color.lamp} /><Meta>Lighting the porch…</Meta></View>
+          <View style={st.center}><ActivityIndicator color={color.lamp} /><T v="caption" tone="muted">Lighting the porch…</T></View>
         ) : role.id === 'senior' ? (
           <SeniorScreen senior={peggy} state={state} refresh={refresh} onError={setError} />
         ) : role.id === 'family' ? (
@@ -113,68 +125,66 @@ function RolePicker({ onPick }) {
   const family = ROLES.filter((r) => r.id === 'family');
   const senior = ROLES.find((r) => r.id === 'senior');
   const desk = ROLES.find((r) => r.id === 'desk');
-  const pick = (r) => () => { tap(); onPick(r); };
+  const pick = (r) => () => onPick(r);
+  const chevron = <Icon name="chevron" size={20} tint={color.muted} />;
 
   if (step === 'family') {
     return (
-      <ScrollView contentContainerStyle={st.pickerPad}>
-        <H1 onDusk style={{ fontSize: 34, lineHeight: 38 }}>Which family member are you?</H1>
-        <P style={{ color: color.mutedOnDusk }}>Each person sees what they need. Only {family[0]?.title} can approve rides and see medicines.</P>
-        {family.map((r) => (
-          <Pressable key={r.who} accessibilityRole="button" accessibilityLabel={`${r.title}, ${r.sub}`} onPress={pick(r)} style={({ pressed }) => [st.roleCard, pressed && { opacity: 0.85 }]}>
-            <Text style={st.roleTitle}>{r.title}</Text>
-            <Text style={st.roleSub}>{r.sub}</Text>
-          </Pressable>
-        ))}
-        <Pressable accessibilityRole="button" onPress={() => { tap(); setStep('side'); }} style={st.backLink}>
-          <Text style={st.linkText}>Back</Text>
+      <Screen>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => { tap(); setStep('side'); }} style={st.back}>
+          <Icon name="back" size={20} tint={color.soft} />
+          <T v="label" tone="soft">Back</T>
         </Pressable>
-      </ScrollView>
+        <View style={{ gap: 8 }}>
+          <Title>Which family member are you?</Title>
+          <T tone="muted">Each person sees what they need. Only {family[0]?.title} can approve rides and see medicines.</T>
+        </View>
+        <Card flush>
+          <List>
+            {family.map((r) => (
+              <Row key={r.who} title={r.title} sub={r.sub} leading={<IconCircle name="user" />} trailing={chevron} onPress={pick(r)} accessibilityLabel={`${r.title}, ${r.sub}`} />
+            ))}
+          </List>
+        </Card>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={st.pickerPad}>
-      <Lamp state="lit" size={110} label="Porchlight" />
-      <H1 onDusk style={{ fontSize: 34, lineHeight: 38 }}>Who is this phone for?</H1>
-      <P style={{ color: color.mutedOnDusk }}>Porchlight has two sides. Tap the Porchlight name at the top to switch later.</P>
-      <Pressable accessibilityRole="button" accessibilityLabel={`I'm ${senior.title}. Big buttons, a daily chat, and help when I need it.`} onPress={pick(senior)} style={({ pressed }) => [st.roleCard, st.sideCard, { backgroundColor: color.lamp }, pressed && { opacity: 0.85 }]}>
-        <Text style={[st.sideKicker, { color: color.lampInk }]}>Older adult</Text>
-        <Text style={[st.roleTitle, { color: color.lampInk }]}>I’m {senior.title}</Text>
-        <Text style={[st.roleSub, { color: color.lampInk }]}>Big buttons, a daily chat, and help when I need it.</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={`I'm family. See how ${senior.title} is doing, approve rides, and take on tasks.`} onPress={() => { tap(); setStep('family'); }} style={({ pressed }) => [st.roleCard, st.sideCard, pressed && { opacity: 0.85 }]}>
-        <Text style={st.sideKicker}>Family and neighbors</Text>
-        <Text style={st.roleTitle}>I’m family</Text>
-        <Text style={st.roleSub}>See how {senior.title} is doing, approve rides, and take on tasks.</Text>
-      </Pressable>
-      {desk && (
-        <Pressable accessibilityRole="button" onPress={pick(desk)} style={st.backLink}>
-          <Text style={st.linkText}>Volunteer desk for the nonprofit</Text>
-        </Pressable>
-      )}
-    </ScrollView>
+    <Screen>
+      <View style={{ gap: 8 }}>
+        <Lamp state="lit" size={96} label="Porchlight" />
+        <Title>Who is this phone for?</Title>
+        <T tone="muted">Porchlight has two sides. Tap the Porchlight name at the top to switch later.</T>
+      </View>
+      <BigButton
+        tone="lamp"
+        icon="heart"
+        title={`I’m ${senior.title}`}
+        sub="Big buttons, a daily chat, and help when I need it."
+        hint="Opens the older adult's side."
+        onPress={pick(senior)}
+      />
+      <Section label="Family and volunteers">
+        <Card flush>
+          <List inset={72}>
+            <Row title="I’m family" sub={`See how ${senior.title} is doing, approve rides, take on tasks.`} leading={<IconCircle name="user" />} trailing={chevron} onPress={() => setStep('family')} />
+            {desk && <Row title="Volunteer desk" sub="For the nonprofit’s reassurance program." leading={<IconCircle name="phone" />} trailing={chevron} onPress={pick(desk)} />}
+          </List>
+        </Card>
+      </Section>
+    </Screen>
   );
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.sky },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 10, backgroundColor: color.sky, borderBottomWidth: 1, borderBottomColor: color.hairline },
+  root: { flex: 1, backgroundColor: color.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: color.bg },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: space.screen, paddingBottom: 8 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
-  brandDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: color.lamp, shadowColor: color.lamp, shadowOpacity: 0.8, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
-  brandText: { fontFamily: font.display, fontSize: 21, color: color.ink },
-  roleText: { flex: 1, fontFamily: font.body, fontSize: 15, color: color.mutedOnDusk },
-  demoBtn: { marginLeft: 'auto', minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: 8 },
-  demoText: { fontFamily: font.bodyBold, fontSize: 15, color: color.mutedOnDusk },
-  error: { backgroundColor: color.brickSoft, paddingHorizontal: 16, paddingVertical: 10, gap: 4 },
-  errorText: { fontFamily: font.body, fontSize: 15, color: color.brick },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  pickerPad: { padding: 20, paddingBottom: 48, gap: 14 },
-  roleCard: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, paddingHorizontal: 20, paddingVertical: 16, gap: 2 },
-  roleTitle: { fontFamily: font.display, fontSize: 24, color: color.ink },
-  roleSub: { fontFamily: font.body, fontSize: 16, color: color.muted },
-  sideCard: { paddingVertical: 24, gap: 4 },
-  sideKicker: { fontFamily: font.bodyBold, fontSize: 15, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
-  backLink: { minHeight: 48, justifyContent: 'center', alignSelf: 'center', paddingHorizontal: 12 },
-  linkText: { fontFamily: font.bodyBold, fontSize: 17, color: color.mutedOnDusk, textDecorationLine: 'underline' },
+  brandDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: color.lamp },
+  headerBtn: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  rolePill: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: color.raised },
+  error: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: space.screen, marginBottom: 8, padding: 12, borderRadius: radius.control, backgroundColor: color.brickSoft },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, alignSelf: 'flex-start' },
 });
