@@ -27,3 +27,7 @@ Expected replies and analysis: `server/src/voice/samples.md` ("Demo call" sectio
 - No Wi-Fi to the laptop: phone hotspot, or `ngrok http 3001` + `npm run app:tunnel`.
 - Twilio call fails: use **Talk** on Peggy's screen with the same three lines.
 - Everything fails: screen recording on C's phone (record at 7:00).
+
+## Before going on stage
+- `node --test server/src/voice/llm.test.js` → all pass (safety replies, no false alarms, guard, demo-call analysis).
+- Say the three lines once on Talk; check Anne's phone gets the ride and the milk.
