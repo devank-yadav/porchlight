@@ -12,6 +12,8 @@ async function chat(messages, { json = false, maxTokens = 300 } = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
     body: JSON.stringify({ model: MODEL, messages, temperature: json ? 0.2 : 0.7, max_tokens: maxTokens }),
+    // A phone caller is waiting: give up and use the fallback rather than leave dead air.
+    signal: AbortSignal.timeout(json ? 20000 : 8000),
   });
   if (!res.ok) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -61,6 +63,21 @@ export function policyReply(senior, text) {
   return null;
 }
 
+// Output guard: the model's reply is checked before Peggy hears it. Anything that
+// claims a booking, asks for money/codes/ID, or reads like a diagnosis is dropped
+// (null → rule-based fallback).
+const CLAIMS_BOOKING = /\b(i('|’)ve|i have|we('|’)ve|it('|’)s|is|has been) (booked|scheduled|arranged|confirmed|set up)\b.*\b(ride|car|driver|pickup|pick-up)|\b(ride|car|driver|pickup)\b.*\b(is|has been) (booked|scheduled|arranged|confirmed|on (its|the) way)/i;
+const ASKS_SECRETS = /\b(what('|’)s|tell me|give me|read me|share|confirm) (your|the)\b.*\b(password|pin|code|social security|ssn|account|card number|bank|medicare number|date of birth)/i;
+const DIAGNOSES = /\byou (probably |might |may )?have (a |an )?(stroke|heart attack|infection|dementia|diabetes|covid|flu|uti)\b|\btake (another|an extra|two|double)\b.*\b(pill|dose|tablet)/i;
+export function guardReply(senior, text) {
+  const t = String(text || '').trim();
+  if (!t || CLAIMS_BOOKING.test(t) || ASKS_SECRETS.test(t) || DIAGNOSES.test(t)) {
+    if (t) console.warn('[llm] model reply blocked by guard:', t.slice(0, 120));
+    return null;
+  }
+  return t;
+}
+
 export async function reply(senior, transcript, { appointments = [] } = {}) {
   const last = [...transcript].reverse().find((t) => t.who === 'senior')?.text ?? '';
   const fixed = policyReply(senior, last);
@@ -71,7 +88,8 @@ export async function reply(senior, transcript, { appointments = [] } = {}) {
         { role: 'system', content: personaPrompt(senior, appointments) },
         ...transcript.map((t) => ({ role: t.who === 'porchlight' ? 'assistant' : 'user', content: t.text })),
       ];
-      return await chat(messages, { maxTokens: 120 });
+      const answer = guardReply(senior, await chat(messages, { maxTokens: 120 }));
+      if (answer) return answer;
     } catch (e) {
       console.warn('[llm] reply failed, using mock:', e.message);
     }
@@ -79,8 +97,9 @@ export async function reply(senior, transcript, { appointments = [] } = {}) {
   return mockReply(senior, transcript);
 }
 
-const SCAM_WORDS = /gift ?card|wire|bitcoin|crypto|bank (called|account)|social security|\bssn\b|irs|warrant|arrest|jail|bail|lottery|prize|you(’|')ve won|computer virus|tech support|grandson.*(trouble|jail)|keep it (a )?secret|verification code|medicare card/i;
-const URGENT_WORDS = /\bfell\b|\bfall(en)?\b|can(’|')?t (get up|breathe)|chest pain|bleeding|dizzy|hit my head/i;
+// Word-bounded so "stairs", "first", "wired" or "fell asleep" never trip an alarm.
+const SCAM_WORDS = /gift ?cards?|\bwire (the |some )?money|western union|\bbitcoin|\bcrypto(currency)?\b|bank (called|account|number)|social security (number|card)|\bssn\b|\birs\b|\bwarrant\b|\bbail\b|\barrest(ed)?\b|you(’|')?ve won|won (the|a) (lottery|sweepstakes|prize)|\blottery\b|computer virus|tech support|grand(son|daughter|kid).*(trouble|jail|arrest|accident|lawyer)|keep (it|this) (a )?secret|verification code|one.?time code|medicare (card|number)|pin number|password/i;
+const URGENT_WORDS = /\bfell (down|over|off|in|on|out|and|again|last|this|yesterday|today)\b|\bi fell\b(?! asleep)|\b(had|took) a (bad )?fall\b|\b(i('|’)ve|have) fallen\b|can(’|')?t (get up|breathe|stand up|move my)|chest (pain|hurts)|bleeding|hit my head|\bfainted\b|passed out/i;
 const MED_UNSURE_WORDS = /(not sure|don(’|')?t (remember|know)|can(’|')?t remember|forget|forgot) (if|whether|about)? ?(i )?(took|taken|take)?.*(pill|med|tablet|dose)|(pill|med|tablet|dose).*(not sure|don(’|')?t remember|can(’|')?t remember)/i;
 const NO_RIDE_WORDS = /(don(’|')?t|do not|no) (have )?(a )?ride|no way to get|can(’|')?t get there|nobody to (drive|take) me/i;
 const RIDE_WORDS = /\bride\b|doctor|appointment|dentist|pharmacy|groceries|grocery|store|pick ?up|drive me/i;
