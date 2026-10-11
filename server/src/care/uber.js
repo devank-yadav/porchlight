@@ -41,10 +41,12 @@ export function uberLink({ from, to, place, placeLatLng, pickupPlace, pickupLatL
   if (pickupPlace) { pin('pickup', pickupLatLng); q.set('pickup[formatted_address]', clean(pickupPlace)); q.set('pickup[nickname]', clean(pickupPlace).split(',')[0]); }
   const pickup = pickupPlace ? null : clean(process.env.RIDE_HOME_ADDRESS || (/\(sample\)/i.test(String(from)) ? '' : from));
   if (pickupPlace) { /* set above */ } else if (pickup) { pin('pickup', process.env.RIDE_HOME_LATLNG); q.set('pickup[formatted_address]', pickup); q.set('pickup[nickname]', 'Home'); } else q.set('pickup', 'my_location');
-  const dropoff = clean(place || to || process.env.RIDE_DROPOFF_ADDRESS);
+  // A sample destination ("Valley Heart Clinic (sample)") gives way to RIDE_DROPOFF_ADDRESS, like the sample home does.
+  const realTo = /\(sample\)/i.test(String(to)) ? '' : to;
+  const dropoff = clean(place || realTo || process.env.RIDE_DROPOFF_ADDRESS || to);
   if (dropoff) {
     if (place && placeLatLng) pin('dropoff', placeLatLng);
-    else if (!place && !to) pin('dropoff', process.env.RIDE_DROPOFF_LATLNG);
+    else if (!place && !realTo && process.env.RIDE_DROPOFF_ADDRESS) pin('dropoff', process.env.RIDE_DROPOFF_LATLNG);
     q.set('dropoff[formatted_address]', dropoff);
     q.set('dropoff[nickname]', dropoff.split(',')[0]);
   }

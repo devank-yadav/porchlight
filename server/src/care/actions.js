@@ -52,8 +52,10 @@ export async function proposeRide(senior, appointment, quote) {
   const first = ask ? 'PENDING_APPROVAL' : 'APPROVED'; // the app shows "booked" when history has no PENDING_APPROVAL
   const pickupAt = new Date(new Date(appointment.startsAt).getTime() - 45 * 60000).toISOString();
   const destination = appointment.where?.trim();
-  const spot = destination ? await geocode(destination) : null;
-  const rideLink = uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || destination || appointment.title, placeLatLng: spot?.latlng });
+  // A sample address isn't a real place: leave it to uberLink, which can swap in RIDE_DROPOFF_ADDRESS for the demo.
+  const real = destination && !/\(sample\)/i.test(destination) ? destination : '';
+  const spot = real ? await geocode(real) : null;
+  const rideLink = uberLink({ from: '12 Maple Ln (sample)', to: destination || appointment.title, place: real ? spot?.address || real : undefined, placeLatLng: spot?.latlng });
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}`,
     reason: `${senior.preferredName} said: "${quote}"`,
