@@ -170,7 +170,7 @@ function mockAnalyze(senior, transcript) {
   const summary =
     `${senior.preferredName} sounded ${mood === 'good' ? 'cheerful' : mood === 'low' ? 'a bit down' : 'steady'} today` +
     (topics.length ? ` and talked about ${topics.slice(0, 2).join(' and ')}.` : '.') +
-    (requests.length ? ` She asked for help with ${requests.map((r) => r.type).join(', ')}.` : '') +
+    (requests.length ? ` She asked for help with ${[...new Set(requests.map((r) => ({ ride: 'a ride', groceries: 'groceries', refill: 'a refill' }[r.type] || r.type)))].join(' and ')}.` : '') +
     (flags.some((f) => f.type === 'scam') ? ' She mentioned a suspicious call.' : '');
 
   return { summary, mood, medsTaken, flags, starters: starters.slice(0, 3), stories, requests };
