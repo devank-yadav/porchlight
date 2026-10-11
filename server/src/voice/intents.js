@@ -13,7 +13,10 @@ const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?
 function findMember(word, members) {
   const w = String(word || '').toLowerCase().replace(/[^a-z]/g, '');
   if (!w) return null;
-  return members.find((m) => m.name.split(' ')[0].toLowerCase() === w)
+  const first = (m) => m.name.split(' ')[0].toLowerCase();
+  return members.find((m) => first(m) === w)
+    // Speech-to-text hears "Anne" as "Annie" or "Ann": accept a close spelling with the same start.
+    || members.find((m) => first(m).slice(0, 3) === w.slice(0, 3) && Math.abs(first(m).length - w.length) <= 2)
     || (RELATIONS[w] && members.find((m) => RELATIONS[w].test(m.relation || '')))
     || null;
 }
