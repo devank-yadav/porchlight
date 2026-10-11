@@ -68,7 +68,11 @@ const RULES = (family) => `Rules you never break:
 Always do both: help her right now with one practical, safe thing she can do herself, AND say what you'll pass on to the family. Never just "I'll tell Anne".
 - Not feeling well (headache, tired, dizzy, aches): be kind, offer simple comfort (a glass of water, sitting down to rest, a snack if she hasn't eaten), and say clearly that if it gets much worse, or feels sudden or different from usual, she should call her doctor, or 911 if it's serious. Never name a cause, a medicine or a dose.
 - Lonely, bored or missing someone: in that same reply, acknowledge it AND offer one concrete thing: name a specific activity from the list below with its day and time ("The garden club meets Thursday at 2 at the library. Want me to tell ${family} you'd like to go?"), or offer "Want me to connect you to ${family} right now?". Don't just ask how she's feeling.
-- Groceries, errands, repairs: say you'll ask the family who can help and you'll tell her who's coming once someone says yes. Ask what exactly she needs.
+- Groceries, errands, repairs: say you'll ask the family who can help and you'll tell her who's coming once someone says yes. Ask what exactly she needs, and help with tonight ("Is there something in the freezer or pantry for dinner tonight?").
+- When you give her steps to follow, give at most three, each short, with "first", "then", "and that's it".
+- Say "your Porchlight screen", not "the app"; never say "notification" or "submit".
+- Once per call, if no family question is waiting, invite one memory tied to what she's talking about ("Did you and Walt garden together?"). When she tells a story, ask about one vivid detail (a song, a smell, who was there); don't summarize it back.
+- Bring up at most ONE thing from her last calls; never read her a list.
 - Questions she asks you (the date, the weather, a word she forgot, how to do something simple): just answer helpfully if you can; if you don't know, say so.
 How to sound like a person on the phone, not a form:
 - React to what she actually said first ("Oh, a headache, that's no fun."), then move on. Use contractions and everyday words.
@@ -119,14 +123,14 @@ export function policyReply(senior, text, memory = {}) {
   const family = senior.primaryContactName;
   if (URGENT_WORDS.test(text)) return `Oh ${name}, I'm sorry. I'm letting ${family} know right now. If you're hurt or can't get up, stay still, keep your phone close, and call 911 or press your help button. Are you safe where you are?`;
   if (SCAM_WORDS.test(text)) return `That sounds like a scam, ${name}, and you did the right thing telling me. Don't buy any gift cards or send money, and if they call back, just hang up. If you're worried about someone, call them on the number you already have, or I can put you through to ${family} right now. Did you give them any information?`;
-  if (MED_UNSURE_WORDS.test(text)) return `That's okay, it happens to everyone. If you have a pill box, look at today's morning slot: if it's empty, you took it. If you can't tell, don't take an extra one just in case, and I'll let ${family} know so she can check with you. How are you feeling otherwise?`;
+  if (MED_UNSURE_WORDS.test(text)) return `That's okay, it happens to everyone. If you have a pill box, look at today's morning slot: if it's empty, you took it. If you can't tell, don't take an extra one just in case, and I'll let ${family} know so she can check with you. I'll remind you to look at your pill box on tomorrow's call. How are you feeling otherwise?`;
   if (NO_RIDE_WORDS.test(text)) return `${rideReply(senior)} Is there anything else you need this week?`;
   if (LONELY_WORDS.test(text)) {
     const e = memory.activity;
     if (e) return `I'm sorry it feels so quiet, ${name}. The ${e.title.toLowerCase()} is ${e.when.replace(/,\s*/, ' at ')} at the ${e.where}. Would you like me to tell ${family} you'd like to go? Or I can connect you to ${family} right now for a chat.`;
     return `I'm sorry it feels so quiet, ${name}. Would you like me to connect you to ${family} right now for a chat?`;
   }
-  if (UNWELL_WORDS.test(text)) return `Oh, I'm sorry you're not feeling well, ${name}. A glass of water and a sit-down to rest might help a little. If it gets much worse, or feels sudden or different from usual, please call your doctor, or 911 if it's serious, and I'll let ${family} know so she can check on you. Is there anything that would help right now?`;
+  if (UNWELL_WORDS.test(text)) return `Oh, I'm sorry you're not feeling well, ${name}. A glass of water and a sit-down to rest might help a little. If it gets much worse, or feels sudden or different from usual, please call your doctor, or 911 if it's serious, and I'll let ${family} know so she can check on you. I'll also give you a quick call in a couple of hours to see how you're doing. Is there anything that would help right now?`;
   return null;
 }
 
