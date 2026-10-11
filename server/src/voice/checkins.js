@@ -4,7 +4,7 @@ import * as store from '../store.js';
 import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
-import { voiceAction } from './actions.js';
+import { handleIntent } from './intents.js';
 
 export const MAX_TURNS = 10; // a natural chat, not an interrogation; then a kind wrap-up
 const BYE = /^\s*(ok(ay)?,? )?(bye|goodbye|talk (to you )?tomorrow)\b/i;
@@ -40,14 +40,14 @@ export async function addTurn(checkinId, text) {
   const checkin = await store.get('checkins', checkinId);
   const senior = await store.get('seniors', checkin.seniorId);
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
-  // Things she can get done by asking (connect me to Anne, tell Mark...). Urgent words always win.
-  const done = URGENT_WORDS.test(text) ? null : await voiceAction(senior, checkin, text).catch((e) => { console.warn('[voice action]', e.message); return null; });
-  if (done) {
-    transcript.push({ who: 'porchlight', text: done.reply, at: new Date().toISOString(), action: done.action });
-    await store.update('checkins', checkinId, { transcript });
-    return { reply: done.reply, ended: done.action.type === 'connect', action: done.action };
+  // Voice actions ("tell Mark…", "put me through to Anne") run before the chat reply; never on an emergency.
+  const intent = URGENT_WORDS.test(text) ? null : await handleIntent(senior, checkin, text);
+  if (intent?.transfer) {
+    transcript.push({ who: 'porchlight', text: intent.reply, at: new Date().toISOString() });
+    await store.update('checkins', checkinId, { transcript, transferredTo: intent.transfer });
+    return { reply: intent.reply, ended: true, transfer: intent.transfer };
   }
-  const answer = await reply(senior, transcript, { appointments: await appointmentsFor(senior._id) });
+  const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id) });
   // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
   if (URGENT_WORDS.test(text) && !checkin.urgentAlertedAt) {
     await alertFamilyNow(senior, text);

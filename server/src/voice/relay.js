@@ -52,11 +52,10 @@ function onConnection(ws) {
       if (!said) return;
       queue = queue.then(async () => {
         console.log(`[relay] she said: ${said}`);
-        const { reply, ended, action } = await addTurn(checkinId, said);
+        const { reply, ended, transfer } = await addTurn(checkinId, said);
         send({ type: 'text', token: reply, last: true });
-        // "Connect me to Anne": hand the call back to Twilio, which dials her (/twilio/relay-done).
-        const handoff = action?.type === 'connect' ? { handoffData: JSON.stringify({ connectTo: action.to, name: action.name }) } : {};
-        if (ended) setTimeout(() => send({ type: 'end', ...handoff }), speakMs(reply));
+        // On "end", Twilio calls /twilio/relay-done with handoffData; a transfer there dials the family member.
+        if (ended) setTimeout(() => send({ type: 'end', ...(transfer && { handoffData: JSON.stringify({ transfer }) }) }), speakMs(reply));
       }).catch((e) => {
         console.warn('[relay] turn failed:', e.message);
         send({ type: 'text', token: "Sorry, I lost my train of thought. Could you say that again?", last: true });
