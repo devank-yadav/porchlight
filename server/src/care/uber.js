@@ -12,7 +12,11 @@ export async function geocode(query) {
   if (geoCache.has(key)) return geoCache.get(key);
   let hit = null;
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us&q=${encodeURIComponent(query)}`, {
+    // Prefer places near her home (RIDE_HOME_LATLNG) without ruling out farther ones (the airport).
+    const [hlat, hlng] = String(process.env.RIDE_HOME_LATLNG || '').split(',').map(Number);
+    const near = hlat && hlng ? `&viewbox=${hlng - 0.3},${hlat + 0.3},${hlng + 0.3},${hlat - 0.3}` : '';
+    const q = String(query).replace(/\s+on\s+/i, ', ');
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=us${near}&q=${encodeURIComponent(q)}`, {
       headers: { 'User-Agent': 'Porchlight-hackathon-demo/1.0' }, signal: AbortSignal.timeout(2500),
     });
     const [first] = res.ok ? await res.json() : [];

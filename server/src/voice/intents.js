@@ -150,7 +150,12 @@ const STEPS = "I've sent a notification to your phone. Tap it, and Uber opens wi
 const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
 
 // "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
+const STREET = /\b\d{1,5}\s+(?:[nsew]\.?\s+|north |south |east |west )?[a-z0-9'’.]+(?:\s+[a-z0-9'’.]+){0,3}\s+(?:street|st|avenue|ave|road|rd|lane|ln|drive|dr|boulevard|blvd|way|court|ct|place|pl|parkway|pkwy|circle|cir)\b\.?/i;
+
 export function rideDestination(text) {
+  // A street address she says ("412 West Foster Avenue") is the destination, whatever words surround it.
+  const street = String(text || '').match(STREET)?.[0];
+  if (street && !/\bfrom\s+$/i.test(String(text).slice(0, String(text).indexOf(street)))) return street.replace(/\.$/, '');
   // The LAST "to X" wins: "I want to go to Target" → "Target", not "go to Target".
   const all = [...String(text || '').matchAll(/\bto ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=\s+(?:at|by|around|tomorrow|tonight|today|now|right now|in \d|in an?|please|for|this)\b|[,!?]|\.(?:\s|$)|$)/gi)];
   const m = all.at(-1);
@@ -236,7 +241,8 @@ async function rideNow(senior, text, checkin = {}) {
   const where = place.replace(/^my /i, 'your ');
   const bare = place.replace(/^(the|my|a|an) /i, '');
   const query = senior.city ? `${bare}, ${senior.city}` : bare;
-  const spot = await geocode(query); // real pin for Uber when OpenStreetMap knows the place
+  // Real pin for Uber: near her town first ("Walmart, State College"), then anywhere ("Pittsburgh airport").
+  const spot = (await geocode(query)) || (query !== bare ? await geocode(bare) : null);
   const fromHome = !checkin.rideFrom || checkin.rideFrom === 'home';
   const fromSpot = fromHome ? null : await geocode(senior.city ? `${checkin.rideFrom.replace(/^(the|my|a|an) /i, '')}, ${senior.city}` : checkin.rideFrom);
   const details = { pickupAt, from: fromHome ? 'Home' : checkin.rideFrom, to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng, ...(fromHome ? {} : { pickupPlace: fromSpot?.address || checkin.rideFrom, pickupLatLng: fromSpot?.latlng }) }) };
