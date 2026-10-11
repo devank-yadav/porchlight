@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 
-// Where the Porchlight server lives.
+// Where the Tella server lives.
 // 1. EXPO_PUBLIC_API_URL (set in mobile/.env) wins, e.g. a deployed server or ngrok URL.
 // 2. Otherwise use the laptop running `npx expo start` (same Wi-Fi), port 3001.
 function resolveBase() {
@@ -26,7 +26,7 @@ async function call(method, path, body) {
     return data;
   } catch (e) {
     if (e.name === 'AbortError' || /Network request failed/i.test(e.message)) {
-      throw new Error(`Can’t reach the Porchlight server at ${API_BASE}. Check that it’s running and your phone is on the same Wi-Fi, or set EXPO_PUBLIC_API_URL.`);
+      throw new Error(`Can’t reach the Tella server at ${API_BASE}. Check that it’s running and your phone is on the same Wi-Fi, or set EXPO_PUBLIC_API_URL.`);
     }
     throw e;
   } finally {

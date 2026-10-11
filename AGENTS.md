@@ -1,10 +1,10 @@
-# AGENTS.md — Porchlight (c0mpiled hackathon, Track 1B)
+# AGENTS.md — Tella (c0mpiled hackathon, Track 1B)
 
 Shared instructions for every coding agent on the team (Codex reads this file; Claude Code imports it via CLAUDE.md). Keep it current. Full spec: PLAN.md. Work queue: TASKS.md.
 Also read mobile/AGENTS.md before touching Expo APIs: Expo changes every SDK, don't trust memory.
 
 ## What we're building
-Porchlight: an **iOS app** (Expo / React Native, SDK 57) plus a Node server. It's a daily AI check-in for older adults living alone. The senior answers a phone call or taps big buttons; Porchlight chats, notices problems, and brings in family, neighbors and volunteers when needed.
+Tella: an **iOS app** (Expo / React Native, SDK 57) plus a Node server. It's a daily AI check-in for older adults living alone. The senior answers a phone call or taps big buttons; Tella chats, notices problems, and brings in family, neighbors and volunteers when needed.
 Wedge: senior-services nonprofits running telephone reassurance programs. Track 1B, YC RFS "AI for the Aging Population". Also aiming for Bloomerang (nonprofits) and MongoDB prizes.
 Judging 8:00 PM, Oct 11 2026. Feature freeze 6:30 PM.
 
@@ -32,7 +32,7 @@ mobile/src/design/          Design system: tokens.js, ui.js (T, Press, Button, B
                             Toaster.js (toast()), Sheet.js (sheet.open()), Icon.js (SF Symbols), theme.js, haptics.js
 mobile/src/api.js           Server calls + API base URL
 mobile/src/useAppState.js   Polls /api/state every 2s
-mobile/src/calendar.js      Peggy's iPhone calendar (expo-calendar/legacy): her events → server, rides/reminders/call-backs → a "Porchlight" calendar
+mobile/src/calendar.js      Peggy's iPhone calendar (expo-calendar/legacy): her events → server, rides/reminders/call-backs → a "Tella" calendar
 server/src/index.js          SHARED wiring only (mounts voice + care routes). Don't add routes here
 server/src/store.js          MongoDB or in-memory, same API (owner: B)
 server/src/wrap.js, env.js   SHARED helpers
@@ -75,7 +75,7 @@ Edit only your area unless you've told the owner. Shared files (index.js, env.js
 - Copy: plain, warm, sentence case. Buttons say what happens ("Offer a ride", not "Submit").
 
 ## Product rules (never break these)
-- Porchlight says it's an AI, and never asks for money, codes, passwords or ID numbers.
+- Tella says it's an AI, and never asks for money, codes, passwords or ID numbers.
 - No medical advice or diagnoses. Only "different from usual". Urgent → alert family + suggest 911.
 - Anything told to the family is said to the senior first.
 - All demo people and organizations are fictional and labelled "sample".

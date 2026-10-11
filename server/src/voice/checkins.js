@@ -11,7 +11,7 @@ import { handleIntent, dueReminders, localDate } from './intents.js';
 const YES = /^\s*(oh,? )?(yes|yeah|yep|sure|okay|ok|please|i('|’)?d (like|love) that|that would be (nice|lovely|great))\b/i;
 const CONNECT_ASK = /\b(connect|call|talk to|speak to|put me through)\b/i;
 export const MAX_TURNS = 10; // kept for callers; calls no longer end on a turn count
-// Every LONG_CALL turns Porchlight gently asks whether she'd like to keep going; it never just hangs up.
+// Every LONG_CALL turns Tella gently asks whether she'd like to keep going; it never just hangs up.
 const LONG_CALL = 20;
 // Her yes to "shall we say goodbye?": short, and not a new request ("no, but can you…" keeps talking).
 const CONFIRM_END = /^\s*(oh,? )?(yes|yeah|yep|ok(ay)?|sure|alright|that('|’)s (all|it|fine)|no,? (that('|’)s all|thanks?|thank you|nothing)|nope|nothing( else)?|bye|good ?bye|good night|i('|’)m (good|done|fine|all set)|go ahead|you can (go|hang up)|please do|hang up)\b(?![\s\S]*\b(but|can you|could you|wait|actually|one more)\b)[\s\S]{0,40}$/i;
@@ -23,12 +23,12 @@ async function appointmentsFor(seniorId) {
   try { return await store.list('appointments', { seniorId }); } catch { return []; }
 }
 
-// Questions the family asked Porchlight to put to her ("Ask Mom about her first job"), not yet answered.
+// Questions the family asked Tella to put to her ("Ask Mom about her first job"), not yet answered.
 export function openQuestions(senior) {
   return (senior.familyQuestions || []).filter((q) => !q.answeredAt);
 }
 
-// What Porchlight remembers between calls: recent summaries, stories already told, family questions,
+// What Tella remembers between calls: recent summaries, stories already told, family questions,
 // and nearby activities, so a call can pick up threads like a person would.
 async function memoryFor(senior) {
   try {
@@ -87,7 +87,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
   const urgent = URGENT_WORDS.test(text);
   // Voice actions ("tell Mark…", "put me through to Anne") run before the chat reply; never on an emergency.
-  // "Yes" to Porchlight's own offer ("Would you like me to connect you to Anne?") is a real request to connect.
+  // "Yes" to Tella's own offer ("Would you like me to connect you to Anne?") is a real request to connect.
   const lastQuestion = ([...checkin.transcript].reverse().find((t) => t.who === 'porchlight')?.text.match(/[^.?!]*\?/g) || []).at(-1) || '';
   // "connect you to Mark?", "connect you to her?", "Shall I connect you now?" (no name → her first contact)
   const offered = lastQuestion.match(/\b(?:connect you|put you through|call)\b(?:\s+(?:to|with))?\s*(\w+)?/i);
@@ -106,7 +106,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     await store.update('checkins', checkinId, { transcript, askedToEnd: true });
     return { reply: ask, ended: false };
   }
-  // "Yes" to the activity Porchlight just suggested ("Would you like me to tell Anne you'd like to go?"):
+  // "Yes" to the activity Tella just suggested ("Would you like me to tell Anne you'd like to go?"):
   // tell the family now, so the offer is real.
   const lastSaid = checkin.transcript[checkin.transcript.length - 1]?.text || '';
   const activity = /tell \w+ you'd like to go/i.test(lastSaid) && YES.test(text) && !CONNECT_ASK.test(text) ? lastSaid.match(/The (.+?) is (.+?) at the (.+?)\./) : null;
@@ -121,7 +121,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     return { reply: said, ended: false };
   }
   const turns = transcript.filter((t) => t.who === 'senior').length;
-  // Porchlight never hangs up on its own. When she sounds done ("that's all", "bye"), or after a long
+  // Tella never hangs up on its own. When she sounds done ("that's all", "bye"), or after a long
   // chat, it ASKS; the call ends only when she says yes to that question.
   if (checkin.askedToEnd && !intent && !urgent) {
     if (CONFIRM_END.test(text)) {
@@ -151,7 +151,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   }
   const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id), memory, onSentence });
   await followUps(senior, checkin, text, answer);
-  // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
+  // Tella just told her "I'm letting Anne know right now", so do it now, not after the call.
   if (urgent && !checkin.urgentAlertedAt) {
     await alertFamilyNow(senior, text);
     await store.update('checkins', checkinId, { urgentAlertedAt: new Date().toISOString() });
@@ -161,7 +161,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   return { reply: answer, ended: false, streamed };
 }
 
-// Promises Porchlight just made out loud are kept: a check-back call when she's unwell, and a
+// Promises Tella just made out loud are kept: a check-back call when she's unwell, and a
 // pill-box reminder on tomorrow's call when she wasn't sure about a pill.
 async function followUps(senior, checkin, said, answer) {
   const fresh = await store.get('seniors', senior._id);

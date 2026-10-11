@@ -32,7 +32,7 @@ export async function sms(member, text) {
   // Only text real numbers; demo numbers start with +1555.
   if (twilioEnabled && member.phone && !member.phone.startsWith('+1555')) {
     try {
-      await twilio('Messages.json', { To: member.phone, From: FROM, Body: `Porchlight: ${text}` });
+      await twilio('Messages.json', { To: member.phone, From: FROM, Body: `Tella: ${text}` });
       entry.delivered = 'sms';
     } catch (e) {
       console.warn('[notify] SMS failed:', e.message);
@@ -65,7 +65,7 @@ export async function tellSenior(senior, text) {
     try {
       await twilio('Calls.json', {
         To: senior.phone, From: FROM, // no Timeout: Twilio trial accounts reject it
-        Twiml: `<Response><Say voice="${VOICE}">Hi ${senior.preferredName}, it's Porchlight. ${say} Have a good day.</Say></Response>`,
+        Twiml: `<Response><Say voice="${VOICE}">Hi ${senior.preferredName}, it's Tella. ${say} Have a good day.</Say></Response>`,
       });
       entry.delivered = 'call';
     } catch (e) {

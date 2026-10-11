@@ -120,7 +120,7 @@ export default function FamilyScreen({ senior, me, page = 'today' }) {
     {page === 'settings' && <>
       <DailyCall senior={senior} run={run} />
       <Section title="Your sample profile"><Card><T v="title">{circle.find((m) => m._id === me)?.name}</T><T muted>{circle.find((m) => m._id === me)?.relation}</T><T v="callout" muted>{circle.find((m) => m._id === me)?.seesMeds ? 'Your profile can see medicine details.' : 'Medicine details and call transcripts are private to the primary contact.'}</T><Button label="Switch person" icon="person.crop.circle" onPress={() => openRoleSheet(ctxApp)} /></Card></Section>
-      <Section title="About Porchlight"><Card><T v="headline">An AI helper, with family in the loop</T><T v="body" muted>Porchlight shares check-in updates and helps coordinate everyday needs. It does not provide medical advice.</T><T v="callout" muted>All people and organizations in this experience are sample. A simulated booking is not a real ride.</T></Card></Section>
+      <Section title="About Tella"><Card><T v="headline">An AI helper, with family in the loop</T><T v="body" muted>Tella shares check-in updates and helps coordinate everyday needs. It does not provide medical advice.</T><T v="callout" muted>All people and organizations in this experience are sample. A simulated booking is not a real ride.</T></Card></Section>
       <Button label="Demo controls" icon="slider.horizontal.3" onPress={() => openDemoMenu(ctxApp)} />
     </>}
   </ScrollView>;
@@ -365,7 +365,7 @@ const TRANSPORT = {
   requested: ['Ride requested', 'lamp'],
   confirmed: ['Ride confirmed', 'green'],
 };
-// Peggy's iPhone calendar, as synced by her Porchlight app, plus sample appointments.
+// Peggy's iPhone calendar, as synced by her Tella app, plus sample appointments.
 function dayLabel(iso) {
   const d = new Date(iso);
   const days = Math.round((new Date(d.toDateString()) - new Date(new Date().toDateString())) / 86400000);
@@ -389,7 +389,7 @@ function SeniorCalendar({ senior, state }) {
       await Calendar.createEventInCalendarAsync({
         title: `${name}: ${a.title.replace(/\s*\(sample\)/i, '')}`,
         startDate: new Date(a.startsAt), endDate: new Date(a.endsAt || new Date(a.startsAt).getTime() + 3600000),
-        location: a.where || undefined, notes: `From ${name}’s Porchlight.`,
+        location: a.where || undefined, notes: `From ${name}’s Tella.`,
       });
     } catch (e) {
       toast.info('Couldn’t open your calendar', { description: e.message });
@@ -403,8 +403,8 @@ function SeniorCalendar({ senior, state }) {
           <Icon name={cal?.connected ? 'checkmark.circle.fill' : 'calendar.badge.exclamationmark'} size={17} color={cal?.connected ? accent.green : light.muted} style={{ marginTop: 2 }} />
           <T v="footnote" muted style={{ flex: 1 }}>
             {cal?.connected
-              ? `Synced from ${name}’s iPhone ${ago(cal.syncedAt)}. Calls and rides use these events, and Porchlight adds her rides, reminders and call-backs to her calendar.`
-              : `Open Porchlight on ${name}’s phone and allow calendar access. Her real appointments then show here and on her calls.`}
+              ? `Synced from ${name}’s iPhone ${ago(cal.syncedAt)}. Calls and rides use these events, and Tella adds her rides, reminders and call-backs to her calendar.`
+              : `Open Tella on ${name}’s phone and allow calendar access. Her real appointments then show here and on her calls.`}
           </T>
         </View>
         {list.length === 0 && <><Divider /><T v="callout" muted style={{ paddingVertical: 14 }}>Nothing in the next two weeks.</T></>}
@@ -450,7 +450,7 @@ function DailyCall({ senior, run }) {
         <View style={st.cardHead}>
           <View style={{ flex: 1, gap: 2 }}>
             <T v="headline">Call {name} every day</T>
-            <T v="footnote" muted>Porchlight phones her for a short chat. Her time.</T>
+            <T v="footnote" muted>Tella phones her for a short chat. Her time.</T>
           </View>
           <Switch value={autoCall} onValueChange={(v) => { haptic.select(); setAutoCall(v); }} trackColor={{ true: accent.green }} accessibilityLabel={`Call ${name} every day`} />
         </View>
@@ -478,9 +478,9 @@ function DailyCall({ senior, run }) {
             style={{ flex: 1 }}
             label={saved ? (autoCall ? `Next: ${nextCallLabel(senior)}` : 'Daily call is off') : 'Save schedule'}
             disabled={saved || (autoCall && !days.length)}
-            onPress={run(() => api.setSchedule(senior._id, { autoCall, checkinTime: toHHMM(min), callDays: days }), autoCall ? [`Daily call set for ${clock(toHHMM(min))}`, `Porchlight will phone ${name} then.`] : 'Daily call turned off')}
+            onPress={run(() => api.setSchedule(senior._id, { autoCall, checkinTime: toHHMM(min), callDays: days }), autoCall ? [`Daily call set for ${clock(toHHMM(min))}`, `Tella will phone ${name} then.`] : 'Daily call turned off')}
           />
-          <Button icon="phone.fill" label="Call now" onPress={callNow(senior, run)} accessibilityHint={`Porchlight phones ${name} right away.`} />
+          <Button icon="phone.fill" label="Call now" onPress={callNow(senior, run)} accessibilityHint={`Tella phones ${name} right away.`} />
         </View>
       </Card>
     </Section>
@@ -634,7 +634,7 @@ function Stories({ senior, checkins, state, me, run }) {
         <Card style={{ gap: 12 }}>
           <View style={[st.iconTile, { backgroundColor: light.sunken }]}><Icon name="book.closed" size={17} color={light.ink} /></View>
           <T v="headline">Her stories will live here</T>
-          <T v="callout" muted>When {name} tells a story on a call, Porchlight saves it in her words with who and when, plus a question you can ask her next time.</T>
+          <T v="callout" muted>When {name} tells a story on a call, Tella saves it in her words with who and when, plus a question you can ask her next time.</T>
           {starters[0] ? <Quote plain>{starters[0]}</Quote> : null}
         </Card>
       )}
@@ -644,7 +644,7 @@ function Stories({ senior, checkins, state, me, run }) {
   );
 }
 
-// Family questions: Porchlight asks one on her next call, and her answer is saved as a story under it.
+// Family questions: Tella asks one on her next call, and her answer is saved as a story under it.
 function FamilyQuestions({ senior, state, me, run }) {
   const [text, setText] = useState('');
   const name = senior.preferredName;
@@ -653,13 +653,13 @@ function FamilyQuestions({ senior, state, me, run }) {
   const send = () => {
     const t = text.trim();
     if (!t) return;
-    run(async () => { await api.addQuestion(senior._id, t, typeof me === 'string' ? me : me?._id); setText(''); }, [`Porchlight will ask ${name}`, 'On her next call. Her answer is saved here.'])();
+    run(async () => { await api.addQuestion(senior._id, t, typeof me === 'string' ? me : me?._id); setText(''); }, [`Tella will ask ${name}`, 'On her next call. Her answer is saved here.'])();
   };
   return (
     <Card style={{ gap: 12 }}>
       <View style={{ gap: 2 }}>
         <T v="headline">Questions for {name}</T>
-        <T v="footnote" muted>Porchlight asks one on her next call, and saves her answer here.</T>
+        <T v="footnote" muted>Tella asks one on her next call, and saves her answer here.</T>
       </View>
       <View style={st.askBox}>
         <TextInput
@@ -706,7 +706,7 @@ function StoryCard({ story: s, name, asker }) {
   );
   const share = () => {
     haptic.tap();
-    Share.share({ message: `${s.title}\n\n“${s.text}”${s.retold ? `\n\n${s.retold}` : ""}\n\n${name}, ${toldOn(s.at).toLowerCase()}. Saved by Porchlight.` }).catch(() => {});
+    Share.share({ message: `${s.title}\n\n“${s.text}”${s.retold ? `\n\n${s.retold}` : ""}\n\n${name}, ${toldOn(s.at).toLowerCase()}. Saved by Tella.` }).catch(() => {});
   };
   return (
     <Card style={{ gap: 14 }}>
@@ -780,8 +780,8 @@ function Circle({ state, circle }) {
           ))}
         </Card>
       </Section>
-      <Section title="Texts sent by Porchlight">
-        {texts.length === 0 && <Card><T v="callout" muted>When Porchlight needs the circle, the texts it sends show up here.</T></Card>}
+      <Section title="Texts sent by Tella">
+        {texts.length === 0 && <Card><T v="callout" muted>When Tella needs the circle, the texts it sends show up here.</T></Card>}
         {texts.map((n, i) => (
           <View key={i} style={st.textMsg}>
             <T v="footnote" muted>To {first(n.to)}, {ago(n.at)}</T>

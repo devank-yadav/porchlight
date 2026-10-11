@@ -1,8 +1,8 @@
-# Porchlight
+# Tella
 
 **An iPhone app for daily check-ins with older adults who live alone, with family, neighbors and volunteers in the loop.**
 
-Peggy just answers the phone or taps a big button. Porchlight chats with her about her day, notices if something's off, and tells the right people: a scam call, a fall, a ride she needs, a week of feeling low. If she doesn't answer, it widens the circle step by step until someone reaches her.
+Peggy just answers the phone or taps a big button. Tella chats with her about her day, notices if something's off, and tells the right people: a scam call, a fall, a ride she needs, a week of feeling low. If she doesn't answer, it widens the circle step by step until someone reaches her.
 
 Built at c0mpiled (Penn State, Oct 11 2026) for YC's Request for Startups: *AI for the Aging Population*.
 
