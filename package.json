@@ -1,0 +1,14 @@
+{
+  "name": "porchlight",
+  "private": true,
+  "description": "Daily AI check-ins for older adults living alone, with family, neighbors and volunteers in the loop.",
+  "scripts": {
+    "setup": "npm install && npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n api,web -c yellow,blue \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "start": "npm start --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
