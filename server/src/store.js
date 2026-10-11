@@ -9,23 +9,36 @@ const COLLECTIONS = [
 ];
 
 let db = null;
+let client = null;
 const mem = Object.fromEntries(COLLECTIONS.map((c) => [c, []]));
 
+export async function disconnect() {
+  const previous = client;
+  client = null;
+  db = null;
+  if (previous) await previous.close();
+}
+
 export async function connect() {
+  await disconnect();
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.log('[store] No MONGODB_URI set, using in-memory store (data resets on restart).');
     return 'memory';
   }
   // A bad URI or campus Wi-Fi blocking Atlas must never take the demo down: fall back to memory.
+  let candidate;
   try {
-    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
-    await client.connect();
-    db = client.db(process.env.MONGODB_DB || 'porchlight');
+    candidate = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+    await candidate.connect();
+    db = candidate.db(process.env.MONGODB_DB || 'porchlight');
+    client = candidate;
     console.log('[store] Connected to MongoDB.');
     return 'mongo';
   } catch (e) {
-    console.warn('[store] MongoDB unreachable, using in-memory store instead:', e.message);
+    // Driver messages may contain connection details. Log only the error category/code.
+    console.warn(`[store] MongoDB unavailable (${e.name}${e.code ? `, code ${e.code}` : ''}); using in-memory store instead.`);
+    if (candidate) await candidate.close().catch(() => {});
     db = null;
     return 'memory';
   }
