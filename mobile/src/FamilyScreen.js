@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -350,6 +350,9 @@ function ActionCard({ action, state, me, run, senior }) {
         </View>
       )}
       {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <T v="footnote" muted>{last.evidence.note}</T> : null}
+      {d.uberLink && !ended && action.status !== 'COMPLETED' ? (
+        <Button size="sm" icon="car.side" label="Book a real Uber instead" accessibilityHint="Opens Uber with the pickup and drop-off filled in." onPress={() => Linking.openURL(d.uberLink)} style={{ alignSelf: 'flex-start' }} />
+      ) : null}
 
       {pending && (canApprove ? (
         <View style={st.btnRow}>
