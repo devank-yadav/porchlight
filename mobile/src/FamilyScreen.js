@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from './api';
 import Lamp, { lampState } from './Lamp';
+import { TASK_ICON } from './Icon';
 import { ago } from './useAppState';
-import { Button, Card, Chip, H1, H2, Meta, P, Segmented } from './ui';
-import { color, font, radius } from './theme';
+import { Button, Card, IconBadge, Inset, Meta, P, Row, Section, Segmented, Status } from './ui';
+import { color, font } from './theme';
 
 const MOOD = { good: 'Cheerful', okay: 'Steady', low: 'A bit down' };
+const MOOD_TONE = { good: 'ok', okay: 'neutral', low: 'urgent' };
 
 // Pills: we only report what she said. Never a judgement.
 const MED = { taken: 'Taken (she said)', not_taken: 'Not yet', unsure: 'Not sure', no_answer: 'No answer', private: 'Private' };
@@ -33,8 +35,6 @@ const STEPS = [
 ];
 const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 3, COMPLETED: 4 };
 const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
-
-const TONE_DOT = { urgent: color.brick, attention: color.lamp, ok: color.sage };
 
 function when(iso) {
   if (!iso) return '';
@@ -63,18 +63,27 @@ function isAwake(tz) {
   }
 }
 
+function Avatar({ name }) {
+  const initials = name.split(' ').map((w) => w[0]).slice(0, 2).join('');
+  return <View style={st.avatar}><Text style={st.avatarText}>{initials}</Text></View>;
+}
+
 export default function FamilyScreen({ senior, state, me, run }) {
   const [tab, setTab] = useState('today');
 
   const circle = state.members.filter((m) => m.circleId === senior.circleId);
   const checkins = state.checkins.filter((c) => c.seniorId === senior._id && c.status === 'completed');
-  const ctx = { senior, state, me, run, circle, checkins, latestTalk: checkins.find((c) => c.channel !== 'button') };
+  const openTasks = state.tasks.filter((t) => t.seniorId === senior._id && t.status === 'open');
+  const unowned = openTasks.filter((t) => !t.assignee && !(t.handoff?.status === 'pending'));
+  const askedMe = openTasks.filter((t) => t.handoff?.status === 'pending' && t.handoff.to === me);
+  const careBadge = unowned.length + askedMe.length || null;
+  const ctx = { senior, state, me, run, circle, checkins, openTasks, unowned, askedMe, setTab, latestTalk: checkins.find((c) => c.channel !== 'button') };
 
   return (
     <View style={{ flex: 1 }}>
       <View style={st.tabs}>
         <Segmented
-          options={[{ id: 'today', label: 'Today' }, { id: 'care', label: 'Care' }, { id: 'stories', label: 'Stories' }, { id: 'circle', label: 'Circle' }]}
+          options={[{ id: 'today', label: 'Today' }, { id: 'care', label: 'Care', badge: careBadge }, { id: 'stories', label: 'Stories' }, { id: 'circle', label: 'Circle' }]}
           value={tab}
           onChange={setTab}
         />
@@ -89,7 +98,8 @@ export default function FamilyScreen({ senior, state, me, run }) {
   );
 }
 
-function Today({ senior, state, me, run, checkins, latestTalk }) {
+// ---------- Today ----------
+function Today({ senior, state, me, run, checkins, latestTalk, unowned, askedMe, setTab }) {
   const latest = checkins[0];
   const escalation = state.escalations.find((e) => e.seniorId === senior._id && e.status === 'active');
   const lastResolved = state.escalations.find((e) => e.seniorId === senior._id && e.status === 'resolved');
@@ -106,104 +116,133 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
   const appointments = (state.appointments || [])
     .filter((a) => a.seniorId === senior._id && new Date(a.startsAt).getTime() > Date.now() - 3600000)
     .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+  const checkedInToday = latest && new Date(latest.endedAt).toDateString() === new Date().toDateString();
 
   const headline =
     escalation ? (isHelp ? `${senior.preferredName} pressed her help button` : `${senior.preferredName}’s check-in is unresolved`)
     : senior.status === 'talking' ? `${senior.preferredName} is talking with Porchlight`
-    : latest && new Date(latest.endedAt).toDateString() === new Date().toDateString() ? `${senior.preferredName} checked in ${ago(latest.endedAt)}`
+    : checkedInToday ? `${senior.preferredName} checked in ${ago(latest.endedAt)}`
     : `Waiting for ${senior.preferredName}’s ${senior.checkinTime} check-in`;
 
   return (
     <>
-      {state.digest?.line ? <Digest digest={state.digest} /> : null}
-
-      <View style={[st.today, isHelp && { backgroundColor: color.brickSoft }]} accessibilityLiveRegion="polite">
-        <View style={st.todayTop}>
-          <Lamp state={lamp} size={88} label={headline} />
-          <H1 onDusk style={{ flex: 1, fontSize: 27, lineHeight: 31 }}>{headline}</H1>
+      {/* Status: the one place the summary appears. */}
+      <Card style={[st.hero, isHelp && { backgroundColor: color.brickSoft }]} accessibilityLiveRegion="polite">
+        <View style={st.heroTop}>
+          <Lamp state={lamp} size={64} label={headline} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={st.heroTitle} accessibilityRole="header">{headline}</Text>
+            {state.digest?.line && !escalation ? <Text style={st.heroSub}>{state.digest.line}</Text> : null}
+          </View>
         </View>
+
         {escalation ? (
           <View style={{ gap: 12 }}>
-            {!isHelp && <Text style={st.summary}>She may just be out or asleep. Porchlight is working down the list below.</Text>}
-            {escalation.steps.map((s, i) => (
-              <View key={i} style={st.step}>
-                <View style={[st.stepMark, s.status === 'done' && (isHelp ? st.stepDone : st.stepDoneAmber)]} />
-                <Text style={[st.stepText, s.status === 'done' && { color: color.ink }]}>{s.label}</Text>
-                <Text style={st.stepWhen}>{s.status === 'done' ? `sent ${ago(s.at)}` : s.status === 'held' ? 'held for quiet hours' : 'next'}</Text>
-              </View>
-            ))}
-            <Button label={`I reached ${senior.preferredName}, she’s okay`} variant="light" onPress={run(() => api.resolve(senior._id, me))} />
+            {!isHelp && <P style={{ color: color.mutedOnDusk }}>She may just be out or asleep. Porchlight is working down the list below.</P>}
+            <View style={{ gap: 10 }}>
+              {escalation.steps.map((s, i) => (
+                <View key={i} style={st.step}>
+                  <View style={[st.stepMark, s.status === 'done' && { backgroundColor: isHelp ? color.brick : color.lamp, borderColor: isHelp ? color.brick : color.lamp }]} />
+                  <Text style={[st.stepText, s.status === 'done' && { color: color.ink }]}>{s.label}</Text>
+                  <Text style={st.stepWhen}>{s.status === 'done' ? `sent ${ago(s.at)}` : s.status === 'held' ? 'held for quiet hours' : 'next'}</Text>
+                </View>
+              ))}
+            </View>
+            <Button variant="solid" icon="check" label={`I reached ${senior.preferredName}, she’s okay`} onPress={run(() => api.resolve(senior._id, me))} />
           </View>
         ) : (
           <>
-            {latest && <Text style={st.summary}>{latest.summary}</Text>}
+            {latest?.summary ? <P style={{ color: color.mutedOnDusk }}>{latest.summary}</P> : null}
             <View style={st.facts}>
               {latest?.mood && <Fact label="Mood" value={MOOD[latest.mood]} />}
               {latest && <Fact label="Pills" value={medLabel(latest)} />}
               <Fact label="Next call" value={`Tomorrow ${senior.checkinTime}`} />
             </View>
             {lastResolved && Date.now() - new Date(lastResolved.resolvedAt).getTime() < 3600000 && (
-              <Text style={st.note}>Earlier alert resolved by {lastResolved.resolvedBy}, {ago(lastResolved.resolvedAt)}.</Text>
+              <Meta>Earlier alert resolved by {lastResolved.resolvedBy}, {ago(lastResolved.resolvedAt)}.</Meta>
             )}
           </>
         )}
-      </View>
+      </Card>
 
       {actions.map((a) => (
         <ActionCard key={a._id} action={a} state={state} me={meMember} run={run} senior={senior} />
       ))}
 
-      {appointments.map((a) => <AppointmentCard key={a._id} appt={a} />)}
+      {(unowned.length > 0 || askedMe.length > 0) && (
+        <Section title="Needs someone">
+          {askedMe.length > 0 && (
+            <Row icon="users" iconTone="attention" title={`${askedMe.length} ${askedMe.length === 1 ? 'task' : 'tasks'} asked of you`} sub="Accept or decline in Care" onPress={() => setTab('care')} />
+          )}
+          {unowned.length > 0 && (
+            <Row icon="bag" title={`${unowned.length} ${unowned.length === 1 ? 'task' : 'tasks'} nobody has taken`} sub={unowned.slice(0, 2).map((t) => t.title).join(' · ')} onPress={() => setTab('care')} />
+          )}
+        </Section>
+      )}
 
-      {scamFlags.slice(0, 2).map((f, i) => (
-        <View key={`s${i}`} style={[st.flag, st.flagScam]}>
-          <Text style={[st.flagTitle, { color: color.brick }]}>Possible scam, {ago(f.at)}</Text>
-          <P>“{f.text}”</P>
-          <P muted>Porchlight told her not to send anything. Worth a call today to make sure she didn’t share any details.</P>
-        </View>
-      ))}
-      {otherFlags.map((f, i) => (
-        <View key={`f${i}`} style={[st.flag, f.type === 'urgent' && { borderColor: color.brick }]}>
-          <Text style={st.flagTitle}>{f.type === 'urgent' ? 'Needs attention now' : f.type === 'lonely' ? 'She sounded lonely' : 'Different from usual'}</Text>
-          <P>“{f.text}”</P>
-        </View>
-      ))}
-
-      <Card>
-        <H2>Things to talk about</H2>
-        <Meta>From what she shared today. A real call beats any app.</Meta>
-        {latestTalk?.starters?.length ? latestTalk.starters.map((s) => (
-          <View key={s} style={st.starter}><P>{s}</P></View>
-        )) : <P muted>After her next chat, you’ll see ideas here for your own call.</P>}
-      </Card>
-
-      <Card>
-        <H2>This week</H2>
-        <View style={st.week}>
-          {week.map((c) => (
-            <View key={c._id} style={st.weekDay} accessibilityLabel={`${new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'long' })}: ${MOOD[c.mood]}`}>
-              <View style={[st.weekDot, { backgroundColor: c.mood === 'good' ? color.lamp : c.mood === 'low' ? color.brick : color.muted }]} />
-              <Text style={st.weekLabel}>{new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'short' })}</Text>
-              <Text style={st.weekMood}>{MOOD[c.mood]}</Text>
-            </View>
+      {(scamFlags.length > 0 || otherFlags.length > 0) && (
+        <Section title="Heads up">
+          {scamFlags.slice(0, 2).map((f, i) => (
+            <Row key={`s${i}`} icon="shield" iconTone="urgent" title={`Possible scam · ${ago(f.at)}`} sub={`“${f.text}”`}>
+              <Meta style={{ marginLeft: 48 }}>Porchlight told her not to send anything. Worth a call to check she didn’t share any details.</Meta>
+            </Row>
           ))}
-        </View>
-      </Card>
+          {otherFlags.map((f, i) => (
+            <Row
+              key={`f${i}`}
+              icon={f.type === 'urgent' ? 'alert' : f.type === 'lonely' ? 'heart' : 'sparkle'}
+              iconTone={f.type === 'urgent' ? 'urgent' : 'attention'}
+              title={f.type === 'urgent' ? 'Needs attention now' : f.type === 'lonely' ? 'She sounded lonely' : f.type === 'meds_unsure' ? 'Not sure about her pills' : 'Different from usual'}
+              sub={`“${f.text}”`}
+            />
+          ))}
+        </Section>
+      )}
+
+      {appointments.length > 0 && (
+        <Section title="Coming up">
+          {appointments.map((a) => {
+            const [label, tone] = TRANSPORT[a.transport] ?? TRANSPORT.unknown;
+            return (
+              <Row key={a._id} icon="calendar" title={a.title} sub={`${when(a.startsAt)} · ${a.where || a.with || ''}`} right={<Status label={label} tone={tone} />} />
+            );
+          })}
+        </Section>
+      )}
+
+      <Section title="Things to talk about" footer="From what she shared today. A real call beats any app.">
+        {latestTalk?.starters?.length
+          ? latestTalk.starters.map((s) => <Row key={s} icon="chat" title={<P>{s}</P>} />)
+          : <Row icon="chat" title={<P muted>After her next chat, you’ll see ideas here for your own call.</P>} />}
+      </Section>
+
+      {week.length > 0 && (
+        <Section title="This week">
+          <View style={st.week}>
+            {week.map((c) => (
+              <View key={c._id} style={st.weekDay} accessible accessibilityLabel={`${new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'long' })}: ${MOOD[c.mood]}`}>
+                <Text style={st.weekLabel}>{new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'narrow' })}</Text>
+                <View style={[st.weekDot, { backgroundColor: MOOD_TONE[c.mood] === 'ok' ? color.sage : MOOD_TONE[c.mood] === 'urgent' ? color.brick : color.surface3 }]} />
+              </View>
+            ))}
+          </View>
+          <View style={st.legend}>
+            <Status label="Cheerful" tone="ok" />
+            <Status label="Steady" tone="neutral" />
+            <Status label="A bit down" tone="urgent" />
+          </View>
+        </Section>
+      )}
     </>
   );
 }
 
-function Digest({ digest }) {
+function Fact({ label, value }) {
   return (
-    <Card style={{ gap: 10 }}>
-      <Text style={st.digestLine} accessibilityRole="header">{digest.line}</Text>
-      {(digest.items || []).slice(0, 4).map((it, i) => (
-        <View key={i} style={st.digestItem}>
-          <View style={[st.digestDot, { backgroundColor: TONE_DOT[it.tone] ?? color.line }]} />
-          <P style={{ flex: 1 }}>{it.text}</P>
-        </View>
-      ))}
-    </Card>
+    <Inset style={st.fact}>
+      <Text style={st.factLabel}>{label}</Text>
+      <Text style={st.factValue} numberOfLines={2}>{value}</Text>
+    </Inset>
   );
 }
 
@@ -216,78 +255,75 @@ function ActionCard({ action, state, me, run, senior }) {
   const canApprove = Boolean(me?.canApprove);
   const last = action.history?.[action.history.length - 1];
   const d = action.details || {};
+  const stepLabel = STEPS[Math.min(idx ?? 0, 3)][1];
+  // Evidence notes sometimes repeat her quote; show a note only when it adds something.
+  const note = last?.evidence?.note;
+  const showNote = note && note !== 'Simulated booking, not a real ride' && !(action.reason && note.includes(action.reason.replace(/^.*?"|"$/g, '').slice(0, 20)));
 
   return (
-    <View style={[st.flag, pending && { borderColor: color.lamp }]} accessibilityLiveRegion="polite">
+    <Card accessibilityLiveRegion="polite">
       <View style={st.cardHead}>
-        <Text style={[st.flagTitle, { flex: 1 }]}>{action.title}</Text>
-        <Chip label={ended ?? (pending ? 'Needs your OK' : STEPS[Math.min(idx ?? 0, 3)][1])} tone={ended ? 'urgent' : pending ? 'attention' : idx >= 3 ? 'ok' : 'neutral'} />
+        <IconBadge name="car" tone={ended ? 'urgent' : pending ? 'attention' : idx >= 3 ? 'ok' : 'neutral'} size={40} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={st.cardTitle}>{action.title}</Text>
+          <Status label={ended ?? (pending ? (canApprove ? 'Needs your OK' : `Waiting for ${approverName}`) : stepLabel)} tone={ended ? 'urgent' : pending ? 'attention' : idx >= 3 ? 'ok' : 'neutral'} />
+        </View>
       </View>
+
       {action.reason ? <Text style={st.quote}>{action.reason}</Text> : null}
 
-      <View style={{ gap: 4 }}>
-        {d.pickupAt && <P><Text style={st.label}>Pickup </Text>{when(d.pickupAt)}</P>}
-        {d.from && <P><Text style={st.label}>From </Text>{d.from}</P>}
-        {d.to && <P><Text style={st.label}>To </Text>{d.to}</P>}
-        {d.needs && <P><Text style={st.label}>Note </Text>{d.needs}</P>}
-      </View>
+      <Inset style={{ gap: 10 }}>
+        {d.pickupAt && <Detail label="Pickup" value={when(d.pickupAt)} />}
+        {d.from && <Detail label="From" value={d.from} />}
+        {d.to && <Detail label="To" value={d.to} />}
+        {d.needs && <Detail label="Note" value={d.needs} />}
+      </Inset>
 
       {!ended && (
-        <View style={st.steps} accessibilityLabel={`Status: ${STEPS[Math.min(idx ?? 0, 3)][1]}`}>
-          {STEPS.map(([key, label], i) => (
-            <View key={key} style={st.stepCol}>
-              <View style={[st.bar, i <= (idx ?? 0) && { backgroundColor: i === 3 ? color.sage : color.mutedOnDusk }]} />
-              <Text style={[st.stepLabel, i <= (idx ?? 0) && { color: color.ink, fontFamily: font.bodyBold }]}>{label}</Text>
-            </View>
-          ))}
+        <View style={{ gap: 6 }} accessible accessibilityLabel={`Status: ${stepLabel}`}>
+          <View style={st.steps}>
+            {STEPS.map(([key], i) => (
+              <View key={key} style={[st.bar, i <= (idx ?? 0) && { backgroundColor: idx >= 3 ? color.sage : color.lamp }]} />
+            ))}
+          </View>
+          <View style={st.steps}>
+            {STEPS.map(([key, label], i) => (
+              <Text key={key} style={[st.stepLabel, i <= (idx ?? 0) && { color: color.ink }]}>{label}</Text>
+            ))}
+          </View>
         </View>
       )}
 
-      {action.simulated && <Meta>Simulated booking, not a real ride{last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}</Meta>}
-      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <Meta>{last.evidence.note}</Meta> : null}
+      {(action.simulated || showNote) && (
+        <Meta>{[action.simulated && `Simulated booking, not a real ride${last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}`, showNote && note].filter(Boolean).join(' · ')}</Meta>
+      )}
 
-      {pending && (canApprove ? (
+      {pending && canApprove && (
         <View style={st.btnRow}>
           <Button variant="solid" label="Approve ride" style={{ flex: 1 }} onPress={run(() => api.approve(action._id, me._id))} />
           <Button label="Not now" style={{ flex: 1 }} onPress={run(() => api.reject(action._id, me._id))} />
         </View>
-      ) : (
-        <Meta>Waiting for {approverName} to approve.</Meta>
-      ))}
-      {action.status === 'CONFIRMED' && canApprove && (
-        <Button small label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id, me._id))} />
       )}
-    </View>
-  );
-}
-
-function AppointmentCard({ appt }) {
-  const [label, tone] = TRANSPORT[appt.transport] ?? TRANSPORT.unknown;
-  return (
-    <Card style={{ gap: 6 }}>
-      <View style={st.cardHead}>
-        <H2 style={{ flex: 1 }}>{appt.title}</H2>
-        <Chip label={label} tone={tone} />
-      </View>
-      <P bold>{when(appt.startsAt)}</P>
-      <Meta>{[appt.with, appt.where].filter(Boolean).join(' · ')}</Meta>
+      {action.status === 'CONFIRMED' && canApprove && (
+        <Button icon="check" label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id, me._id))} />
+      )}
     </Card>
   );
 }
 
-function Fact({ label, value }) {
+function Detail({ label, value }) {
   return (
-    <View>
-      <Text style={st.factLabel}>{label}</Text>
-      <Text style={st.factValue}>{value}</Text>
+    <View style={st.detail}>
+      <Text style={st.detailLabel}>{label}</Text>
+      <Text style={st.detailValue}>{value}</Text>
     </View>
   );
 }
 
-function Care({ senior, state, me, run, circle }) {
+// ---------- Care ----------
+function Care({ senior, state, me, run, circle, openTasks }) {
   const [newTask, setNewTask] = useState('');
   const tasks = state.tasks.filter((t) => t.seniorId === senior._id);
-  const open = tasks.filter((t) => t.status === 'open');
   const name = (id) => state.members.find((m) => m._id === id)?.name.split(' ')[0] ?? 'Someone';
   const share = circle.map((m) => ({ m, n: tasks.filter((t) => t.status === 'done' && t.assignee === m._id).length }));
   const max = Math.max(1, ...share.map((x) => x.n));
@@ -302,40 +338,41 @@ function Care({ senior, state, me, run, circle }) {
 
   return (
     <>
-      <Card>
-        <H2>Care tasks</H2>
-        {open.length === 0 && <P muted>Nothing open. Add something below.</P>}
-        {open.map((t) => <TaskRow key={t._id} t={t} me={me} run={run} name={name} senior={senior} />)}
+      <Section title={`Open tasks · ${openTasks.length}`}>
+        {openTasks.length === 0 && <Row icon="checkCircle" iconTone="ok" title="Nothing open" sub="Add something below." />}
+        {openTasks.map((t) => <TaskRow key={t._id} t={t} me={me} run={run} name={name} senior={senior} />)}
         <View style={st.addRow}>
-          <TextInput style={st.addInput} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup Sunday’" placeholderTextColor={color.muted} returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
-          <Button small label="Add" onPress={add} />
+          <TextInput style={st.addInput} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup’" placeholderTextColor={color.muted} returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
+          <Button small icon="plus" label="Add" onPress={add} disabled={!newTask.trim()} />
         </View>
-      </Card>
+      </Section>
 
-      <Card>
-        <H2>Who’s been helping this month</H2>
+      <Section title="Who’s been helping this month">
         {share.map(({ m, n }) => (
-          <View key={m._id} style={st.shareRow} accessibilityLabel={`${m.name}: ${n} tasks`}>
-            <Text style={st.shareName}>{m.name.split(' ')[0]}</Text>
-            <View style={st.shareBar}><View style={[st.shareFill, { width: `${(n / max) * 100}%` }]} /></View>
-            <Text style={st.shareN}>{n}</Text>
-          </View>
-        ))}
-      </Card>
-
-      <Card>
-        <H2>Get her out of the house</H2>
-        <Meta>Matched to what she enjoys. Offering a ride adds it to care tasks.</Meta>
-        {events.map((e) => (
-          <View key={e._id} style={st.row}>
-            <View style={{ flex: 1 }}>
-              <P bold>{e.title}</P>
-              <Meta>{e.when} · {e.where}</Meta>
+          <View key={m._id} style={st.shareRow} accessible accessibilityLabel={`${m.name}: ${n} tasks`}>
+            <Avatar name={m.name} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={st.shareTop}>
+                <Text style={st.shareName}>{m.name.split(' ')[0]}</Text>
+                <Text style={st.shareN}>{n} done</Text>
+              </View>
+              <View style={st.shareBar}><View style={[st.shareFill, { width: `${Math.max(4, (n / max) * 100)}%` }]} /></View>
             </View>
-            <Button small label="Offer a ride" onPress={run(() => api.addTask({ seniorId: senior._id, title: `Ride to ${e.title.toLowerCase()} (${e.when})`, type: 'ride', due: e.when }))} />
           </View>
         ))}
-      </Card>
+      </Section>
+
+      <Section title="Get her out of the house" footer="Matched to what she enjoys. Offering a ride adds it to care tasks.">
+        {events.map((e) => (
+          <Row
+            key={e._id}
+            icon="sparkle"
+            title={e.title}
+            sub={`${e.when} · ${e.where}`}
+            right={<Button small label="Offer a ride" onPress={run(() => api.addTask({ seniorId: senior._id, title: `Ride to ${e.title.toLowerCase()} (${e.when})`, type: 'ride', due: e.when }))} />}
+          />
+        ))}
+      </Section>
     </>
   );
 }
@@ -344,142 +381,144 @@ function TaskRow({ t, me, run, name, senior }) {
   const ho = t.handoff?.status === 'pending' ? t.handoff : null;
   const who = t.requestedBy === 'peggy' || t.source === 'checkin' ? senior.preferredName : t.requestedBy ? name(t.requestedBy) : null;
   const suggested = !t.assignee && t.suggestedOwner ? t.suggestedOwner : null;
+  const mine = t.assignee === me;
+
+  let status;
+  if (ho && ho.to === me) status = <Status label={`${name(ho.from)} asked you`} tone="attention" />;
+  else if (ho) status = <Status label={`Asked ${name(ho.to)}`} tone="neutral" />;
+  else if (t.assignee) status = <Status label={mine ? 'You have it' : `${name(t.assignee)} has it`} tone="ok" />;
+  else status = <Status label="Nobody yet" tone="attention" />;
 
   let buttons;
   if (ho && ho.to === me) {
     buttons = (
-      <View style={st.btnRow}>
+      <>
         <Button small variant="solid" label="Accept" onPress={run(() => api.accept(t._id, me))} />
         <Button small label="Decline" onPress={run(() => api.decline(t._id, me))} />
-      </View>
+      </>
     );
   } else if (ho) {
-    buttons = <Meta>Asked {name(ho.to)}, waiting for an answer</Meta>;
+    buttons = null;
   } else if (t.assignee) {
-    buttons = <Button small label="Mark done" onPress={run(() => api.done(t._id))} />;
+    buttons = <Button small icon="check" label="Mark done" onPress={run(() => api.done(t._id))} />;
   } else {
     buttons = (
-      <View style={st.btnRow}>
-        <Button small variant="solid" label="I’ll do it" onPress={run(() => api.claim(t._id, me))} />
+      <>
+        <Button small label="I’ll do it" onPress={run(() => api.claim(t._id, me))} />
         {suggested && suggested !== me && (
           <Button small label={`Ask ${name(suggested)}`} onPress={run(() => api.handoff(t._id, me, suggested))} />
         )}
-      </View>
+      </>
     );
   }
 
-  const meta = [
-    t.due,
-    t.assignee ? `${t.assignee === me ? 'You have' : `${name(t.assignee)} has`} it` : null,
-    ho && ho.to === me ? `${name(ho.from)} asked you` : null,
-    suggested ? `Suggested: ${suggested === me ? 'you' : name(suggested)}` : null,
-  ].filter(Boolean).join(' · ');
+  const meta = [t.due, suggested ? `Suggested: ${suggested === me ? 'you' : name(suggested)}` : null].filter(Boolean).join(' · ');
 
   return (
-    <View style={[st.taskRow]}>
-      <P bold>{t.title}</P>
-      {t.quote && who ? <Text style={st.quoteSmall}>{who} said: “{t.quote}”</Text> : null}
-      {meta ? <Meta>{meta}</Meta> : null}
-      {buttons}
-    </View>
+    <Row icon={TASK_ICON[t.type] || 'bag'} iconTone={t.assignee ? 'ok' : 'neutral'} title={t.title} sub={meta || null}>
+      <View style={{ marginLeft: 48, gap: 8 }}>
+        {t.quote && who ? <Text style={st.quoteSmall}>{who} said “{t.quote}”</Text> : null}
+        {status}
+        {buttons ? <View style={st.btnRow}>{buttons}</View> : null}
+      </View>
+    </Row>
   );
 }
 
+// ---------- Stories ----------
 function Stories({ senior, checkins }) {
   const stories = checkins.flatMap((c) => (c.stories || []).map((s) => ({ ...s, at: c.endedAt })));
   return (
-    <Card>
-      <H2>{senior.preferredName}’s stories</H2>
-      <Meta>Saved from her calls, for the whole family.</Meta>
-      {stories.length === 0 && <P muted>Stories she tells on her calls are saved here.</P>}
+    <Section title={`${senior.preferredName}’s stories`} footer="Saved from her calls, for the whole family.">
+      {stories.length === 0 && <Row icon="book" title={<P muted>Stories she tells on her calls are saved here.</P>} />}
       {stories.map((s, i) => (
-        <View key={i} style={st.story}>
-          <P bold>{s.title}</P>
-          <Text style={st.quote}>{s.text}</Text>
-          <Meta>{ago(s.at)}</Meta>
-        </View>
+        <Row key={i} icon="book" title={s.title} sub={ago(s.at)}>
+          <Text style={[st.quote, { marginLeft: 48 }]}>{s.text}</Text>
+        </Row>
       ))}
-    </Card>
+    </Section>
   );
 }
 
+// ---------- Circle ----------
 function Circle({ state, circle }) {
   const texts = state.notifications.filter((n) => circle.some((m) => m._id === n.toId)).slice(0, 8);
   return (
     <>
-      <Card>
-        <H2>The circle</H2>
+      <Section title="The circle">
         {circle.map((m) => (
-          <View key={m._id} style={st.row}>
-            <View style={{ flex: 1 }}>
-              <P bold>{m.name}</P>
-              <Meta>{m.relation}</Meta>
-            </View>
-            <Text style={[st.clock, !isAwake(m.timezone) && { color: color.muted }]}>{localTime(m.timezone)}{isAwake(m.timezone) ? '' : ' · asleep'}</Text>
-          </View>
+          <Row
+            key={m._id}
+            title={<View style={st.memberTop}><Avatar name={m.name} /><View style={{ flex: 1 }}><Text style={st.cardTitle}>{m.name}</Text><Meta>{m.relation}</Meta></View></View>}
+            right={
+              <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                <Text style={st.clock}>{localTime(m.timezone)}</Text>
+                {!isAwake(m.timezone) && <Meta>asleep</Meta>}
+              </View>
+            }
+          />
         ))}
-      </Card>
-      <Card>
-        <H2>Texts sent by Porchlight</H2>
-        {texts.length === 0 && <P muted>When Porchlight needs the circle, the texts it sends show up here.</P>}
+      </Section>
+      <Section title="Texts sent by Porchlight">
+        {texts.length === 0 && <Row icon="message" title={<P muted>When Porchlight needs the circle, the texts it sends show up here.</P>} />}
         {texts.map((n, i) => (
-          <View key={i} style={st.text}>
-            <Meta>To {n.to.split(' ')[0]}, {ago(n.at)}</Meta>
-            <P>{n.text}</P>
-          </View>
+          <Row key={i} icon="message" title={`To ${n.to.split(' ')[0]}`} sub={ago(n.at)}>
+            <P style={{ marginLeft: 48 }}>{n.text}</P>
+          </Row>
         ))}
-      </Card>
+      </Section>
     </>
   );
 }
 
 const st = StyleSheet.create({
-  tabs: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  pad: { padding: 16, paddingBottom: 48, gap: 14 },
-  today: { backgroundColor: color.dusk, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, padding: 20, gap: 14 },
-  todayTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  summary: { fontFamily: font.body, fontSize: 18, lineHeight: 26, color: color.ink },
-  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
-  factLabel: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
-  factValue: { fontFamily: font.bodyBold, fontSize: 17, color: color.ink },
-  note: { fontFamily: font.body, fontSize: 14, color: color.mutedOnDusk },
+  tabs: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 8 },
+  pad: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 56, gap: 22 },
+
+  hero: { gap: 16, padding: 20 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  heroTitle: { fontFamily: font.display, fontSize: 23, lineHeight: 27, color: color.ink, letterSpacing: -0.2 },
+  heroSub: { fontFamily: font.body, fontSize: 14, lineHeight: 19, color: color.muted },
+  facts: { flexDirection: 'row', gap: 8 },
+  fact: { flex: 1, padding: 12, gap: 2 },
+  factLabel: { fontFamily: font.body, fontSize: 12, color: color.muted },
+  factValue: { fontFamily: font.bodyBold, fontSize: 15, lineHeight: 20, color: color.ink },
+
   step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepMark: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: color.mutedOnDusk },
-  stepDone: { backgroundColor: color.brick, borderColor: color.brick },
-  stepDoneAmber: { backgroundColor: color.lamp, borderColor: color.lamp },
-  digestLine: { fontFamily: font.displaySemi, fontSize: 18, lineHeight: 24, color: color.ink },
-  digestItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  digestDot: { width: 10, height: 10, borderRadius: 5 },
-  cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  label: { fontFamily: font.bodyBold, color: color.muted },
-  steps: { flexDirection: 'row', gap: 6 },
-  stepCol: { flex: 1, gap: 4 },
-  bar: { height: 6, borderRadius: 3, backgroundColor: color.line },
-  stepLabel: { fontFamily: font.body, fontSize: 12, color: color.muted },
-  btnRow: { flexDirection: 'row', gap: 10 },
+  stepMark: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: color.muted },
   stepText: { flex: 1, fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
-  stepWhen: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
-  flag: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: color.hairline, backgroundColor: color.surface, padding: 16, gap: 6 },
-  flagScam: { borderColor: color.brick, backgroundColor: color.brickSoft },
-  flagTitle: { fontFamily: font.displaySemi, fontSize: 17, color: color.ink },
-  starter: { borderLeftWidth: 3, borderLeftColor: color.lamp, paddingLeft: 12 },
-  week: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  weekDay: { alignItems: 'center', gap: 2, minWidth: 64, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: color.surface2 },
-  weekDot: { width: 16, height: 16, borderRadius: 8 },
-  weekLabel: { fontFamily: font.body, fontSize: 14, color: color.ink },
-  weekMood: { fontFamily: font.body, fontSize: 12, color: color.muted },
-  taskRow: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: color.line },
-  quoteSmall: { fontFamily: font.bodyItalic, fontSize: 16, lineHeight: 22, color: color.ink },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: color.line },
-  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  addInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.hairline, backgroundColor: color.surface2, borderRadius: radius.sm, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },
-  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  shareName: { width: 64, fontFamily: font.body, fontSize: 15, color: color.ink },
-  shareBar: { flex: 1, height: 10, borderRadius: 5, backgroundColor: color.surface2, overflow: 'hidden' },
-  shareFill: { height: '100%', borderRadius: 5, backgroundColor: color.mutedOnDusk },
-  shareN: { width: 24, textAlign: 'right', fontFamily: font.body, fontSize: 15, color: color.muted },
-  story: { gap: 4, paddingBottom: 8 },
-  quote: { fontFamily: font.bodyItalic, fontSize: 17, lineHeight: 26, color: color.ink },
-  clock: { fontFamily: font.body, fontSize: 15, color: color.ink, fontVariant: ['tabular-nums'] },
-  text: { backgroundColor: color.surface2, borderRadius: radius.sm, padding: 12, gap: 2 },
+  stepWhen: { fontFamily: font.body, fontSize: 13, color: color.muted },
+
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cardTitle: { fontFamily: font.bodyBold, fontSize: 17, lineHeight: 22, color: color.ink },
+  quote: { fontFamily: font.bodyItalic, fontSize: 16, lineHeight: 23, color: color.mutedOnDusk },
+  quoteSmall: { fontFamily: font.bodyItalic, fontSize: 15, lineHeight: 21, color: color.mutedOnDusk },
+  detail: { flexDirection: 'row', gap: 12 },
+  detailLabel: { width: 56, fontFamily: font.body, fontSize: 14, lineHeight: 20, color: color.muted },
+  detailValue: { flex: 1, fontFamily: font.bodyBold, fontSize: 15, lineHeight: 20, color: color.ink },
+  steps: { flexDirection: 'row', gap: 6 },
+  bar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: color.line },
+  stepLabel: { flex: 1, fontFamily: font.body, fontSize: 12, color: color.muted },
+  btnRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+
+  week: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  weekDay: { alignItems: 'center', gap: 8 },
+  weekDot: { width: 22, height: 22, borderRadius: 11 },
+  weekLabel: { fontFamily: font.bodyBold, fontSize: 12, color: color.muted },
+  legend: { flexDirection: 'row', gap: 16, paddingHorizontal: 16, paddingBottom: 14, paddingTop: 6 },
+
+  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12 },
+  addInput: { flex: 1, minHeight: 42, backgroundColor: color.surface2, borderRadius: 10, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },
+
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: color.surface3, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontFamily: font.bodyBold, fontSize: 13, color: color.ink },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  shareTop: { flexDirection: 'row', justifyContent: 'space-between' },
+  shareName: { fontFamily: font.bodyBold, fontSize: 15, color: color.ink },
+  shareN: { fontFamily: font.body, fontSize: 14, color: color.muted },
+  shareBar: { height: 6, borderRadius: 3, backgroundColor: color.surface2, overflow: 'hidden' },
+  shareFill: { height: '100%', borderRadius: 3, backgroundColor: color.mutedOnDusk },
+
+  memberTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  clock: { fontFamily: font.bodyBold, fontSize: 15, color: color.ink, fontVariant: ['tabular-nums'] },
 });

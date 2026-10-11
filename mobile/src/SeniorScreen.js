@@ -4,6 +4,7 @@ import * as Speech from 'expo-speech';
 import { api } from './api';
 import Lamp, { lampState } from './Lamp';
 import { BigButton, Button, H1 } from './ui';
+import Icon from './Icon';
 import { color, font, radius } from './theme';
 
 function greetingFor(d = new Date()) {
@@ -39,7 +40,7 @@ export default function SeniorScreen({ senior, state, refresh, onError }) {
           <Lamp state="lit" size={170} label="Porch light on" />
           <H1 onDusk style={st.bigH1}>Thank you, {senior.preferredName}.</H1>
           <Text style={st.lead}>Your family will see that you’re doing well today.</Text>
-          <BigButton title="Back to start" onPress={home} style={{ alignSelf: 'stretch' }} />
+          <BigButton icon="back" title="Back to start" onPress={home} style={{ alignSelf: 'stretch' }} />
         </ScrollView>
       )}
     </KeyboardAvoidingView>
@@ -66,38 +67,40 @@ function Home({ senior, notices, primary, setMode, refresh, onError }) {
   return (
     <ScrollView contentContainerStyle={st.pad}>
       <View style={st.hero}>
-        <Lamp state={lampState(senior)} size={120} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
-        <View style={{ flex: 1 }}>
-          <H1 onDusk style={st.bigH1}>{greetingFor()}, {senior.preferredName}.</H1>
+        <Lamp state={lampState(senior)} size={92} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={st.greeting}>{greetingFor()},</Text>
+          <H1 style={st.bigH1}>{senior.preferredName}</H1>
         </View>
       </View>
-      <Text style={st.lead}>{checkedIn ? 'You’ve checked in today. Your porch light is on.' : 'Your porch light is waiting for today’s check-in.'}</Text>
+      <View style={st.statusPill}>
+        <View style={[st.statusDot, { backgroundColor: checkedIn ? color.sage : color.muted }]} />
+        <Text style={st.statusText}>{checkedIn ? 'You’ve checked in today' : 'Waiting for today’s check-in'}</Text>
+      </View>
 
       {notices.length > 0 && (
         <View style={st.notices} accessibilityLiveRegion="polite">
           <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
           {notices.map((n) => (
-            <View
-              key={n._id}
-              style={st.notice}
-              accessible
-              accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}
-            >
-              <Text style={st.noticeText}>{n.text}</Text>
-              {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
+            <View key={n._id} style={st.notice} accessible accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}>
+              <Icon name="checkCircle" size={26} color={color.sage} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={st.noticeText}>{n.text}</Text>
+                {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
+              </View>
             </View>
           ))}
         </View>
       )}
 
       <View style={st.stack}>
-        <BigButton tone="lamp" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
-        <BigButton title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
+        <BigButton tone="lamp" icon="chat" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
+        <BigButton icon="check" title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
         {primary && (
-          <BigButton title={`Call ${primary.name.split(' ')[0]}`} sub={primary.relation} hint={`Opens a phone call to ${primary.name.split(' ')[0]}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
+          <BigButton icon="phone" title={`Call ${primary.name.split(' ')[0]}`} sub={primary.relation} hint={`Opens a phone call to ${primary.name.split(' ')[0]}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
         )}
-        <BigButton title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
-        <BigButton tone="help" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
+        <BigButton icon="shield" title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
+        <BigButton tone="help" icon="alert" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
       </View>
     </ScrollView>
   );
@@ -285,8 +288,8 @@ function Help({ senior, back, refresh, onError }) {
           <H1 onDusk style={st.bigH1}>Do you need help now?</H1>
           <Text style={st.lead}>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</Text>
           <View style={[st.stack, { alignSelf: 'stretch' }]}>
-            <BigButton tone="help" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
-            <BigButton title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
+            <BigButton tone="help" icon="alert" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
+            <BigButton icon="phone" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
           </View>
           <Button label="No, go back" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
         </>
@@ -295,7 +298,7 @@ function Help({ senior, back, refresh, onError }) {
           <Lamp state="alert" size={150} label="Help requested" />
           <H1 onDusk style={st.bigH1}>Help is on the way.</H1>
           <Text style={st.lead}>Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</Text>
-          <BigButton tone="help" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
+          <BigButton tone="help" icon="phone" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
           <Button label="Back to start" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
         </>
       )}
@@ -304,15 +307,19 @@ function Help({ senior, back, refresh, onError }) {
 }
 
 const st = StyleSheet.create({
-  pad: { padding: 20, paddingBottom: 48, gap: 18 },
+  pad: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 48, gap: 16 },
   center: { alignItems: 'center' },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bigH1: { fontSize: 36, lineHeight: 40, textAlign: 'left' },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  greeting: { fontFamily: font.body, fontSize: 21, lineHeight: 26, color: color.mutedOnDusk },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start', backgroundColor: color.surface, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 4 },
+  statusDot: { width: 10, height: 10, borderRadius: 5 },
+  statusText: { fontFamily: font.bodyBold, fontSize: 20, color: color.ink },
+  bigH1: { fontSize: 40, lineHeight: 44, textAlign: 'left' },
   lead: { fontFamily: font.body, fontSize: 21, lineHeight: 29, color: color.mutedOnDusk },
-  stack: { gap: 14 },
-  notices: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, padding: 20, gap: 14 },
-  noticesTitle: { fontFamily: font.displaySemi, fontSize: 22, color: color.ink },
-  notice: { borderLeftWidth: 4, borderLeftColor: color.sage, paddingLeft: 14, gap: 4 },
+  stack: { gap: 12 },
+  notices: { backgroundColor: color.surface, borderRadius: radius.lg, padding: 20, gap: 16 },
+  noticesTitle: { fontFamily: font.bodyBold, fontSize: 15, letterSpacing: 0.6, textTransform: 'uppercase', color: color.sage },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   noticeText: { fontFamily: font.body, fontSize: 22, lineHeight: 30, color: color.ink },
   noticeMeta: { fontFamily: font.body, fontSize: 16, color: color.muted },
   talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
@@ -321,14 +328,14 @@ const st = StyleSheet.create({
   toggleLabel: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
   transcript: { padding: 16, gap: 12 },
   line: { padding: 16, borderRadius: radius.lg, maxWidth: '88%' },
-  linePorch: { backgroundColor: color.dusk2, alignSelf: 'flex-start' },
-  lineSenior: { backgroundColor: color.surface2, alignSelf: 'flex-end' },
+  linePorch: { backgroundColor: color.surface, alignSelf: 'flex-start', borderBottomLeftRadius: 6 },
+  lineSenior: { backgroundColor: color.surface3, alignSelf: 'flex-end', borderBottomRightRadius: 6 },
   lineWho: { fontFamily: font.bodyBold, fontSize: 14, color: color.mutedOnDusk, marginBottom: 2 },
   lineText: { fontFamily: font.body, fontSize: 21, lineHeight: 28, color: color.ink },
-  composer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8, gap: 8, borderTopWidth: 1, borderTopColor: color.hairline },
+  composer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 10, gap: 8, backgroundColor: color.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg },
   hint: { fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
   typeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, backgroundColor: color.surface2, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.sm, paddingHorizontal: 14, fontFamily: font.body, fontSize: 21, color: color.ink },
+  input: { flex: 1, minHeight: 56, backgroundColor: color.surface2, borderRadius: radius.md, paddingHorizontal: 16, fontFamily: font.body, fontSize: 21, color: color.ink },
   textarea: { minHeight: 140, paddingTop: 14, textAlignVertical: 'top', flex: 0 },
   doneBtn: { alignSelf: 'center' },
   verdict: { borderRadius: radius.lg, padding: 22, gap: 10 },
