@@ -35,7 +35,7 @@ Expected replies and analysis: `server/src/voice/samples.md` ("Demo call" sectio
 
 ## Test every feature on your iPhone (no keys needed)
 1. On the laptop: `git pull`, `npm run setup` (first time), `npm run dev`.
-2. iPhone (same Wi-Fi): open the Camera, scan the QR code in the terminal, it opens in **Expo Go**.
+2. iPhone (same Wi-Fi): open the Camera, scan the QR code in the terminal, it opens in **Expo Go**. (Expo runs with `--offline`, so nobody needs an Expo account; if Expo Go asks you to sign in, you started Expo some other way.)
 3. Tap **Demo** (top right) → **Reset demo data**.
 4. Pick **Peggy** → **Talk with Porchlight**, dictate or type the three lines, then tap **I'm done talking**. Or: **Demo → Play the demo call** to run it in one tap.
    - Scam line → the fixed scam reply. "No ride" → "I'll ask Anne… call you back once it's confirmed."
