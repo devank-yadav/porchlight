@@ -149,7 +149,7 @@ export async function finishCheckin(checkinId) {
   const answered = new Set((analysis.stories || []).map((st) => st.question).filter(Boolean));
   if (answered.size) {
     await store.update('seniors', senior._id, {
-      familyQuestions: (senior.familyQuestions || []).map((q) => (answered.has(q.text) ? { ...q, answeredAt: new Date().toISOString(), checkinId } : q)),
+      familyQuestions: (senior.familyQuestions || []).map((q) => (answered.has(q.text) ? { ...q, answeredAt: new Date().toISOString(), checkinId, answeredCheckinId: checkinId } : q)),
     });
   }
   const updated = await store.update('checkins', checkinId, {
