@@ -7,7 +7,6 @@ import { sms, VOICE } from './notify.js';
 import { callSenior, setSchedule, scheduleOf, startScheduler, scheduleRetry } from './schedule.js';
 import { relayEnabled, relayTwiml } from './relay.js';
 import { transcribeRecording } from './stt.js';
-import { savePushToken, startPushWatcher } from './push.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
 import * as escalation from '../care/escalation.js';
 import { wrap } from '../wrap.js';
@@ -78,12 +77,6 @@ voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
 }));
 
 // Daily call schedule: { autoCall, checkinTime: "HH:MM", callDays: [0-6] }.
-// Peggy's phone registers for notifications (her Uber button arrives as a notification).
-voiceRoutes.post('/api/seniors/:id/push-token', wrap(async (req, res) => {
-  await savePushToken(req.params.id, req.body.token);
-  res.json({ ok: true });
-}));
-
 voiceRoutes.get('/api/seniors/:id/schedule', wrap(async (req, res) => {
   res.json(scheduleOf(await store.get('seniors', req.params.id)));
 }));
@@ -103,11 +96,18 @@ voiceRoutes.delete('/api/seniors/:id/questions/:qid', wrap(async (req, res) => {
   res.json(updated.familyQuestions);
 }));
 
+// Peggy's phone registers for notifications (Expo push token from the app).
+voiceRoutes.post('/api/seniors/:id/push-token', wrap(async (req, res) => {
+  const token = String(req.body.token || '');
+  if (!/^ExponentPushToken\[.+\]$|^ExpoPushToken\[.+\]$/.test(token)) return res.status(400).json({ error: 'Not an Expo push token.' });
+  await store.update('seniors', req.params.id, { pushToken: token });
+  res.json({ ok: true });
+}));
+
 voiceRoutes.put('/api/seniors/:id/schedule', wrap(async (req, res) => {
   res.json(scheduleOf(await setSchedule(req.params.id, req.body || {})));
 }));
 startScheduler();
-startPushWatcher();
 
 voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);

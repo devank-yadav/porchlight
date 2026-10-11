@@ -80,6 +80,11 @@ test('ride destination: any place she names, appointment words go to her appoint
   assert.equal(rideDestination('Can you get me a ride to my sister\'s house at 4?'), "my sister's house");
   assert.equal(rideDestination('I need a ride to Wegmans now please'), 'Wegmans');
   assert.equal(rideDestination('book an Uber for me'), null);
+  // Any place she names, however long; not a fixed list.
+  assert.equal(rideDestination("I need an Uber to my friend Ruth's house on Beaver Avenue"), "my friend Ruth's house on Beaver Avenue");
+  const { bareDestination } = await import('./intents.js');
+  assert.equal(bareDestination('Weis Markets on Westerly Parkway please'), 'Weis Markets on Westerly Parkway');
+  assert.equal(bareDestination('From home'), null);
   assert.equal(rideDestination('I need a ride to the doctor tomorrow'), 'the doctor');
 });
 
@@ -108,4 +113,10 @@ test('filler words are never a place', async () => {
   const { bareDestination } = await import('./intents.js');
   for (const t of ['Listen.', 'Hello?', 'Wait', 'Hold on', 'Sorry?']) assert.equal(bareDestination(t), null, t);
   assert.equal(bareDestination('To Target please.'), 'Target');
+});
+
+test('a street address she says is the destination', async () => {
+  const { rideDestination } = await import('./intents.js');
+  assert.equal(rideDestination("Book me an Uber to my daughter Anne's house at 412 West Foster Avenue"), '412 West Foster Avenue');
+  assert.equal(rideDestination('Take me to the Weis Markets please'), 'the Weis Markets');
 });
