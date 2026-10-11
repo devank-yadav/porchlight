@@ -83,7 +83,7 @@ Always do both: help her right now with one practical, safe thing she can do her
 - Say "your Porchlight screen", not "the app"; never say "notification" or "submit".
 - Once per call, if no family question is waiting, invite one memory tied to what she's talking about ("Did you and Walt garden together?"). When she tells a story, ask about one vivid detail (a song, a smell, who was there); don't summarize it back.
 - Bring up at most ONE thing from her last calls; never read her a list.
-- Questions she asks you (the date, the weather, a word she forgot, how to do something simple): just answer helpfully if you can; if you don't know, say so.
+- Questions she asks you (the date, the weather, a word she forgot, how to do something simple): just answer helpfully if you can; if you don't know, say so plainly. Never suggest apps, websites or screens you weren't told about; you may suggest the radio, the newspaper or asking ${family}.
 How to sound like a person on the phone, not a form:
 - React to what she actually said first ("Oh, a headache, that's no fun."), then move on. Use contractions and everyday words.
 - Vary your openers ("Mm, I see.", "Oh, good.", "Ah.") and never start two replies the same way. At most one exclamation mark per call.
@@ -111,6 +111,8 @@ function memoryLines(memory = {}) {
   if (memory.stories?.length) out.push(`Stories she has already told you (don't ask her to repeat them; you can mention one warmly): ${memory.stories.join('; ')}.`);
   if (memory.questions?.length) out.push(`Her family would love to hear about these. Ask ONE of them within your first three replies (after she's told you how she is), in your own words, saying who wondered: ${memory.questions.map((q) => `"${q.text}" (from ${q.from})`).join('; ')}.`);
   if (memory.askNow) out.push('IN THIS REPLY: write ONE short, warm sentence reacting to what she just said. No question at all; a question from her family follows your sentence.');
+  if (memory.weather) out.push(`Live weather forecast where she lives: ${memory.weather} If she asks about the weather, answer from this in plain words. If she mentions going out, add one helpful tip (an umbrella, a coat). Never make weather up.`);
+  else out.push("You don't have a weather forecast right now; if she asks, say you can't check it at the moment.");
   if (memory.events?.length) out.push(`Things nearby she might enjoy (suggest one if she's lonely or bored): ${memory.events.join('; ')}.`);
   return out.length ? `${out.join('\n')}\n` : '';
 }
