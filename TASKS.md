@@ -48,7 +48,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] B6 Digest per viewer
 - [x] B7 Escalation: unresolved (amber) semantics + quiet hours
 - [x] B8 ?viewer= filtering
-- [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize (code ready with fallback; needs MONGODB_URI; Devpost paragraph in DEVPOST.md)
+- [ ] B9 — Rishi (Codex), `care/atlas`: in progress. MongoDB Atlas persistence and connection lifecycle; add a restart persistence command that requires MongoDB and only cleans up its own sample record. Claim pushed before implementation. Waiting for a locally configured `MONGODB_URI`; Devpost paragraph already exists in `DEVPOST.md` (owner A). Next: connect Atlas and demonstrate persistence across restarts. No shared API shape changes.
 
 ## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
