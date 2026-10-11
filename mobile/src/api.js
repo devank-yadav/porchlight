@@ -51,6 +51,7 @@ export const api = {
   deleteQuestion: (seniorId, qid) => call('DELETE', `/api/seniors/${seniorId}/questions/${qid}`),
   setSchedule: (seniorId, schedule) => call('PUT', `/api/seniors/${seniorId}/schedule`, schedule),
   scamCheck: (seniorId, text) => call('POST', '/api/scam-check', { seniorId, text }),
+  techHelp: (seniorId, image, question, history) => call('POST', '/api/tech-help', { seniorId, image, question, history }),
   addTask: (task) => call('POST', '/api/tasks', task),
   claim: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/claim`, { memberId }),
   done: (taskId) => call('POST', `/api/tasks/${taskId}/done`),
