@@ -1,0 +1,605 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T21:41:39.341Z",
+  "title": "Design System: Porchlight",
+  "extensions": {
+    "colorMeta": {
+      "family-bg": {
+        "role": "neutral",
+        "displayName": "Family ground",
+        "tonalRamp": [
+          "oklch(15.00% 0.00253 228.78)",
+          "oklch(26.43% 0.00253 228.78)",
+          "oklch(37.86% 0.00253 228.78)",
+          "oklch(49.29% 0.00253 228.78)",
+          "oklch(60.71% 0.00253 228.78)",
+          "oklch(72.14% 0.00253 228.78)",
+          "oklch(83.57% 0.00253 228.78)",
+          "oklch(95.00% 0.00253 228.78)"
+        ]
+      },
+      "senior-bg": {
+        "role": "neutral",
+        "displayName": "Senior paper",
+        "tonalRamp": [
+          "oklch(15.00% 0.00264 106.45)",
+          "oklch(26.43% 0.00264 106.45)",
+          "oklch(37.86% 0.00264 106.45)",
+          "oklch(49.29% 0.00264 106.45)",
+          "oklch(60.71% 0.00264 106.45)",
+          "oklch(72.14% 0.00264 106.45)",
+          "oklch(83.57% 0.00264 106.45)",
+          "oklch(95.00% 0.00264 106.45)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White surface",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "family-sunken": {
+        "role": "neutral",
+        "displayName": "Family sunken",
+        "tonalRamp": [
+          "oklch(15.00% 0.00266 106.45)",
+          "oklch(26.43% 0.00266 106.45)",
+          "oklch(37.86% 0.00266 106.45)",
+          "oklch(49.29% 0.00266 106.45)",
+          "oklch(60.71% 0.00266 106.45)",
+          "oklch(72.14% 0.00266 106.45)",
+          "oklch(83.57% 0.00266 106.45)",
+          "oklch(95.00% 0.00266 106.45)"
+        ]
+      },
+      "senior-sunken": {
+        "role": "neutral",
+        "displayName": "Senior sunken",
+        "tonalRamp": [
+          "oklch(15.00% 0.00736 132.42)",
+          "oklch(26.43% 0.00736 132.42)",
+          "oklch(37.86% 0.00736 132.42)",
+          "oklch(49.29% 0.00736 132.42)",
+          "oklch(60.71% 0.00736 132.42)",
+          "oklch(72.14% 0.00736 132.42)",
+          "oklch(83.57% 0.00736 132.42)",
+          "oklch(95.00% 0.00736 132.42)"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Charcoal ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.00867 184.63)",
+          "oklch(26.43% 0.00867 184.63)",
+          "oklch(37.86% 0.00867 184.63)",
+          "oklch(49.29% 0.00867 184.63)",
+          "oklch(60.71% 0.00867 184.63)",
+          "oklch(72.14% 0.00867 184.63)",
+          "oklch(83.57% 0.00867 184.63)",
+          "oklch(95.00% 0.00867 184.63)"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01145 171.26)",
+          "oklch(26.43% 0.01145 171.26)",
+          "oklch(37.86% 0.01145 171.26)",
+          "oklch(49.29% 0.01145 171.26)",
+          "oklch(60.71% 0.01145 171.26)",
+          "oklch(72.14% 0.01145 171.26)",
+          "oklch(83.57% 0.01145 171.26)",
+          "oklch(95.00% 0.01145 171.26)"
+        ]
+      },
+      "family-muted": {
+        "role": "neutral",
+        "displayName": "Family muted ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01086 171.46)",
+          "oklch(26.43% 0.01086 171.46)",
+          "oklch(37.86% 0.01086 171.46)",
+          "oklch(49.29% 0.01086 171.46)",
+          "oklch(60.71% 0.01086 171.46)",
+          "oklch(72.14% 0.01086 171.46)",
+          "oklch(83.57% 0.01086 171.46)",
+          "oklch(95.00% 0.01086 171.46)"
+        ]
+      },
+      "senior-muted": {
+        "role": "neutral",
+        "displayName": "Senior muted ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01656 155.21)",
+          "oklch(26.43% 0.01656 155.21)",
+          "oklch(37.86% 0.01656 155.21)",
+          "oklch(49.29% 0.01656 155.21)",
+          "oklch(60.71% 0.01656 155.21)",
+          "oklch(72.14% 0.01656 155.21)",
+          "oklch(83.57% 0.01656 155.21)",
+          "oklch(95.00% 0.01656 155.21)"
+        ]
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.01144 164.58)",
+          "oklch(26.43% 0.01144 164.58)",
+          "oklch(37.86% 0.01144 164.58)",
+          "oklch(49.29% 0.01144 164.58)",
+          "oklch(60.71% 0.01144 164.58)",
+          "oklch(72.14% 0.01144 164.58)",
+          "oklch(83.57% 0.01144 164.58)",
+          "oklch(95.00% 0.01144 164.58)"
+        ]
+      },
+      "family-line": {
+        "role": "neutral",
+        "displayName": "Family hairline",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "family-line-strong": {
+        "role": "neutral",
+        "displayName": "Family strong line",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 0.00)",
+          "oklch(26.43% 0.00000 0.00)",
+          "oklch(37.86% 0.00000 0.00)",
+          "oklch(49.29% 0.00000 0.00)",
+          "oklch(60.71% 0.00000 0.00)",
+          "oklch(72.14% 0.00000 0.00)",
+          "oklch(83.57% 0.00000 0.00)",
+          "oklch(95.00% 0.00000 0.00)"
+        ]
+      },
+      "senior-line": {
+        "role": "neutral",
+        "displayName": "Senior hairline",
+        "tonalRamp": [
+          "oklch(15.00% 0.00913 134.88)",
+          "oklch(26.43% 0.00913 134.88)",
+          "oklch(37.86% 0.00913 134.88)",
+          "oklch(49.29% 0.00913 134.88)",
+          "oklch(60.71% 0.00913 134.88)",
+          "oklch(72.14% 0.00913 134.88)",
+          "oklch(83.57% 0.00913 134.88)",
+          "oklch(95.00% 0.00913 134.88)"
+        ]
+      },
+      "senior-line-strong": {
+        "role": "neutral",
+        "displayName": "Senior strong line",
+        "tonalRamp": [
+          "oklch(15.00% 0.01389 152.54)",
+          "oklch(26.43% 0.01389 152.54)",
+          "oklch(37.86% 0.01389 152.54)",
+          "oklch(49.29% 0.01389 152.54)",
+          "oklch(60.71% 0.01389 152.54)",
+          "oklch(72.14% 0.01389 152.54)",
+          "oklch(83.57% 0.01389 152.54)",
+          "oklch(95.00% 0.01389 152.54)"
+        ]
+      },
+      "lamp": {
+        "role": "primary",
+        "displayName": "Porch amber",
+        "tonalRamp": [
+          "oklch(15.00% 0.15845 72.33)",
+          "oklch(26.43% 0.15845 72.33)",
+          "oklch(37.86% 0.15845 72.33)",
+          "oklch(49.29% 0.15845 72.33)",
+          "oklch(60.71% 0.15845 72.33)",
+          "oklch(72.14% 0.15845 72.33)",
+          "oklch(83.57% 0.15845 72.33)",
+          "oklch(95.00% 0.15845 72.33)"
+        ]
+      },
+      "lamp-ink": {
+        "role": "neutral",
+        "displayName": "Amber action ink",
+        "tonalRamp": [
+          "oklch(15.00% 0.04435 75.52)",
+          "oklch(26.43% 0.04435 75.52)",
+          "oklch(37.86% 0.04435 75.52)",
+          "oklch(49.29% 0.04435 75.52)",
+          "oklch(60.71% 0.04435 75.52)",
+          "oklch(72.14% 0.04435 75.52)",
+          "oklch(83.57% 0.04435 75.52)",
+          "oklch(95.00% 0.04435 75.52)"
+        ]
+      },
+      "lamp-soft": {
+        "role": "primary",
+        "displayName": "Soft amber",
+        "tonalRamp": [
+          "oklch(15.00% 0.03241 85.48)",
+          "oklch(26.43% 0.03241 85.48)",
+          "oklch(37.86% 0.03241 85.48)",
+          "oklch(49.29% 0.03241 85.48)",
+          "oklch(60.71% 0.03241 85.48)",
+          "oklch(72.14% 0.03241 85.48)",
+          "oklch(83.57% 0.03241 85.48)",
+          "oklch(95.00% 0.03241 85.48)"
+        ]
+      },
+      "lamp-text": {
+        "role": "primary",
+        "displayName": "Readable amber",
+        "tonalRamp": [
+          "oklch(15.00% 0.10925 66.91)",
+          "oklch(26.43% 0.10925 66.91)",
+          "oklch(37.86% 0.10925 66.91)",
+          "oklch(49.29% 0.10925 66.91)",
+          "oklch(60.71% 0.10925 66.91)",
+          "oklch(72.14% 0.10925 66.91)",
+          "oklch(83.57% 0.10925 66.91)",
+          "oklch(95.00% 0.10925 66.91)"
+        ]
+      },
+      "red": {
+        "role": "tertiary",
+        "displayName": "Help red",
+        "tonalRamp": [
+          "oklch(15.00% 0.19400 30.80)",
+          "oklch(26.43% 0.19400 30.80)",
+          "oklch(37.86% 0.19400 30.80)",
+          "oklch(49.29% 0.19400 30.80)",
+          "oklch(60.71% 0.19400 30.80)",
+          "oklch(72.14% 0.19400 30.80)",
+          "oklch(83.57% 0.19400 30.80)",
+          "oklch(95.00% 0.19400 30.80)"
+        ]
+      },
+      "red-soft": {
+        "role": "tertiary",
+        "displayName": "Soft help red",
+        "tonalRamp": [
+          "oklch(15.00% 0.01872 25.60)",
+          "oklch(26.43% 0.01872 25.60)",
+          "oklch(37.86% 0.01872 25.60)",
+          "oklch(49.29% 0.01872 25.60)",
+          "oklch(60.71% 0.01872 25.60)",
+          "oklch(72.14% 0.01872 25.60)",
+          "oklch(83.57% 0.01872 25.60)",
+          "oklch(95.00% 0.01872 25.60)"
+        ]
+      },
+      "red-text": {
+        "role": "tertiary",
+        "displayName": "Readable help red",
+        "tonalRamp": [
+          "oklch(15.00% 0.16578 30.55)",
+          "oklch(26.43% 0.16578 30.55)",
+          "oklch(37.86% 0.16578 30.55)",
+          "oklch(49.29% 0.16578 30.55)",
+          "oklch(60.71% 0.16578 30.55)",
+          "oklch(72.14% 0.16578 30.55)",
+          "oklch(83.57% 0.16578 30.55)",
+          "oklch(95.00% 0.16578 30.55)"
+        ]
+      },
+      "green": {
+        "role": "secondary",
+        "displayName": "Confirmation green",
+        "tonalRamp": [
+          "oklch(15.00% 0.12573 151.28)",
+          "oklch(26.43% 0.12573 151.28)",
+          "oklch(37.86% 0.12573 151.28)",
+          "oklch(49.29% 0.12573 151.28)",
+          "oklch(60.71% 0.12573 151.28)",
+          "oklch(72.14% 0.12573 151.28)",
+          "oklch(83.57% 0.12573 151.28)",
+          "oklch(95.00% 0.12573 151.28)"
+        ]
+      },
+      "green-soft": {
+        "role": "secondary",
+        "displayName": "Soft confirmation green",
+        "tonalRamp": [
+          "oklch(15.00% 0.01898 157.87)",
+          "oklch(26.43% 0.01898 157.87)",
+          "oklch(37.86% 0.01898 157.87)",
+          "oklch(49.29% 0.01898 157.87)",
+          "oklch(60.71% 0.01898 157.87)",
+          "oklch(72.14% 0.01898 157.87)",
+          "oklch(83.57% 0.01898 157.87)",
+          "oklch(95.00% 0.01898 157.87)"
+        ]
+      },
+      "green-text": {
+        "role": "secondary",
+        "displayName": "Readable confirmation green",
+        "tonalRamp": [
+          "oklch(15.00% 0.10654 151.82)",
+          "oklch(26.43% 0.10654 151.82)",
+          "oklch(37.86% 0.10654 151.82)",
+          "oklch(49.29% 0.10654 151.82)",
+          "oklch(60.71% 0.10654 151.82)",
+          "oklch(72.14% 0.10654 151.82)",
+          "oklch(83.57% 0.10654 151.82)",
+          "oklch(95.00% 0.10654 151.82)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Family display",
+        "purpose": "Native family page titles."
+      },
+      "title": {
+        "displayName": "Family title",
+        "purpose": "Status names and card titles."
+      },
+      "headline": {
+        "displayName": "Family headline",
+        "purpose": "Compact task and plan titles."
+      },
+      "body": {
+        "displayName": "Family body",
+        "purpose": "Summaries and explanations."
+      },
+      "callout": {
+        "displayName": "Family callout",
+        "purpose": "Supporting plan and task information."
+      },
+      "footnote": {
+        "displayName": "Family footnote",
+        "purpose": "Dates, ownership and quieter metadata."
+      },
+      "label": {
+        "displayName": "Family label",
+        "purpose": "Section titles and date-block month."
+      },
+      "read-title": {
+        "displayName": "Senior title",
+        "purpose": "Large Atkinson page titles."
+      },
+      "read-headline": {
+        "displayName": "Senior headline",
+        "purpose": "Action titles and appointment names."
+      },
+      "read": {
+        "displayName": "Senior body",
+        "purpose": "Atkinson explanations."
+      },
+      "read-small": {
+        "displayName": "Senior supporting text",
+        "purpose": "Readable dates, places and status; 20pt minimum."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "shadowColor: #000; shadowOpacity: 0.04; shadowRadius: 8pt; shadowOffset: {width: 0pt, height: 2pt}",
+        "purpose": "Native token; secondary buttons and segmented pill. Browser approximation: 0 2px 8px rgba(0,0,0,0.04)."
+      },
+      {
+        "name": "float",
+        "value": "shadowColor: #000; shadowOpacity: 0.12; shadowRadius: 24pt; shadowOffset: {width: 0pt, height: 8pt}",
+        "purpose": "Native floating-surface token. Browser approximation: 0 8px 24px rgba(0,0,0,0.12)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Press and short entering feedback."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.77, 0, 0.175, 1)",
+        "purpose": "Existing segmented-selector movement; its Reduce Motion behavior requires native review."
+      },
+      {
+        "name": "press-in",
+        "value": "scale(0.97), 120ms",
+        "purpose": "Press feedback, disabled under Reduce Motion."
+      },
+      {
+        "name": "press-out",
+        "value": "scale(1), 160ms",
+        "purpose": "Return from press."
+      },
+      {
+        "name": "appear",
+        "value": "fade-up 300ms; reflow 220ms",
+        "purpose": "New content after screen has settled; reduced motion uses a 200ms fade without reflow."
+      },
+      {
+        "name": "lamp",
+        "value": "steady glow 400ms; amber half-cycle 1500ms; help half-cycle 600ms",
+        "purpose": "Signature state cue. Reduce Motion keeps steady glow."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "senior-compact-width",
+        "value": "360pt",
+        "purpose": "Senior Today becomes compact below this native logical width."
+      },
+      {
+        "name": "senior-compact-font-scale",
+        "value": "1.2",
+        "purpose": "Senior Today also becomes compact above this native fontScale."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Family Button, default size. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-button-primary\">Primary button</button>",
+      "css": ".ds-button-primary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;background:#252B2A;color:#FFFFFF;border:0.5px solid transparent;border-radius:12px;font-family:system-ui,sans-serif;font-size:16px;font-weight:600;line-height:22px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-button-primary:hover{background:#252B2A}.ds-button-primary:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-button-primary:active{transform:scale(.97)}.ds-button-primary:disabled{opacity:.45;cursor:default}.ds-button-primary strong{display:block;font-weight:700}.ds-button-primary small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition:none}.ds-button-primary:active{transform:none}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Family Button, default size. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-button-secondary\">Secondary button</button>",
+      "css": ".ds-button-secondary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;background:#FFFFFF;color:#252B2A;border:0.5px solid rgba(0,0,0,.14);border-radius:12px;font-family:system-ui,sans-serif;font-size:16px;font-weight:600;line-height:22px;box-shadow:0 2px 8px rgba(0,0,0,.04);cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-button-secondary:hover{background:#FFFFFF}.ds-button-secondary:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-button-secondary:active{transform:scale(.97)}.ds-button-secondary:disabled{opacity:.45;cursor:default}.ds-button-secondary strong{display:block;font-weight:700}.ds-button-secondary small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition:none}.ds-button-secondary:active{transform:none}}"
+    },
+    {
+      "name": "Ghost button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Family Button, default size. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-button-ghost\">Ghost button</button>",
+      "css": ".ds-button-ghost{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;background:transparent;color:#252B2A;border:0.5px solid transparent;border-radius:12px;font-family:system-ui,sans-serif;font-size:16px;font-weight:600;line-height:22px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-button-ghost:hover{background:transparent}.ds-button-ghost:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-button-ghost:active{transform:scale(.97)}.ds-button-ghost:disabled{opacity:.45;cursor:default}.ds-button-ghost strong{display:block;font-weight:700}.ds-button-ghost small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-button-ghost{transition:none}.ds-button-ghost:active{transform:none}}"
+    },
+    {
+      "name": "Danger button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Family Button, default size. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-button-danger\">Danger button</button>",
+      "css": ".ds-button-danger{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;background:#D93F2B;color:#FFFFFF;border:0.5px solid transparent;border-radius:12px;font-family:system-ui,sans-serif;font-size:16px;font-weight:600;line-height:22px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-button-danger:hover{background:#D93F2B}.ds-button-danger:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-button-danger:active{transform:scale(.97)}.ds-button-danger:disabled{opacity:.45;cursor:default}.ds-button-danger strong{display:block;font-weight:700}.ds-button-danger small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-button-danger{transition:none}.ds-button-danger:active{transform:none}}"
+    },
+    {
+      "name": "Lamp button",
+      "kind": "button",
+      "refersTo": "button-lamp",
+      "description": "Family Button, default size. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-button-lamp\">Lamp button</button>",
+      "css": ".ds-button-lamp{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px 18px;background:#F5A524;color:#241500;border:0.5px solid transparent;border-radius:12px;font-family:system-ui,sans-serif;font-size:16px;font-weight:600;line-height:22px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-button-lamp:hover{background:#F5A524}.ds-button-lamp:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-button-lamp:active{transform:scale(.97)}.ds-button-lamp:disabled{opacity:.45;cursor:default}.ds-button-lamp strong{display:block;font-weight:700}.ds-button-lamp small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-button-lamp{transition:none}.ds-button-lamp:active{transform:none}}"
+    },
+    {
+      "name": "I’m okay today",
+      "kind": "button",
+      "refersTo": "senior-checkin",
+      "description": "Senior BigButton action. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-senior-checkin\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M7 12l3 3 7-7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span><strong>I’m okay today</strong><small>Let your family know</small></span></button>",
+      "css": ".ds-senior-checkin{display:flex;align-items:center;justify-content:flex-start;gap:14px;min-height:104px;padding:20px;background:#252B2A;color:#FFFFFF;border:1px solid transparent;border-radius:16px;font-family:\"Atkinson Hyperlegible\",sans-serif;font-size:26px;font-weight:700;line-height:32px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-senior-checkin:hover{background:#252B2A}.ds-senior-checkin:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-senior-checkin:active{transform:scale(.97)}.ds-senior-checkin:disabled{opacity:.45;cursor:default}.ds-senior-checkin strong{display:block;font-weight:700}.ds-senior-checkin small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-senior-checkin{transition:none}.ds-senior-checkin:active{transform:none}}"
+    },
+    {
+      "name": "Call family",
+      "kind": "button",
+      "refersTo": "senior-action",
+      "description": "Senior BigButton action. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-senior-action\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M7 12l3 3 7-7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span><strong>Call family</strong><small>A familiar voice</small></span></button>",
+      "css": ".ds-senior-action{display:flex;align-items:center;justify-content:flex-start;gap:14px;min-height:104px;padding:20px;background:#FFFFFF;color:#252B2A;border:1px solid #DCE0DA;border-radius:16px;font-family:\"Atkinson Hyperlegible\",sans-serif;font-size:26px;font-weight:700;line-height:32px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-senior-action:hover{background:#FFFFFF}.ds-senior-action:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-senior-action:active{transform:scale(.97)}.ds-senior-action:disabled{opacity:.45;cursor:default}.ds-senior-action strong{display:block;font-weight:700}.ds-senior-action small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-senior-action{transition:none}.ds-senior-action:active{transform:none}}"
+    },
+    {
+      "name": "I need help",
+      "kind": "button",
+      "refersTo": "senior-help",
+      "description": "Senior BigButton action. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<button class=\"ds-senior-help\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M7 12l3 3 7-7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span><strong>I need help</strong><small>Ask your family to contact you</small></span></button>",
+      "css": ".ds-senior-help{display:flex;align-items:center;justify-content:flex-start;gap:14px;min-height:104px;padding:20px;background:#FDECEA;color:#A8291A;border:1px solid transparent;border-radius:16px;font-family:\"Atkinson Hyperlegible\",sans-serif;font-size:26px;font-weight:700;line-height:32px;cursor:pointer;transition:transform 120ms cubic-bezier(0.23,1,0.32,1)}.ds-senior-help:hover{background:#FDECEA}.ds-senior-help:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-senior-help:active{transform:scale(.97)}.ds-senior-help:disabled{opacity:.45;cursor:default}.ds-senior-help strong{display:block;font-weight:700}.ds-senior-help small{display:block;font-size:20px;line-height:27px;font-weight:400;margin-top:2px}@media(prefers-reduced-motion:reduce){.ds-senior-help{transition:none}.ds-senior-help:active{transform:none}}"
+    },
+    {
+      "name": "Senior answer field",
+      "kind": "input",
+      "refersTo": "senior-input",
+      "description": "Native 60pt minimum conversation field; browser typography is a fallback unless Atkinson is available. Browser illustration of native logical dimensions; focus outline is a browser preview affordance, not an established native focus treatment.",
+      "html": "<input class=\"ds-senior-input\" aria-label=\"Your answer\" placeholder=\"Your answer\"/>",
+      "css": ".ds-senior-input{min-height:60px;min-width:0;padding:0 18px;background:#FFFFFF;color:#252B2A;border:.5px solid #B7C0B9;border-radius:16px;font-family:\"Atkinson Hyperlegible\",sans-serif;font-size:22px}.ds-senior-input:hover{border-color:#B7C0B9}.ds-senior-input:focus-visible{outline:2px solid #252B2A;outline-offset:3px}.ds-senior-input:disabled{opacity:.45}"
+    },
+    {
+      "name": "Task card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Flat white grouped surface with hairline border and 18pt padding.",
+      "html": "<section class=\"ds-card\"><strong>Shared tasks</strong><p>Drop off soup Sunday</p></section>",
+      "css": ".ds-card{display:flex;flex-direction:column;gap:12px;padding:18px;background:#FFFFFF;color:#252B2A;border:.5px solid rgba(0,0,0,.08);border-radius:16px;font-family:system-ui,sans-serif;font-size:17px;line-height:24px}.ds-card strong{font-weight:600}.ds-card p{margin:0}"
+    },
+    {
+      "name": "Neutral status badge",
+      "kind": "chip",
+      "refersTo": "badge-neutral",
+      "description": "Family metadata; a written status in a soft neutral pill.",
+      "html": "<span class=\"ds-badge\">Waiting for a check-in</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;padding:4px 9px;background:#F0F0EE;color:#454D4A;border-radius:999px;font-family:system-ui,sans-serif;font-size:12px;font-weight:600;line-height:15px}"
+    },
+    {
+      "name": "Family bottom tabs",
+      "kind": "nav",
+      "refersTo": "bottom-tabs",
+      "description": "Base 76pt family tabs illustrated without device safe area. Native height also includes bottom inset and font-scale allowance; senior base is 104pt.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Family navigation\"><button class=\"ds-tab\" aria-current=\"page\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 10 12 3 21 10 M5 9v12h5v-7h4v7h5V9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Today</span></button><button class=\"ds-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z M7 3v4 M17 3v4 M3 10h18 M7 14h2 M13 14h2 M7 18h2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Plans</span></button><button class=\"ds-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M2 21v-2a6 6 0 0 1 12 0v2 M16 4a4 4 0 0 1 0 8 M17 15a5 5 0 0 1 5 5v1\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Family</span></button><button class=\"ds-tab\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 6h6 M13 6h8 M9 3v6 M3 12h11 M18 12h3 M14 9v6 M3 18h4 M11 18h10 M7 15v6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg><span>Settings</span></button></nav>",
+      "css": ".ds-tabs{display:flex;min-height:76px;padding-top:4px;padding-bottom:4px;background:#FFFFFF;border-top:.5px solid rgba(0,0,0,.08)}.ds-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex:1;min-height:44px;padding:0 8px;border:0;background:transparent;color:#626A67;font-family:system-ui,sans-serif;font-size:12px;line-height:16px;font-weight:600;cursor:pointer}.ds-tab[aria-current]{background:#F0F0EE;color:#252B2A}.ds-tab:hover{color:#252B2A}.ds-tab:focus-visible{outline:2px solid #252B2A;outline-offset:-3px}.ds-tab:active{opacity:.8}"
+    },
+    {
+      "name": "People / Stories selector",
+      "kind": "nav",
+      "refersTo": "segmented",
+      "description": "Nested family navigation with 44pt options and a white selected pill. Static browser states; native content switches have no slide.",
+      "html": "<div class=\"ds-segmented\" role=\"tablist\" aria-label=\"Family details\"><button role=\"tab\" aria-selected=\"true\" class=\"ds-segment\">People</button><button role=\"tab\" aria-selected=\"false\" class=\"ds-segment\">Stories</button></div>",
+      "css": ".ds-segmented{display:flex;padding:3px;background:#F0F0EE;border-radius:12px}.ds-segment{flex:1;min-height:44px;padding:0 12px;background:transparent;color:#626A67;border:0;border-radius:10px;font-family:system-ui,sans-serif;font-size:15px;font-weight:600;letter-spacing:-.2px;cursor:pointer}.ds-segment[aria-selected=true]{background:#FFFFFF;color:#252B2A;box-shadow:0 2px 8px rgba(0,0,0,.04)}.ds-segment:hover{color:#252B2A}.ds-segment:focus-visible{outline:2px solid #252B2A;outline-offset:-2px}.ds-segment:active{opacity:.8}"
+    },
+    {
+      "name": "Shared appointment row",
+      "kind": "custom",
+      "refersTo": "plan-date",
+      "description": "Family date block and written transport status; senior variant omits the date block and uses reading typography.",
+      "html": "<article class=\"ds-plan\"><div class=\"ds-plan-date\" aria-hidden=\"true\"><span>Oct</span><strong>12</strong></div><div class=\"ds-plan-content\"><strong>Library visit</strong><span>Mon, Oct 12 · 10:00 AM</span><span>Sample library</span><span class=\"ds-plan-status\">Ride requested</span></div></article>",
+      "css": ".ds-plan{display:flex;gap:16px;padding:20px 0;border-bottom:.5px solid rgba(0,0,0,.08);color:#252B2A;font-family:system-ui,sans-serif}.ds-plan-date{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:56px;height:66px;border-radius:12px;background:#F0F0EE;flex-shrink:0}.ds-plan-date span{font-size:13px;line-height:16px;color:#626A67;font-weight:600}.ds-plan-date strong{font-size:22px;line-height:28px}.ds-plan-content{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;font-size:15px;line-height:21px}.ds-plan-content>strong{font-size:17px;line-height:22px;font-weight:600}.ds-plan-status{align-self:flex-start;padding:4px 9px;border-radius:999px;background:#F0F0EE;color:#454D4A;font-size:12px;font-weight:600;line-height:15px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The daily page",
+    "overview": "Porchlight reads like a familiar daily agenda: a quiet paper ground, white task surfaces, charcoal text and clearly dated plans. The lamp gives status a recognizable visual presence. Plain words state the status and the next action.\n\nThe older person's experience makes reading and acting spacious; the family experience fits more coordination into compact rows. They share materials and appointments while retaining different type and control sizes. This document records the implemented consumer system; the retained dark palette and volunteer desk are outside this redesign.",
+    "keyCharacteristics": [
+      "Quiet paper grounds, white surfaces and hairline separation.",
+      "Atkinson Hyperlegible for the older person; native system type for family.",
+      "Persistent labeled bottom tabs and a shared dated appointment row.",
+      "Large senior actions and compact family coordination.",
+      "Written status, ownership and simulation labels."
+    ],
+    "rules": [
+      {
+        "name": "The Lamp Rule",
+        "body": "The lamp is the signature accent. Pair its state with written status; color alone never carries the update.",
+        "section": "colors"
+      },
+      {
+        "name": "The Reading Floor Rule",
+        "body": "Senior text is at least 20pt. Keep controls and text able to grow with the user's font scale.",
+        "section": "typography"
+      },
+      {
+        "name": "The Labeled Navigation Rule",
+        "body": "Persistent tabs carry icons and visible words. Senior uses Today / My plans / Family; family uses Today / Plans / Family / Settings. Peer screen switches have no transition animation.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "**Do** use the audience's palette and typography from the shared theme.",
+      "**Do** keep senior text at least 20pt and senior action controls at least 104pt tall.",
+      "**Do** keep family action controls at least 44pt tall.",
+      "**Do** retain visible labels, written status and native safe-area allowances.",
+      "**Do** reuse PlanRow for appointments and distinguish simulated transport in words.",
+      "**Do** let facts, action groups and enlarged text wrap rather than truncate the next step.",
+      "**Do** keep native device validation separate from browser preview evidence."
+    ],
+    "donts": [
+      "**Don't** add a new accent or one-off button style outside the existing tokens and variants.",
+      "**Don't** use red for ordinary pending or missed-check-in states.",
+      "**Don't** animate peer tab switches.",
+      "**Don't** treat a simulated booking or requested contact as confirmed real-world completion.",
+      "**Don't** infer a house illustration style or creator attribution from inherited app assets."
+    ]
+  }
+}

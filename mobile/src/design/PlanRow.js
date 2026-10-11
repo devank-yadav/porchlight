@@ -36,4 +36,3 @@ export default function PlanRow({ plan, senior, state }) {
   </View>;
 }
 const st = StyleSheet.create({ row: { flexDirection: 'row', gap: 16, paddingVertical: 20, borderBottomWidth: StyleSheet.hairlineWidth }, date: { width: 56, height: 66, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', gap: 2 } });
-

@@ -80,6 +80,22 @@ voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
 voiceRoutes.get('/api/seniors/:id/schedule', wrap(async (req, res) => {
   res.json(scheduleOf(await store.get('seniors', req.params.id)));
 }));
+// Family questions: "Ask Mom about her first job". Porchlight asks one on a coming call, and her answer
+// is saved as a story under it. { text, memberId } → the senior's open questions.
+voiceRoutes.post('/api/seniors/:id/questions', wrap(async (req, res) => {
+  const senior = await store.get('seniors', req.params.id);
+  const text = String(req.body.text || '').trim().slice(0, 200);
+  if (!text) return res.status(400).json({ error: 'Write a question first.' });
+  const q = { _id: `q${Date.now().toString(36)}`, text, askedBy: req.body.memberId || null, askedAt: new Date().toISOString() };
+  const updated = await store.update('seniors', senior._id, { familyQuestions: [...(senior.familyQuestions || []), q] });
+  res.json(updated.familyQuestions);
+}));
+voiceRoutes.delete('/api/seniors/:id/questions/:qid', wrap(async (req, res) => {
+  const senior = await store.get('seniors', req.params.id);
+  const updated = await store.update('seniors', senior._id, { familyQuestions: (senior.familyQuestions || []).filter((q) => q._id !== req.params.qid) });
+  res.json(updated.familyQuestions);
+}));
+
 voiceRoutes.put('/api/seniors/:id/schedule', wrap(async (req, res) => {
   res.json(scheduleOf(await setSchedule(req.params.id, req.body || {})));
 }));

@@ -13,6 +13,7 @@ import * as audit from '../care/audit.js';
 import { sms } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
 import { proposeRide } from '../care/actions.js';
+import { uberLink, geocode } from '../care/uber.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -144,15 +145,89 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
 // ---------- "Book an Uber for me" ----------
 export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
 
-async function rideNow(senior, text) {
-  const appts = (await store.list('appointments', { seniorId: senior._id }))
-    .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
-    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
-  if (!appts.length) return null; // nothing coming up: let the conversation ask where she's going
-  const a = appts[0];
-  await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
-  const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
-  return { reply: `Okay. For your ${what} ${sayTime(new Date(a.startsAt), senior.timezone || 'America/New_York')}, I've put a Book my Uber button on your Porchlight screen with everything filled in. One tap and it's booked. I'll let ${senior.primaryContactName || 'your family'} know you're going. Anything else?` };
+const STEPS = 'Your Porchlight screen now shows a big Book my Uber button. Tap it, and Uber opens with your home and where you\'re going already filled in. Check the price, then press Request. Your driver\'s name, car and plate will show on the screen.';
+const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
+
+// "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
+export function rideDestination(text) {
+  // The LAST "to X" wins: "I want to go to Target" → "Target", not "go to Target".
+  const all = [...String(text || '').matchAll(/\bto ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=\s+(?:at|by|around|tomorrow|tonight|today|now|right now|in \d|in an?|please|for|this)\b|[,!?]|\.(?:\s|$)|$)/gi)];
+  const m = all.at(-1);
+  const place = m?.[1]?.trim().replace(/^(?:(?:go|get|come|head|drive me)\s+to\s+)+/i, '').replace(/\s+(please|now)$/i, '');
+  return place && !/^(go|get|be|talk|speak|book|call)$/i.test(place.replace(/^(the|my|a|an) /i, '')) ? place : null;
+}
+
+// A short answer to "Where would you like to go?": "Target", "the library please", "to Walmart".
+export function bareDestination(text) {
+  const t = String(text || '').trim().replace(/[.!?]+$/, '')
+    .replace(/^(oh,? |um,? |uh,? |well,? |yeah,? |yes,? )+/i, '')
+    .replace(/^(i (want|need|would like|'d like|wanna|have) to go to|i('m| am) going to|take me to|go to|to)\s+/i, '')
+    .replace(/\s+(please|now|right now|today)$/i, '').trim();
+  if (!t || t.split(/\s+/).length > 5) return null;
+  if (/^(yes|yeah|no|nope|okay|ok|sure|fine|i don'?t know|not sure|nothing|nowhere|never ?mind)$/i.test(t)) return null;
+  if (/\b(i|you|me|book|uber|ride|car|want|need|feel|am|is|was)\b/i.test(t)) return null;
+  return t;
+}
+
+const ASKED_WHERE = /where would you like to go\?/i;
+const GO_TO = /\b(want|need|have|like|wanna) to go to\b|\btake me to\b|\bi('m| am) going to\b/i;
+
+// Is this turn about a ride? An explicit ask ("book me an Uber"), or an answer to "Where would you like to go?".
+export function rideTurn(text, checkin) {
+  const last = [...(checkin.transcript || [])].reverse().find((t) => t.who === 'porchlight')?.text || '';
+  return RIDE.test(text) || (ASKED_WHERE.test(last) && (bareDestination(text) || rideDestination(text))) || (checkin.rideAsked && GO_TO.test(text));
+}
+
+async function rideNow(senior, text, checkin = {}) {
+  const tz = senior.timezone || 'America/New_York';
+  const family = senior.primaryContactName || 'your family';
+  // Where to: what she says now, a short answer to "Where would you like to go?", or a place she named
+  // earlier in this call ("I want to go to Target" ... "just book me an Uber").
+  const earlier = [...(checkin.transcript || [])].reverse().filter((t) => t.who === 'senior').map((t) => rideDestination(t.text) || (GO_TO.test(t.text) ? bareDestination(t.text) : null)).find(Boolean);
+  const place = rideDestination(text) || bareDestination(text) || earlier || null;
+  // "I'm not looking for my cardiology follow-up" is a no, not a request for that ride.
+  const notAppointment = /\b(not|don'?t|no)\b.{0,30}(doctor|appointment|cardiolog|clinic|follow.?up)/i.test(text);
+  const forAppointment = !notAppointment && (APPOINTMENT_PLACE.test(text) || Boolean(place && APPOINTMENT_PLACE.test(place)));
+  if (!place && !forAppointment) {
+    if (checkin._id) await store.update('checkins', checkin._id, { rideAsked: true });
+    return { reply: 'Of course. Where would you like to go?' };
+  }
+  // Her appointment: the ride for her next appointment.
+  if (forAppointment) {
+    const appts = (await store.list('appointments', { seniorId: senior._id }))
+      .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
+      .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+    if (!appts.length) return place ? null : { reply: 'Sure. Where would you like to go?' };
+    const a = appts[0];
+    await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
+    const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
+    return { reply: `Okay, a ride for your ${what} ${sayTime(new Date(a.startsAt), tz)}. ${STEPS} I'll let ${family} know you're going.` };
+  }
+  // Already set up on this call: don't make a second booking, just point her back to the button.
+  if (checkin.rideTo && (!place || place.toLowerCase() === String(checkin.rideTo).toLowerCase())) {
+    return { reply: `It's all set. Your Uber to ${checkin.rideTo} is the big Book my Uber button on your Porchlight screen. Tap it, then press Request.` };
+  }
+  // Anywhere else she names: leave now, or at the time she said.
+  const when = parseWhen(text, tz);
+  const pickupAt = (when && when > new Date() ? when : new Date()).toISOString();
+  const leavingNow = !when || when - new Date() < 15 * 60000;
+  const where = place.replace(/^my /i, 'your ');
+  const bare = place.replace(/^(the|my|a|an) /i, '');
+  const query = senior.city ? `${bare}, ${senior.city}` : bare;
+  const spot = await geocode(query); // real pin for Uber when OpenStreetMap knows the place
+  const details = { pickupAt, from: 'Home', to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng }) };
+  const action = await store.insert('actions', {
+    seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
+    details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
+    history: [{ status: 'APPROVED', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `She asked on her call: "${text}"; family notified` } }],
+  });
+  if (checkin._id) await store.update('checkins', checkin._id, { rideTo: bare, rideAsked: false });
+  await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber, then Request.` });
+  await audit.log('porchlight', 'voice.ride', { seniorId: senior._id, targetId: action._id, detail: `${where} ${leavingNow ? 'now' : pickupAt}` });
+  const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
+  const time = leavingNow ? 'now' : sayTime(new Date(pickupAt), tz);
+  for (const m of members.filter((x) => x.role === 'family')) await sms(m, `Heads-up: ${senior.preferredName} is taking an Uber to ${where.replace(/^your /, 'her ')} ${time}. She's booking it from her Porchlight screen.`);
+  return { reply: `Okay, an Uber from home to ${where}, ${leavingNow ? 'leaving now' : `leaving ${time}`}. ${STEPS} I'll let ${family} know.` };
 }
 
 // Runs the intent. Returns { reply, transfer?, end? } or null when nothing matched.
@@ -166,8 +241,8 @@ export async function handleIntent(senior, checkin, text) {
     await audit.log('porchlight', 'voice.callback', { seniorId: senior._id, detail: callback.toISOString() });
     return { reply: `No problem at all. I'll call you back ${sayTime(callback, tz)}. Bye for now!`, end: true };
   }
-  if (RIDE.test(text)) {
-    const ride = await rideNow(senior, text);
+  if (rideTurn(text, checkin)) {
+    const ride = await rideNow(senior, text, checkin);
     if (ride) return ride;
   }
   if (MY_WEEK.test(text)) {

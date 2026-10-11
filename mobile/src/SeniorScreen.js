@@ -64,6 +64,9 @@ function HelpButton() {
 }
 function Home({ senior, primary, plans, state, refresh, notices }) {
   const [busy, setBusy] = useState(false);
+  const [calling, setCalling] = useState(false);
+  const callReset = useRef(null);
+  useEffect(() => () => clearTimeout(callReset.current), []);
   const { width, fontScale } = useWindowDimensions();
   const compact = width < 360 || fontScale > 1.2;
   const checkedIn = !['help', 'missed'].includes(senior.status) && isToday(senior.lastCheckinAt, senior.timezone);
@@ -74,6 +77,20 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     catch (e) { onError(e); } finally { setBusy(false); }
   };
   const checkinButton = <BigButton tone="lamp" icon="checkmark.circle" title={busy ? 'Checking in…' : checkedIn ? 'Check in again' : 'I’m okay today'} sub="Let your family know" onPress={imOkay} disabled={busy} />;
+  const callMe = async () => {
+    if (calling) return;
+    setCalling(true);
+    try {
+      await api.phoneCall(senior._id);
+      haptic.success();
+      toast.success('Your call is requested', { description: 'Pick up when your phone rings. Porchlight is an AI and will talk first.' });
+      callReset.current = setTimeout(() => setCalling(false), 20000);
+    } catch (_e) {
+      haptic.warn();
+      toast.info('The phone call didn’t go through', { description: 'Tap “Talk with Porchlight” to chat here, or try the call again.' });
+      setCalling(false);
+    }
+  };
   return <Page>
     <View style={st.dailyTitle}><T v="readTitle" style={{ flex: 1 }}>Today, {senior.preferredName}.</T><Lamp state={lampState(senior)} size={64} /></View>
     {!compact && <T v="read" muted>Here’s your day, at a glance.</T>}
@@ -87,6 +104,7 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     {plans[0] ? <PlanRow plan={plans[0]} senior={senior} state={state} /> : <View style={st.agendaRow}><T v="readHeadline">A little room in your day</T><T v="readSmall" muted>No upcoming appointments.</T></View>}
     {!compact && checkinButton}
     <BigButton icon="bubble.left.and.bubble.right" title="Talk with Porchlight" sub="Your AI helper for the day" onPress={() => go('talk')} />
+    <BigButton icon="phone.arrow.down.left" title={calling ? 'Call requested…' : 'Call me now'} sub="Porchlight rings your phone" hint="Requests a phone call. Porchlight is an AI and will talk first." onPress={callMe} disabled={calling} />
     <HelpButton />
     <Notices notices={notices} />
     {primary && <BigButton icon="phone" title={'Call ' + primary.name.split(' ')[0]} sub={primary.relation} onPress={() => openLink('tel:' + primary.phone)} />}

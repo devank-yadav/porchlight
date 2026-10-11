@@ -3,4 +3,3 @@
   "compilerOptions": { "allowJs": true, "checkJs": false, "noEmit": true },
   "include": ["App.js", "index.js", "src/**/*.js"]
 }
-

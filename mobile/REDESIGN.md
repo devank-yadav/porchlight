@@ -15,6 +15,8 @@ Choose Peggy to check Today, My plans and Family. Check in, open a chat, send an
 
 Open two PowerShell terminals in `C:\Users\rishi\Documents\porchlight`.
 
+After checking out the branch, install the updated mobile dependencies once with `npm ci --prefix mobile`.
+
 Terminal 1:
 
 ```powershell
@@ -34,6 +36,7 @@ On the phone, check larger text, VoiceOver labels and focus, the keyboard/dictat
 ## Completed checks
 
 - iOS export: `npx expo export --platform ios --max-workers 2`.
+- Expo Doctor: 21/21 checks passed; `npx expo install --check` reports dependencies up to date for SDK 57.
 - Expo lint: `npx expo lint`.
 - Configured TypeScript check: `npx tsc --noEmit` (JavaScript syntax/configuration, not full typed coverage).
 - Browser interaction checks and 390 × 844, 320 × 740, 768 × 1024 captures.
