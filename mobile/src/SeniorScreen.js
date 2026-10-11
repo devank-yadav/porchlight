@@ -104,6 +104,20 @@ function Home({ senior, ride, notices, primary, setMode, refresh }) {
   const lamp = lampState(senior);
   const primaryFirst = primary?.name.split(' ')[0];
 
+  // Porchlight rings her own phone right now for a check-in chat (needs phone calls set up on the server).
+  const [calling, setCalling] = useState(false);
+  const callMe = async () => {
+    setCalling(true);
+    try {
+      await api.phoneCall(senior._id);
+      toast.success('Calling you now', { description: 'Your phone will ring in a moment. Porchlight will talk first.' });
+    } catch (e) {
+      onError(e);
+    } finally {
+      setTimeout(() => setCalling(false), 20000); // one call at a time
+    }
+  };
+
   const imOkay = async () => {
     setBusy(true);
     try {
@@ -156,6 +170,7 @@ function Home({ senior, ride, notices, primary, setMode, refresh }) {
 
       <View style={st.stack}>
         <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
+        <BigButton icon="phone.arrow.down.left.fill" title={calling ? 'Calling you now…' : 'Give me a call'} sub="Porchlight rings your phone for a chat" hint="Porchlight calls your phone right now. It is an AI and will talk first." onPress={callMe} disabled={calling} />
         <BigButton icon="checkmark.circle.fill" title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
         {primary && (
           <BigButton icon="phone.fill" title={`Call ${primaryFirst}`} sub={primary.relation} hint={`Opens a phone call to ${primaryFirst}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
