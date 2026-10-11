@@ -13,7 +13,7 @@ import * as audit from '../care/audit.js';
 import { sms } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
 import { proposeRide } from '../care/actions.js';
-import { uberLink } from '../care/uber.js';
+import { uberLink, geocode } from '../care/uber.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -145,7 +145,7 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
 // ---------- "Book an Uber for me" ----------
 export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
 
-const STEPS = 'Your Porchlight screen is showing a big Book my Uber button. First tap it, then tap Request in Uber, and that\'s it.';
+const STEPS = 'Your Porchlight screen now shows a big Book my Uber button. Tap it, and Uber opens with your home and where you\'re going already filled in. Check the price, then press Request. Your driver\'s name, car and plate will show on the screen.';
 const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
 
 // "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
@@ -176,7 +176,9 @@ async function rideNow(senior, text) {
   const leavingNow = !when || when - new Date() < 15 * 60000;
   const where = place.replace(/^my /i, 'your ');
   const bare = place.replace(/^(the|my|a|an) /i, '');
-  const details = { pickupAt, from: 'Home', to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: senior.city ? `${bare}, ${senior.city}` : bare }) };
+  const query = senior.city ? `${bare}, ${senior.city}` : bare;
+  const spot = await geocode(query); // real pin for Uber when OpenStreetMap knows the place
+  const details = { pickupAt, from: 'Home', to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng }) };
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
     details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
