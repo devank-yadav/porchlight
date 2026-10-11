@@ -72,11 +72,17 @@ How to sound like a person on the phone, not a form:
 - If what she said seems garbled or doesn't make sense, gently check ("Sorry, did you say a headache?") rather than guessing.
 - She can ask you to connect her to family or pass on a message; that's handled for you, so don't promise anything else.`;
 
-function appointmentLines(appointments = [], family) {
+// Rides are pre-approved unless the family switched on "Ask me before booking rides" (askBeforeRides).
+// Either way the booking is a sample in this demo, so Porchlight only ever says it's *requesting* one.
+const rideReply = (senior) => (senior.askBeforeRides
+  ? `Thank you for telling me. I'll ask ${senior.primaryContactName} about a ride and call you back once it's confirmed.`
+  : `No problem. I'm requesting a ride for you right now, and I'll call you back once a driver accepts. I'll let ${senior.primaryContactName} know too.`);
+
+function appointmentLines(appointments = [], family, senior = {}) {
   const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date());
   if (!upcoming.length) return '';
   return `Upcoming appointments: ${upcoming.map((a) => `${a.title} with ${a.with} at ${a.where}, ${new Date(a.startsAt).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })} (transport: ${a.transport || 'unknown'})`).join('; ')}.
-If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say you'll ask ${family} and call her back once it's confirmed. Never say a ride is booked or arranged.\n`;
+If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say: "${rideReply({ ...senior, primaryContactName: family })}" Never say a ride is booked, arranged or confirmed.\n`;
 }
 
 function personaPrompt(senior, appointments) {
@@ -84,7 +90,7 @@ function personaPrompt(senior, appointments) {
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories.
-${appointmentLines(appointments, senior.primaryContactName)}If she isn't sure whether she took a pill, say "That's okay, I'll let ${senior.primaryContactName} know so she can check with you." Never suggest taking another dose.
+${appointmentLines(appointments, senior.primaryContactName, senior)}If she isn't sure whether she took a pill, say "That's okay, I'll let ${senior.primaryContactName} know so she can check with you." Never suggest taking another dose.
 ${RULES}`;
 }
 
@@ -98,7 +104,7 @@ export function policyReply(senior, text) {
   if (URGENT_WORDS.test(text)) return `Oh ${name}, I'm sorry. I'm letting ${family} know right now. If you're hurt or can't get up, please press your help button or call 911. Are you safe where you are?`;
   if (SCAM_WORDS.test(text)) return `That sounds like a scam, ${name}. Real banks and government offices never ask for gift cards, money or codes over the phone. Please don't send anything or share any codes; I'll let ${family} know. Did you give them any information?`;
   if (MED_UNSURE_WORDS.test(text)) return `That's okay, ${name}. I'll let ${family} know so she can check with you. Please don't take an extra one just in case. How are you feeling otherwise?`;
-  if (NO_RIDE_WORDS.test(text)) return `Thank you for telling me. I'll ask ${family} about a ride and call you back once it's confirmed. Is there anything else you need this week?`;
+  if (NO_RIDE_WORDS.test(text)) return `${rideReply(senior)} Is there anything else you need this week?`;
   return null;
 }
 

@@ -69,6 +69,13 @@ const STEPS = [
   ['CONFIRMED', 'Confirmed'],
 ];
 const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 3, COMPLETED: 4 };
+// Rides booked without a family OK (no PENDING_APPROVAL in history): family is just told she's going.
+const AUTO_STEPS = [
+  ['REQUESTED', 'Requested'],
+  ['CONFIRMED', 'Booked'],
+  ['COMPLETED', 'She got there'],
+];
+const AUTO_INDEX = { APPROVED: 0, REQUESTED: 0, CONFIRMED: 1, COMPLETED: 2 };
 const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
 const TONE = { urgent: 'red', attention: 'lamp', ok: 'green' };
 
@@ -304,13 +311,16 @@ function Digest({ digest }) {
 function ActionCard({ action, state, me, run, senior }) {
   const approver = state.members.find((m) => m._id === action.approverId);
   const approverName = first(approver?.name) ?? 'the primary contact';
-  const idx = STEP_INDEX[action.status] ?? 0;
+  const auto = !(action.history || []).some((h) => h.status === 'PENDING_APPROVAL') && action.status !== 'PENDING_APPROVAL';
+  const steps = auto ? AUTO_STEPS : STEPS;
+  const idx = (auto ? AUTO_INDEX : STEP_INDEX)[action.status] ?? 0;
   const ended = ENDED[action.status];
   const pending = action.status === 'PENDING_APPROVAL';
   const canApprove = Boolean(me?.canApprove);
   const last = action.history?.[action.history.length - 1];
   const d = action.details || {};
-  const stepLabel = STEPS[Math.min(idx, 3)][1];
+  const stepLabel = steps[Math.min(idx, steps.length - 1)][1];
+  const booked = ['CONFIRMED', 'COMPLETED'].includes(action.status);
 
   return (
     <Card tone={pending ? 'lamp' : ended ? 'red' : undefined} accessibilityLiveRegion="polite" style={{ gap: 14 }}>
@@ -318,9 +328,10 @@ function ActionCard({ action, state, me, run, senior }) {
         <View style={[st.iconTile, { backgroundColor: pending ? accent.lampSoft : light.sunken }]}>
           <Icon name="car.fill" size={17} color={pending ? accent.lampText : light.ink} />
         </View>
-        <T v="headline" style={{ flex: 1 }}>{action.title}</T>
-        <Badge label={ended ?? (pending ? 'Needs your OK' : stepLabel)} tone={ended ? 'red' : pending ? 'lamp' : idx >= 3 ? 'green' : 'neutral'} />
+        <T v="headline" style={{ flex: 1 }}>{auto && booked ? `${senior.preferredName}’s ride is booked` : action.title}</T>
+        <Badge label={ended ?? (pending ? 'Needs your OK' : stepLabel)} tone={ended ? 'red' : pending ? 'lamp' : booked ? 'green' : 'neutral'} />
       </View>
+      {auto && !ended ? <T v="callout" muted>{booked ? `${senior.preferredName} is going. Porchlight booked it and let the family know.` : `Porchlight is booking ${senior.preferredName}’s ride. The family will hear when it’s set.`}</T> : null}
       {action.reason ? <Quote plain>{action.reason}</Quote> : null}
 
       <View style={{ gap: 8 }}>
@@ -330,7 +341,7 @@ function ActionCard({ action, state, me, run, senior }) {
         {d.needs && <Detail icon="note.text" label="Note" value={d.needs} />}
       </View>
 
-      {!ended && <Progress idx={idx} label={stepLabel} />}
+      {!ended && <Progress idx={idx} label={stepLabel} steps={steps} />}
 
       {action.simulated && (
         <View style={st.simulated} accessibilityLabel="Simulated booking, not a real ride">
@@ -359,23 +370,24 @@ function ActionCard({ action, state, me, run, senior }) {
 }
 
 // Four-step progress. The fill is one absolutely positioned bar, so its width can animate cheaply.
-function Progress({ idx, label }) {
+function Progress({ idx, label, steps = STEPS }) {
   const [w, setW] = useState(0);
   const fill = useSharedValue(0);
-  const done = idx >= 3;
+  const n = steps.length;
+  const done = idx >= n - 1 || steps[Math.min(idx, n - 1)][0] === 'CONFIRMED';
   useEffect(() => {
     if (!w) return;
-    fill.set(withTiming(((Math.min(idx, 3) + 1) / 4) * w, { duration: 400, easing: ease.out }));
-  }, [idx, w, fill]);
+    fill.set(withTiming(((Math.min(idx, n - 1) + 1) / n) * w, { duration: 400, easing: ease.out }));
+  }, [idx, w, fill, n]);
   const style = useAnimatedStyle(() => ({ width: fill.get() }));
   return (
     <View style={{ gap: 8 }} accessible accessibilityLabel={`Status: ${label}`}>
       <View style={st.track} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
         <Animated.View style={[st.trackFill, { backgroundColor: done ? accent.green : light.ink }, style]} />
-        {[1, 2, 3].map((i) => <View key={i} style={[st.tick, { left: `${i * 25}%` }]} />)}
+        {steps.slice(1).map((_, i) => <View key={i} style={[st.tick, { left: `${((i + 1) / n) * 100}%` }]} />)}
       </View>
       <View style={st.stepLabels}>
-        {STEPS.map(([key, l], i) => (
+        {steps.map(([key, l], i) => (
           <Text key={key} style={[st.stepLabel, i <= idx && { color: light.ink, fontWeight: '600' }]}>{l}</Text>
         ))}
       </View>
