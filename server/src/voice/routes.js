@@ -94,7 +94,17 @@ voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
 // ConversationRelay finished (we sent "end", or the line dropped): hang up kindly.
 voiceRoutes.post('/twilio/relay-done', (req, res) => {
   if (req.body.ErrorCode || req.body.ErrorMessage) console.warn('[relay] ended with error:', req.body.ErrorCode, req.body.ErrorMessage);
-  res.type('text/xml').send(twiml('<Hangup/>'));
+  let transfer = null;
+  try { transfer = JSON.parse(req.body.HandoffData || '{}').transfer; } catch {}
+  res.type('text/xml').send(twiml(transfer ? dialTo(transfer) : '<Hangup/>'));
+});
+
+// "Put me through to Anne": bridge her call to the family member's phone.
+const dialTo = (phone) => `<Dial callerId="${xml(process.env.TWILIO_FROM_NUMBER || '')}" timeout="25" action="/twilio/dial-done" method="POST">${xml(phone)}</Dial>`;
+voiceRoutes.post('/twilio/dial-done', (req, res) => {
+  const reached = req.body.DialCallStatus === 'completed';
+  res.type('text/xml').send(twiml(reached ? '<Hangup/>'
+    : `<Say voice="${VOICE}">I couldn't reach them just now, but they have a text from me asking them to call you back. Take care.</Say><Hangup/>`));
 });
 
 // One turn of the phone conversation: what she said → Porchlight's reply (or a kind goodbye).
@@ -105,10 +115,10 @@ async function respond(res, id, said, silent) {
     if (silent >= 3) return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">I'm having trouble hearing you, so I'll say goodbye for now. If you need anything, press your help button. Take care.</Say><Hangup/>`));
     return res.type('text/xml').send(twiml(ask("Sorry, I didn't catch that. Could you say that again?", id, silent)));
   }
-  const { reply: answer, ended } = await addTurn(id, said);
+  const { reply: answer, ended, transfer } = await addTurn(id, said);
   if (ended) {
     finishCheckin(id).catch(console.error);
-    return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">${xml(answer)}</Say><Hangup/>`));
+    return res.type('text/xml').send(twiml(`<Say voice="${VOICE}">${xml(answer)}</Say>${transfer ? dialTo(transfer) : '<Hangup/>'}`));
   }
   res.type('text/xml').send(twiml(ask(answer, id)));
 }
