@@ -11,7 +11,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] A5 Med "not sure" status + safe wording
 - [x] A6 Quotes on every request
 - [x] A7 tellSenior() + greeting mentions confirmed notices
-- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal
+- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md; rehearse, video, Devpost still to do)
 
 ## Person B — Backend & workflows (Codex) — name: ____
 - [ ] B1 Contract seed + new fields in /api/state (by 2:45, push early)

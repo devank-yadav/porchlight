@@ -92,6 +92,7 @@ function mockReply(senior, transcript) {
 
   if (URGENT_WORDS.test(last)) return `Oh ${name}, I'm sorry. I'm letting ${senior.primaryContactName} know right now. If you're hurt or can't get up, please press your help button or call 911. Are you safe where you are?`;
   if (SCAM_WORDS.test(last)) return `That sounds like a scam, ${name}. Real banks and government offices never ask for gift cards or codes over the phone. Please don't send anything; I'll let ${senior.primaryContactName} know. Did you give them any information?`;
+  if (/lonely|alone|nobody|no one (calls|visits)/i.test(last)) return `I'm really glad you told me, ${name}. I'll let ${senior.primaryContactName} know you'd love a call or a visit. What would make today a little nicer?`;
   if (/milk|bread|eggs|grocer|out of|run(ning)? (out|low)|broken|fix/i.test(last)) return `I'll pass that to your family, and I'll tell you who's helping once someone says yes. Is there anything else you need this week?`;
   if (RIDE_WORDS.test(last)) return `I'll ask ${senior.primaryContactName} about that and call you back once it's confirmed. Is there anything else you need this week?`;
 
