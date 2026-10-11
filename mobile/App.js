@@ -70,14 +70,17 @@ function Main() {
     <View style={[st.root, { backgroundColor: onDusk ? color.dusk : color.sky }]}>
       <StatusBar style={onDusk ? 'light' : 'dark'} />
       <View style={[st.header, { paddingTop: insets.top + 6 }, !onDusk && { backgroundColor: color.dusk }]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Switch who is using this phone" onPress={() => { tap(); setRole(null); }} style={st.brand}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Switch who is using this phone" accessibilityHint="Long press for demo controls" onPress={() => { tap(); setRole(null); }} onLongPress={demoMenu} delayLongPress={600} style={st.brand}>
           <View style={st.brandDot} />
           <Text style={st.brandText}>Porchlight</Text>
         </Pressable>
         {role && <Text style={st.roleText} numberOfLines={1}>{role.id === 'senior' ? `${role.title}’s side` : role.id === 'family' ? `Family · ${role.title}` : 'Volunteer desk'}</Text>}
-        <Pressable accessibilityRole="button" onPress={demoMenu} style={st.demoBtn}>
-          <Text style={st.demoText}>Demo</Text>
-        </Pressable>
+        {/* Peggy never sees demo controls; on her side they're behind a long press on the name. */}
+        {role?.id !== 'senior' && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Demo controls" onPress={demoMenu} style={st.demoBtn}>
+            <Text style={st.demoText}>Demo</Text>
+          </Pressable>
+        )}
       </View>
 
       {error && (
