@@ -4,9 +4,9 @@
 
 Rishi requested a family-focused product that takes actions: connect a parent's calendar, identify a transport need, choose an appropriate ride, book within agreed limits, and keep the parent and family informed through the trip. This supersedes the original nonprofit-first positioning and the earlier feature-tour demo in this file. Nonprofits and volunteer desks remain a possible later distribution channel; they are not required for the primary consumer journey.
 
-This is a planning update, not a claim that the integrations are implemented. The current runtime/data contract in TEAM_PLAN.md remains in force. Proposed fields, states, endpoints, and owner handoffs are in [the implementation note](server/src/care/ACTION_PLAN.md); A/B/C must agree on the contract update before implementation. The published TASKS.md P1 claim records this user-authorized PLAN.md edit and owner notice. This update does not reopen the October 11 feature freeze.
+This is a planning update, not a claim that the integrations are implemented. The current runtime/data contract in TEAM_PLAN.md remains in force. Proposed fields, states, endpoints, and owner handoffs are in [the implementation note](server/src/care/ACTION_PLAN.md); A/B/C must agree on the contract update before implementation. The published TASKS.md P1/P2 claims record these user-authorized PLAN.md edits and owner notices. Rishi also approved everyday plans, requests, reminders, and family connection alongside calls. This update does not reopen the October 11 feature freeze.
 
-**One-liner:** Porchlight calls your parent, handles everyday arrangements within the rules you agree on, and keeps you informed when help is needed.
+**One-liner:** Porchlight helps your parent manage the day, handles everyday arrangements within agreed limits, and keeps the family informed through simple buttons or a phone call.
 
 **First customer:** an adult child helping an independently living parent who cannot reliably arrange transportation or manage every appointment alone. The parent agrees to participate and can communicate over a regular phone. Family members pay for the service and approve its authority to spend on their behalf; the parent controls participation and sharing.
 
@@ -51,15 +51,68 @@ Do not promise "best across all ride services" with one integration. Say "best e
 
 ## The app experience
 
-**Parent:** normal phone calls are the primary interface. Optional large-button screen: Talk, Today's plans, My ride, Call family, and Help. The ride view shows who is coming, when, the vehicle details, and a way to get assistance. Read important changes aloud with accurate delivery status. No card numbers, passwords, or verification codes are collected in the conversation.
+**Product goal:** the parent opens Porchlight to see what is happening today; a family member opens it to see what has been handled and whether a decision is needed. Calls, text/dictation, and large buttons feed the same appointments and action history. A request made on a call must appear in the app without needing to be submitted again. Phone-only participation remains supported.
 
-**Family:** three primary areas: Today, Plans & rides, and Settings. Today shows the latest check-in and exceptions that need action. Plans & rides contains appointments, ownership, booking/trip status, and receipts. Settings holds call schedules, calendar connection, contacts, spending limits, and sharing permissions. An action card explains "Selected standard: economy would arrive after the appointment buffer."
+### Parent navigation
 
-A parent's refusal, pause, or revocation is respected. Location sharing is limited to named recipients and the agreed trip window. Phone-only users get provider trip tracking, not phone GPS. Stories and transcripts are not automatically published to everyone in the family.
+| Destination | Contents | Main actions |
+|---|---|---|
+| Today | Porch light/check-in state, next appointment with transport readiness, next reminder, and one family message | I'm okay today; view the next plan; Done / Remind me later / I need help |
+| My plans | Upcoming appointments, active ride, and requests with accurate progress | Arrange a ride; Remind me; Ask my family; view or change a request |
+| Family | Familiar faces, private messages and a simple reply entry point | Call Anne; read a message aloud; reply by text or keyboard dictation |
+
+Keep Talk with Porchlight available throughout, and retain an easy-to-find Help action. Settings can sit behind a clearly labelled control rather than another main parent tab. Preserve the existing theme tokens, porch light, text at least 20pt, buttons at least 104pt tall, and VoiceOver labels. Only the current mobile owner implements these changes.
+
+An appointment card should make the next step obvious. Fictional sample, after a provider has confirmed the relevant state:
+
+> Doctor's appointment · 2:00 PM
+> Your ride is booked for 1:15 PM.
+> Anne has been notified.
+> View my ride · Something changed
+
+Show "Notification sent" or "Delivery not confirmed" when that is all the evidence supports. Before booking, show the actual pending state instead. Driver details, arrival estimates, cancellation controls and tracking appear as available. After provider-reported drop-off, offer "I'm ready to go home"; this requests a fresh return quote and policy check, not an assumed booking.
+
+### Family navigation
+
+| Destination | Contents |
+|---|---|
+| Today | Latest check-in, arrangements handled, and exceptions requiring a decision; keep routine successful updates quieter |
+| Plans | Shared appointment agenda, rides, reminders, request status, selection reasons and receipts when available |
+| Family | Contacts, messages and parent-approved stories; move the existing Stories content here |
+| Settings | Connected calendar, call schedule, confirmed addresses, spending limits, payer authority, parent consent and sharing permissions |
+
+Reuse existing appointment cards, action timelines, task handoffs and contacts. A new navigation layout is proposed work, not a replacement already present in mobile/. Avoid making the parent repeat setup or exposing provider/debug data in normal screens.
+
+### Competitor-inspired features and our MVP scope
+
+These are published competitor features checked October 11, 2026, not independently tested performance claims. Our proposed improvement is visible follow-through across a small set of supported actions; it is not a claim that no competitor can do this.
+
+| Feature | Competitor reference | Porchlight scope |
+|---|---|---|
+| Today's plan | [Lotsa Helping Hands](https://kp.lotsahelpinghands.com/how-it-works/) provides a calendar for rides, meals, visits and task reminders | Combine appointments and arrangements; show "Ride arranged", "Leave at 1:15", or "Address needed" on the relevant event |
+| Routines with follow-through | [ElliQ](https://elliq.com/pages/caregivers) offers medication/hydration reminders and wellness goals | Done / Remind me later / I need help; ask what prevents completion and create a supported request when authorized. Medication completion is self-reported; no dosing or treatment advice |
+| Requests without a call | [CareCall](https://carecall.care/) supports two-way texting and passing requests to family | Start with Arrange a ride, Remind me, and Ask my family; each creates one visible request and progress history |
+| Family connection | [ElliQ](https://elliq.com/pages/caregivers) supports family photos and communication | Start with one text message card, read-aloud and reply. Photo attachments are a later extension if time permits; no new video-call system for this MVP |
+| Flexible check-ins | [Snug](https://www.snugsafe.com/) supports early check-in and vacation mode; [CareCall](https://carecall.care/) lets an okay tap skip that day's call | Keep I'm okay today, add Skip today's call and Pause until...; explain exactly which calls/reminders/alerts pause and when they resume |
+| Editable preferences | [CareCall](https://carecall.care/) exposes remembered notes for removal; [Lotsa](https://kp.lotsahelpinghands.com/how-it-works/) supports selectively shared information | Parent-controlled About me: preferred name, usual destinations, pickup instructions, communication/sharing choices, and correction/deletion of remembered details |
+
+Parent refusal and revocation remain effective. Skipping a routine call must not silently dismiss an existing help request, cancel an appointment reminder, or revoke a ride. Keep an independent explanation of each paused service. No card numbers, passwords, or verification codes are collected in the conversation. Location is shared only with named recipients for the agreed trip window; vehicle tracking is labelled separately from parent phone GPS. Tell the parent what will be shared before sharing with family.
+
+### MVP build order and acceptance
+
+1. **Today's plan.** One selected calendar event appears consistently for parent and family with an explicit next step; missing location or stale sync is visible.
+2. **Complete ride journey.** Appointment -> eligible quote -> authorized booking -> pickup -> provider-reported arrival -> requested return ride. Preserve local/sandbox/live labels, failure states and the existing access gates.
+3. **Reminder cards.** Done, Later and Need help persist across reopening; Done is labelled as self-reported. Later schedules one next reminder; Need help records an actionable request rather than marking the reminder completed.
+4. **Request buttons and shared history.** Each supported button and the equivalent voice request reach the same workflow. Repeated taps/retries do not create duplicate requests or bookings. Ask my family shows requested, accepted or declined accurately.
+5. **Family message card, if time remains.** One authorized family member sends a private text message; the parent can read/hear it and reply. Do not infer that a message was read from successful delivery.
+
+Spending controls, consent and sharing settings required by the ride flow are prerequisites, not optional polish. Flexible check-ins and editable preferences are accepted follow-on scope after the core flow; neither justifies reopening the feature freeze. Only ship supported request types. Defer games, social feeds, continuous GPS, additional purchasing integrations, and a services marketplace.
+
+For the judge, begin on Today with the appointment and its transport status, demonstrate one arrangement, then show both people's updated cards. The UI itself should explain the problem and outcome within 30 seconds. Keep the full 60–90 second sandbox demo below for evidence of follow-through.
 
 ## What exists and what needs building
 
-Verified against origin/main at 4b4ece8 and open PRs on October 11, 2026:
+Repository status refreshed against origin/main at 4e21672 on October 11, 2026; UI additions above remain planned:
 
 | Capability | Evidence today | Planned work |
 |---|---|---|
@@ -68,8 +121,8 @@ Verified against origin/main at 4b4ece8 and open PRs on October 11, 2026:
 | Booking | Timer-driven local simulator, labelled simulated in parts of the UI | Provider adapter, estimates, persisted booking attempt, real/sandbox trip IDs |
 | Calendar | Seeded appointments | Google Calendar import, change/cancellation handling, shared-calendar selection |
 | Trip tracking | No external tracking integration | Provider trip status/link, vehicle location timestamp, family sharing |
-| Scheduled daily calls | Open [PR #24](https://github.com/devank-yadav/porchlight/pull/24), owner A | Review and extend that work; do not create a second scheduler |
-| Durable storage | Open [PR #25](https://github.com/devank-yadav/porchlight/pull/25) contains Atlas persistence work | Review/merge, then add durable action jobs and atomic booking claims |
+| Scheduled daily calls | Merged [PR #24](https://github.com/devank-yadav/porchlight/pull/24), owner A | Extend the existing scheduler for agreed reminder/pause behavior; do not create a second scheduler |
+| Durable storage | Merged [PR #25](https://github.com/devank-yadav/porchlight/pull/25) contains Atlas persistence work | Add durable action jobs and atomic booking claims; persistence alone does not provide these |
 | Identity | Demo role/member-ID switching | Authenticated accounts and circle-scoped authorization before real rides |
 
 TEAM_PLAN.md, DEMO.md, README.md, DEVPOST.md, and AGENTS.md still describe the earlier demo in places. The implementation rollout must reconcile their product copy and contract with the respective owners; this planning change does not silently update those files or claim the old demo already follows this plan.

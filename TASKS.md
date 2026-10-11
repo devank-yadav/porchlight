@@ -5,9 +5,9 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 
 ## Action product planning — October 11, 2026
 
-- [ ] P2 — Rishi (Codex), `care/action-plan`: in progress; [PR #26](https://github.com/devank-yadav/porchlight/pull/26). User authorized adding the accepted competitor-inspired UI recommendations to PLAN.md and publishing for team review. Owner notice to A and C: documentation scope only, covering parent/family navigation, feature priorities, acceptance criteria and unclaimed UI handoffs; no mobile implementation or shared contract edits. Latest main and the voice/app owner queues inspected; preserve the New app UI thread ownership of mobile/. Next: update the plan, check the docs, and mark the PR ready for review.
+- [x] P2 — Rishi (Codex), care/action-plan: documentation implemented; [PR #26](https://github.com/devank-yadav/porchlight/pull/26), review pending. Claim/owner notice pushed in 7591777 before edits. Scope: accepted parent/family navigation, six sourced competitor-inspired features, MVP build order, acceptance criteria and unclaimed handoffs. Main refreshed at 4e21672; #24/#25 are merged. Validation: documentation diff and local Markdown links; no runtime changes or phone validation. Next: owners review the plan and claim UI work below; New app UI thread retains mobile/ ownership.
 
-- [x] P1 — Rishi (Codex), `care/action-plan`: documentation implemented in `ea83d62`; [draft PR #26](https://github.com/devank-yadav/porchlight/pull/26), review pending. User explicitly requested the PLAN.md update. Claim/owner notice was pushed in `005e590` before edits. Scope: PLAN.md and server/src/care/ACTION_PLAN.md describe the family customer, calendar-driven ride selection, booking within preauthorized limits, provider trip updates, Uber sandbox/local demo modes, and ranked follow-on features. Checked origin/main at `4b4ece8`, owner branch task queues, and open PRs #20/#21/#24/#25; no overlapping plan edit found. Official Uber and Google docs researched; no credentials, API access, provider call, paid booking, or phone GPS integration tested. Checked: Markdown links resolve and git diff --check passes; documentation-only change, so no runtime tests required. No runtime or existing TEAM_PLAN.md contract changes. Next: review the plan and claim R0 before implementation; this does not reopen the feature freeze.
+- [x] P1 — Rishi (Codex), `care/action-plan`: documentation implemented in `ea83d62`; [PR #26](https://github.com/devank-yadav/porchlight/pull/26), review pending. User explicitly requested the PLAN.md update. Claim/owner notice was pushed in `005e590` before edits. Scope: PLAN.md and server/src/care/ACTION_PLAN.md describe the family customer, calendar-driven ride selection, booking within preauthorized limits, provider trip updates, Uber sandbox/local demo modes, and ranked follow-on features. Checked origin/main at `4b4ece8`, owner branch task queues, and open PRs #20/#21/#24/#25; no overlapping plan edit found. Official Uber and Google docs researched; no credentials, API access, provider call, paid booking, or phone GPS integration tested. Checked: Markdown links resolve and git diff --check passes; documentation-only change, so no runtime tests required. No runtime or existing TEAM_PLAN.md contract changes. Next: review the plan and claim R0 before implementation; this does not reopen the feature freeze.
 
 Proposed implementation queue (unclaimed; acceptance gates and dependencies in [ACTION_PLAN.md](server/src/care/ACTION_PLAN.md)):
 
@@ -19,7 +19,21 @@ Proposed implementation queue (unclaimed; acceptance gates and dependencies in [
 - [ ] R5 — C: ride-choice explanation, policy controls, trip timeline and tracking link.
 - [ ] R6 — A: two-phone rehearsal, 30-second pitch, and reconcile the earlier demo/product documents.
 
-Coordinate with open daily-call PR #24 and Atlas PR #25; do not duplicate their work. R0–R6 are proposed after the user-requested product change, not assigned work or permission to dispatch real rides.
+Daily-call PR #24 and Atlas PR #25 are merged as of main 4e21672; extend their existing work. R0–R6 are proposed after the user-requested product change, not assigned work or permission to dispatch real rides.
+
+## App experience implementation queue
+
+Accepted product scope; implementation unclaimed. Follow PLAN.md's MVP build order and the existing feature-freeze decision. These rows do not transfer mobile/ ownership from the New app UI thread. C coordinates with A/B before any shared contract changes; R0 still gates external integrations.
+
+- [ ] U1 — C with B: Today / My plans / Family for parent; Today / Plans / Family / Settings for family. Reuse current cards and contacts; show one appointment and next action consistently on both views.
+- [ ] U2 — C with B/A: reminder cards Done / Later / Need help with persistent state, self-reported completion, one rescheduled reminder and actionable help. Extend A's scheduler.
+- [ ] U3 — C with B/A: Arrange a ride / Remind me / Ask my family buttons use the same workflows as voice. Verify duplicate prevention and truthful request/acceptance states.
+- [ ] U4 — C with B, stretch: one private family text-message card with read-aloud and reply; defer photo uploads and new video infrastructure.
+- [ ] U5 — C with A/B, follow-on: explicit call-skip/pause controls and parent-editable preferences; test automatic resumption and independence from existing help requests.
+
+R5 already covers ride UI: expand that work item to include active-trip details, failure states, return-ride request and required consent/spending/sharing settings in the new navigation. Do not create a second ride implementation.
+
+Acceptance is specified in PLAN.md. App implementation requires mobile/AGENTS.md, Expo Go compatibility, the iOS export gate and parent/family phone checks. Documentation completion does not imply these features are built.
 
 ## Shared context for every agent
 
