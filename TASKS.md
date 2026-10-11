@@ -62,6 +62,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [ ] C9 Screenshots + screen-recording backup
 
 ## Coordination
+- [ ] Merge sweep — Devank (Claude Code), branch `claude/project-thread-0o7kfs`; in progress. Scope: merge finished team PRs into main with regular merges only (no force-push, no feature work), keep other agents' TASKS.md entries, and after each merge check the server starts, `node --test server/src/voice/llm.test.js` passes and `cd mobile && npx expo export --platform ios` builds. Checked at `349eea6` (main): server up with empty .env, 8/8 voice tests, iOS export OK. Open: `app/evening-theme` (Manasv) has no PR yet and lands after feature freeze, so it waits for Manasv/Devank. Next: merge PR #14 with this claim.
 - [x] Shared task handoff — Rishi (Codex), branch `care/shared-handoff`; [PR #14](https://github.com/devank-yadav/porchlight/pull/14), ready for review. Added owner-branch checks, claim/handoff rules, merged-work snapshot, and validation limits.
 
 ## Done
