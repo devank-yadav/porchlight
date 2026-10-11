@@ -56,6 +56,8 @@ function Main() {
   const demoMenu = () => {
     tap();
     Alert.alert('Demo controls', state ? `AI: ${state.config.llm ? 'live model' : 'demo mode'} · Texts: ${state.config.twilio ? 'Twilio' : 'logged only'} · Data: ${state.config.mongo ? 'MongoDB' : 'in memory'}` : API_BASE, [
+      { text: 'Play the demo call (scam, no ride, milk)', onPress: run(() => api.demoCall('peggy')) },
+      { text: 'Peggy presses Help', onPress: run(() => api.help('peggy')) },
       { text: 'Simulate a missed check-in', onPress: run(() => api.missed('peggy')) },
       ...(state?.config.twilio ? [{ text: 'Call Peggy’s phone now', onPress: run(() => api.phoneCall('peggy')) }] : []),
       { text: 'Reset demo data', style: 'destructive', onPress: run(() => api.reset()) },
@@ -71,7 +73,7 @@ function Main() {
           <View style={st.brandDot} />
           <Text style={st.brandText}>Porchlight</Text>
         </Pressable>
-        {role && <Text style={st.roleText} numberOfLines={1}>{role.title}{role.id === 'family' ? ` · ${role.sub.split(',')[0]}` : ''}</Text>}
+        {role && <Text style={st.roleText} numberOfLines={1}>{role.id === 'senior' ? `${role.title}’s side` : role.id === 'family' ? `Family · ${role.title}` : 'Volunteer desk'}</Text>}
         <Pressable accessibilityRole="button" onPress={demoMenu} style={st.demoBtn}>
           <Text style={st.demoText}>Demo</Text>
         </Pressable>
@@ -101,23 +103,53 @@ function Main() {
   );
 }
 
+// Two clear sides: the older adult's phone, or a family member's phone.
+// Family picks who they are next, because Anne (approves rides, sees meds) and Mark see different things.
 function RolePicker({ onPick }) {
+  const [step, setStep] = useState('side'); // side | family
+  const family = ROLES.filter((r) => r.id === 'family');
+  const senior = ROLES.find((r) => r.id === 'senior');
+  const desk = ROLES.find((r) => r.id === 'desk');
+  const pick = (r) => () => { tap(); onPick(r); };
+
+  if (step === 'family') {
+    return (
+      <ScrollView contentContainerStyle={st.pickerPad}>
+        <H1 onDusk style={{ fontSize: 34, lineHeight: 38 }}>Which family member are you?</H1>
+        <P style={{ color: color.mutedOnDusk }}>Each person sees what they need. Only {family[0]?.title} can approve rides and see medicines.</P>
+        {family.map((r) => (
+          <Pressable key={r.who} accessibilityRole="button" accessibilityLabel={`${r.title}, ${r.sub}`} onPress={pick(r)} style={({ pressed }) => [st.roleCard, pressed && { opacity: 0.85 }]}>
+            <Text style={st.roleTitle}>{r.title}</Text>
+            <Text style={st.roleSub}>{r.sub}</Text>
+          </Pressable>
+        ))}
+        <Pressable accessibilityRole="button" onPress={() => { tap(); setStep('side'); }} style={st.backLink}>
+          <Text style={st.linkText}>Back</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={st.pickerPad}>
       <Lamp state="lit" size={110} label="Porchlight" />
-      <H1 onDusk style={{ fontSize: 34, lineHeight: 38 }}>Who’s using this phone?</H1>
-      <P style={{ color: color.mutedOnDusk }}>Pick a role for the demo. Tap the Porchlight name at the top to switch later.</P>
-      {ROLES.map((r) => (
-        <Pressable
-          key={r.who}
-          accessibilityRole="button"
-          onPress={() => { tap(); onPick(r); }}
-          style={({ pressed }) => [st.roleCard, r.id === 'senior' && { backgroundColor: color.lamp }, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={[st.roleTitle, r.id === 'senior' && { color: color.lampInk }]}>{r.title}</Text>
-          <Text style={[st.roleSub, r.id === 'senior' && { color: color.lampInk }]}>{r.sub}</Text>
+      <H1 onDusk style={{ fontSize: 34, lineHeight: 38 }}>Who is this phone for?</H1>
+      <P style={{ color: color.mutedOnDusk }}>Porchlight has two sides. Tap the Porchlight name at the top to switch later.</P>
+      <Pressable accessibilityRole="button" accessibilityLabel={`I'm ${senior.title}. Big buttons, a daily chat, and help when I need it.`} onPress={pick(senior)} style={({ pressed }) => [st.roleCard, st.sideCard, { backgroundColor: color.lamp }, pressed && { opacity: 0.85 }]}>
+        <Text style={[st.sideKicker, { color: color.lampInk }]}>Older adult</Text>
+        <Text style={[st.roleTitle, { color: color.lampInk }]}>I’m {senior.title}</Text>
+        <Text style={[st.roleSub, { color: color.lampInk }]}>Big buttons, a daily chat, and help when I need it.</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`I'm family. See how ${senior.title} is doing, approve rides, and take on tasks.`} onPress={() => { tap(); setStep('family'); }} style={({ pressed }) => [st.roleCard, st.sideCard, pressed && { opacity: 0.85 }]}>
+        <Text style={st.sideKicker}>Family and neighbors</Text>
+        <Text style={st.roleTitle}>I’m family</Text>
+        <Text style={st.roleSub}>See how {senior.title} is doing, approve rides, and take on tasks.</Text>
+      </Pressable>
+      {desk && (
+        <Pressable accessibilityRole="button" onPress={pick(desk)} style={st.backLink}>
+          <Text style={st.linkText}>Volunteer desk for the nonprofit</Text>
         </Pressable>
-      ))}
+      )}
     </ScrollView>
   );
 }
@@ -138,4 +170,8 @@ const st = StyleSheet.create({
   roleCard: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, paddingHorizontal: 20, paddingVertical: 16, gap: 2 },
   roleTitle: { fontFamily: font.display, fontSize: 24, color: color.ink },
   roleSub: { fontFamily: font.body, fontSize: 16, color: color.muted },
+  sideCard: { paddingVertical: 24, gap: 4 },
+  sideKicker: { fontFamily: font.bodyBold, fontSize: 15, color: color.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
+  backLink: { minHeight: 48, justifyContent: 'center', alignSelf: 'center', paddingHorizontal: 12 },
+  linkText: { fontFamily: font.bodyBold, fontSize: 17, color: color.mutedOnDusk, textDecorationLine: 'underline' },
 });
