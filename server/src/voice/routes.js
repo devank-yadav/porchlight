@@ -2,7 +2,7 @@
 // Check-in API used by the app's Talk screen, the scam check, and Twilio phone webhooks.
 import { Router } from 'express';
 import * as store from '../store.js';
-import { scamCheck } from './llm.js';
+import { scamCheck, techHelp } from './llm.js';
 import { sms, VOICE } from './notify.js';
 import { callSenior, setSchedule, scheduleOf, startScheduler, scheduleRetry } from './schedule.js';
 import { relayEnabled, relayTwiml } from './relay.js';
@@ -41,6 +41,19 @@ voiceRoutes.post('/api/checkins/:id/message', wrap(async (req, res) => {
 
 voiceRoutes.post('/api/checkins/:id/finish', wrap(async (req, res) => {
   res.json(await finishCheckin(req.params.id));
+}));
+
+// ---------- Tech help: a picture of her screen → what it is + one next step ----------
+voiceRoutes.post('/api/tech-help', wrap(async (req, res) => {
+  const senior = await store.get('seniors', req.body.seniorId);
+  const image = String(req.body.image || '').replace(/^data:[^,]+,/, '');
+  if (!image) return res.status(400).json({ error: 'Take a picture of the screen first.' });
+  const result = await techHelp(senior, { image, mime: req.body.mime || 'image/jpeg', question: String(req.body.question || '').slice(0, 500), history: Array.isArray(req.body.history) ? req.body.history : [] });
+  if (result.scam && senior.circleId) {
+    const family = (await store.list('members', { circleId: senior.circleId })).filter((m) => m.role === 'family');
+    for (const m of family) await sms(m, `${senior.preferredName} showed Porchlight a screen that looks like a scam: "${result.says}". We told her to close it and not call or pay. Worth a quick call.`);
+  }
+  res.json(result);
 }));
 
 // ---------- Scam check ----------

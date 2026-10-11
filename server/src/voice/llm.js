@@ -83,6 +83,7 @@ Always do both: help her right now with one practical, safe thing she can do her
 - Say "your Porchlight screen", not "the app"; never say "notification" or "submit".
 - Once per call, if no family question is waiting, invite one memory tied to what she's talking about ("Did you and Walt garden together?"). When she tells a story, ask about one vivid detail (a song, a smell, who was there); don't summarize it back.
 - Bring up at most ONE thing from her last calls; never read her a list.
+- Tech help (her phone, TV, computer, a message or pop-up on a screen): ask what she sees on the screen, then give ONE small step at a time in plain words ("Press the round button at the bottom of the phone, then tell me what you see"). Wait for her to say done before the next step. Never ask her to tell you a password, passcode, code or card number. Typing her own phone passcode on her own phone's lock screen or Settings (for example during an iPhone update) is fine; tell her to type it, never to say it out loud. Typing a password or code into a website, a message or for a caller is not. A pop-up or caller saying her device has a virus, asking her to call a number, or asking for payment or remote access is a scam: tell her to close it and not call or pay. If you're both stuck, offer to connect her to ${family}. She can also tap "Help with my phone" in the Porchlight app and take a picture of the screen.
 - Questions she asks you (the date, the weather, a word she forgot, how to do something simple): just answer helpfully if you can; if you don't know, say so plainly. Never suggest apps, websites or screens you weren't told about; you may suggest the radio, the newspaper or asking ${family}.
 How to sound like a person on the phone, not a form:
 - React to what she actually said first ("Oh, a headache, that's no fun."), then move on. Use contractions and everyday words.
@@ -456,4 +457,34 @@ export async function scamCheck(description) {
       ? "Nothing here looks like a common scam. If they ask for money or codes later, hang up and call family."
       : "Don't send money, gift cards or codes. Hang up and call the real number on your card or bill, or call your family first.";
   return { verdict, redFlags, advice };
+}
+
+// ---------- Tech help from a picture of her screen ----------
+// She takes a photo or screenshot in the app and asks "what do I do?". Claude looks at it and answers
+// with what the screen is and ONE next step, in plain words, and calls out scams.
+export async function techHelp(senior, { image, mime = 'image/jpeg', question = '', history = [] }) {
+  const name = senior.preferredName;
+  const fallback = { says: "I can't look at pictures right now.", step: `Try asking ${senior.primaryContactName} on the phone, or tell me in words what the screen says.`, scam: false };
+  if (!llmEnabled) return fallback;
+  const system = `You help ${name}, ${senior.age}, with her phone, tablet, TV or computer. She sent a picture of a screen.
+Reply ONLY with JSON: {"says": "one short sentence: what this screen is, in plain words", "step": "the ONE next thing to do, one or two short sentences, saying exactly what to tap and where it is on the screen (e.g. 'the blue Update Now button at the bottom')", "scam": true|false, "done": true|false}
+Rules: plain words, no jargon, no lists. Never ask her to tell you a password, code, PIN or card number. Typing her own phone passcode on her phone's own lock screen or Settings (e.g. to finish an iPhone update) is fine: say "type your phone's passcode", never "say" it. Typing a password, code or card number into a website, a message or for a caller is not: treat that as a likely scam. If it's a pop-up or message saying her device is infected, telling her to call a number, asking for payment, gift cards or remote access, set scam true and the step is to close it (or not answer) and not call or pay anyone. If the picture is unreadable, say so and ask her to take it again closer. "done" is true only when nothing more needs doing.`;
+  const prior = history.slice(-6).map((h) => ({ role: h.who === 'porchlight' ? 'assistant' : 'user', content: h.text }));
+  const messages = [
+    { role: 'system', content: system },
+    ...prior,
+    { role: 'user', content: [
+      { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
+      { type: 'text', text: question ? `${name} asks: ${question}` : `${name} asks: What is this, and what should I do?` },
+    ] },
+  ];
+  try {
+    const out = parseJson(await chat(messages, { json: true, maxTokens: 300 }));
+    const said = guardReply(senior, `${out.says || ''} ${out.step || ''}`);
+    if (!said) return fallback;
+    return { says: String(out.says || ''), step: String(out.step || ''), scam: Boolean(out.scam), done: Boolean(out.done) };
+  } catch (e) {
+    console.warn('[llm] tech help failed:', e.message);
+    return fallback;
+  }
 }

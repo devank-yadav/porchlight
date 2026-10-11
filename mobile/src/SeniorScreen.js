@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
@@ -66,6 +67,7 @@ export default function SeniorScreen({ senior, page = 'today' }) {
     </Page>}
     {page === 'talk' && <Talk senior={senior} done={() => { router.replace('/senior/thanks'); refresh(); }} />}
     {page === 'scam' && <ScamCheck senior={senior} back={home} />}
+    {page === 'tech' && <TechHelp senior={senior} back={home} />}
     {page === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
     {page === 'thanks' && <Thanks senior={senior} back={home} />}
   </KeyboardAvoidingView>;
@@ -125,6 +127,7 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     <HelpButton />
     <Notices notices={notices} />
     {primary && <BigButton icon="phone" title={'Call ' + primary.name.split(' ')[0]} sub={primary.relation} onPress={() => openLink('tel:' + primary.phone)} />}
+    <BigButton icon="iphone" title="Help with my phone" sub="Show me the screen, I’ll walk you through it" hint="Take a picture of a screen and Porchlight explains what to do next." onPress={() => go('tech')} />
     <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check before you act" onPress={() => go('scam')} />
     <T v="readSmall" muted>Porchlight is an AI helper. It never asks for money, codes, passwords or ID numbers.</T>
   </Page>;
@@ -286,6 +289,81 @@ function Dot({ i }) {
   }, [i, o, reduced]);
   const style = useAnimatedStyle(() => ({ opacity: o.get() }));
   return <Animated.View style={[{ width: 7, height: 7, borderRadius: 4, backgroundColor: dark.ink }, style]} />;
+}
+
+// Tech help: a picture of the screen (camera or screenshot) → what it is + ONE next step, read aloud.
+// "I did it" asks for the next step; a new picture shows where she is now. Scams are called out.
+function TechHelp({ senior, back }) {
+  const [shot, setShot] = useState(null); // { base64, uri }
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const ask = async (img, q) => {
+    setBusy(true);
+    try {
+      const r = await api.techHelp(senior._id, img.base64, q, history);
+      setAnswer(r);
+      setHistory((h) => [...h, { who: 'senior', text: q || 'What is this, and what should I do?' }, { who: 'porchlight', text: `${r.says} ${r.step}` }]);
+      if (r.scam) haptic.warn(); else haptic.success();
+      say(`${r.says} ${r.step}`);
+    } catch (e) {
+      onError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pick = async (camera) => {
+    try {
+      const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return toast.info('Porchlight needs permission', { description: camera ? 'Allow the camera in Settings to take a picture of the screen.' : 'Allow Photos in Settings to choose a screenshot.' });
+      const opts = { base64: true, quality: 0.4, mediaTypes: ['images'] };
+      const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+      if (res.canceled || !res.assets?.[0]?.base64) return;
+      const img = { base64: res.assets[0].base64, uri: res.assets[0].uri };
+      setShot(img);
+      setAnswer(null);
+      await ask(img, question.trim());
+    } catch (e) {
+      onError(e);
+    }
+  };
+
+  return (
+    <Page>
+      <BackLink onPress={back} />
+      <T v="readTitle">Help with my phone</T>
+      <T v="read" muted>Show me the screen and I’ll tell you what to do, one step at a time.</T>
+      <TextInput
+        style={[st.input, st.textarea]}
+        multiline
+        value={question}
+        onChangeText={setQuestion}
+        placeholder="What would you like to do? (optional)"
+        placeholderTextColor="#71717A"
+        accessibilityLabel="Your question, optional"
+      />
+      {answer && (
+        <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={[st.verdict, { backgroundColor: answer.scam ? accent.redSoft : accent.greenSoft, borderColor: answer.scam ? accent.red : accent.green }]} accessibilityLiveRegion="polite">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Icon name={answer.scam ? 'exclamationmark.octagon.fill' : 'lightbulb.fill'} size={30} color={answer.scam ? accent.redText : accent.greenText} />
+            <Text style={[st.verdictWord, { color: answer.scam ? accent.redText : accent.greenText, flex: 1 }]}>{answer.scam ? 'This looks like a scam.' : answer.done ? 'All done.' : 'Next step'}</Text>
+          </View>
+          <Text style={st.verdictText}>{answer.says}</Text>
+          <Text style={[st.verdictText, { fontFamily: font.readBold }]}>{answer.step}</Text>
+          {answer.scam && <Text style={st.verdictText}>I’ve let your family know.</Text>}
+        </Animated.View>
+      )}
+      <View style={st.stack}>
+        {answer && !answer.done && !answer.scam && <BigButton tone="lamp" icon="checkmark.circle" title={busy ? 'Looking…' : 'I did it. What’s next?'} sub="Take a new picture if the screen changed" onPress={() => ask(shot, 'I did that. What do I do next?')} disabled={busy} />}
+        <BigButton tone={answer ? 'plain' : 'lamp'} icon="camera" title={busy ? 'Looking…' : answer ? 'Take a new picture' : 'Take a picture of the screen'} sub="Use this phone’s camera" onPress={() => pick(true)} disabled={busy} />
+        <BigButton icon="photo" title="Choose a screenshot" sub="From your photos" onPress={() => pick(false)} disabled={busy} />
+        {answer && <BigButton icon="house.fill" title="Back to start" onPress={back} />}
+      </View>
+    </Page>
+  );
 }
 
 function ScamCheck({ senior, back }) {
