@@ -7,6 +7,7 @@ import { seed } from './care/seed.js';
 import { llmEnabled } from './voice/llm.js';
 import { twilioEnabled } from './voice/notify.js';
 import { voiceRoutes } from './voice/routes.js';
+import { attachRelay } from './voice/relay.js';
 import { careRoutes } from './care/routes.js';
 
 const app = express();
@@ -22,6 +23,7 @@ const PORT = Number(process.env.PORT || 3001);
 await store.connect();
 const existing = await store.list('seniors');
 if (!existing.length || process.env.RESEED === '1') await seed();
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[porchlight] API on http://localhost:${PORT}  (LLM: ${llmEnabled ? 'on' : 'mock'}, Twilio: ${twilioEnabled ? 'on' : 'off'})`);
 });
+attachRelay(server); // WebSocket for natural phone calls (voice/relay.js)

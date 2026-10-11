@@ -5,6 +5,7 @@ import * as store from '../store.js';
 import { scamCheck } from './llm.js';
 import { sms, VOICE } from './notify.js';
 import { callSenior, setSchedule, scheduleOf, startScheduler } from './schedule.js';
+import { relayEnabled, relayTwiml } from './relay.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
 import * as escalation from '../care/escalation.js';
 import { wrap } from '../wrap.js';
@@ -58,7 +59,7 @@ voiceRoutes.post('/api/scam-check', wrap(async (req, res) => {
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 const twiml = (inner) => `<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`;
 const gather = (say, checkinId, silent = 0) =>
-  `<Gather input="speech" speechTimeout="auto" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="${VOICE}">${xml(say)}</Say></Gather>` +
+  `<Gather input="speech" speechTimeout="auto" bargeIn="true" action="/twilio/turn?checkinId=${checkinId}" method="POST"><Say voice="${VOICE}">${xml(say)}</Say></Gather>` +
   `<Redirect method="POST">/twilio/turn?checkinId=${checkinId}&amp;silent=${silent + 1}</Redirect>`;
 
 // "Call now" in the app.
@@ -77,8 +78,15 @@ startScheduler();
 
 voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
+  if (relayEnabled()) return res.type('text/xml').send(relayTwiml(checkin)); // natural, streaming conversation
   res.type('text/xml').send(twiml(gather(checkin.transcript[0].text, checkin._id)));
 }));
+
+// ConversationRelay finished (we sent "end", or the line dropped): hang up kindly.
+voiceRoutes.post('/twilio/relay-done', (req, res) => {
+  if (req.body.ErrorCode || req.body.ErrorMessage) console.warn('[relay] ended with error:', req.body.ErrorCode, req.body.ErrorMessage);
+  res.type('text/xml').send(twiml('<Hangup/>'));
+});
 
 voiceRoutes.post('/twilio/turn', wrap(async (req, res) => {
   const id = req.query.checkinId;
