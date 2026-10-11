@@ -67,3 +67,9 @@ test('"call me back later" books a callback; "what do I have this week" reads ap
   assert.match(weekSummary([{ ...appts[0], transport: 'confirmed' }], 'America/New_York', now), /ride is confirmed/);
   assert.match(weekSummary([], 'America/New_York', now), /don't have any appointments/);
 });
+
+test('"book an Uber for me" is a ride request', async () => {
+  const { RIDE } = await import('./intents.js');
+  for (const s of ['Can you book an Uber for me?', 'I need a ride to the doctor', "I don't have a ride", 'get me a taxi']) assert.match(s, RIDE);
+  for (const s of ['My son drove me yesterday', 'I rode my bike']) assert.doesNotMatch(s, RIDE);
+});

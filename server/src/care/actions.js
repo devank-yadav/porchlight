@@ -64,14 +64,18 @@ export async function proposeRide(senior, appointment, quote) {
     if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
     return action;
   }
-  // No approval step: book now, and let the whole family know she's going.
+  // No approval step: book now. The Uber button goes to her (it's her ride), and the family just hears she's going.
   const booked = action;
   const fam = members.filter((m) => m.role === 'family');
   const where = appointment.where ? ` at ${appointment.where.replace(/\s*\(sample\)/i, '')}` : '';
+  await store.insert('notices', {
+    seniorId: senior._id, kind: 'uber', actionId: booked._id, uberLink: booked.details.uberLink, simulated: false, at: new Date().toISOString(),
+    text: `Your ride to the ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}: tap "Book my Uber" and Uber opens with your home and the clinic filled in. Leave by ${fmtTime(pickupAt)}.`,
+  });
   for (const m of fam) {
-    await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}. Porchlight is booking her ride (simulated), pickup ${fmtTime(pickupAt)}.${m.primary || m.canApprove ? ` Book a real Uber instead: ${booked.details.uberLink}` : ''}`);
+    await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}, pickup ${fmtTime(pickupAt)}. Porchlight set up her Uber ride; she books it from her Porchlight screen.`);
   }
-  runSandbox(booked._id).catch((e) => console.error('[actions] sandbox failed:', e));
+  // She books it herself in Uber, so no sample confirmation (and no "your ride is confirmed" call).
   return booked;
 }
 
