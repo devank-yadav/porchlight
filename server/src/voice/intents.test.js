@@ -73,3 +73,12 @@ test('"book an Uber for me" is a ride request', async () => {
   for (const s of ['Can you book an Uber for me?', 'I need a ride to the doctor', "I don't have a ride", 'get me a taxi']) assert.match(s, RIDE);
   for (const s of ['My son drove me yesterday', 'I rode my bike']) assert.doesNotMatch(s, RIDE);
 });
+
+test('ride destination: any place she names, appointment words go to her appointment', async () => {
+  const { rideDestination } = await import('./intents.js');
+  assert.equal(rideDestination('Book me an Uber to the grocery store'), 'the grocery store');
+  assert.equal(rideDestination('Can you get me a ride to my sister\'s house at 4?'), "my sister's house");
+  assert.equal(rideDestination('I need a ride to Wegmans now please'), 'Wegmans');
+  assert.equal(rideDestination('book an Uber for me'), null);
+  assert.equal(rideDestination('I need a ride to the doctor tomorrow'), 'the doctor');
+});

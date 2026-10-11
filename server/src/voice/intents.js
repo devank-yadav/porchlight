@@ -13,6 +13,7 @@ import * as audit from '../care/audit.js';
 import { sms } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
 import { proposeRide } from '../care/actions.js';
+import { uberLink } from '../care/uber.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -144,15 +145,49 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
 // ---------- "Book an Uber for me" ----------
 export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
 
+const STEPS = 'Your Porchlight screen is showing a big Book my Uber button. First tap it, then tap Request in Uber, and that\'s it.';
+const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
+
+// "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
+export function rideDestination(text) {
+  const m = String(text || '').match(/\bto ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=\s+(?:at|by|around|tomorrow|tonight|today|now|right now|in \d|in an?|please|for|this)\b|[,!?]|\.(?:\s|$)|$)/i);
+  const place = m?.[1]?.trim().replace(/\s+(please|now)$/i, '');
+  return place && !/^(go|get|be|talk|speak|book|call)$/i.test(place.replace(/^(the|my|a|an) /i, '')) ? place : null;
+}
+
 async function rideNow(senior, text) {
-  const appts = (await store.list('appointments', { seniorId: senior._id }))
-    .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
-    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
-  if (!appts.length) return null; // nothing coming up: let the conversation ask where she's going
-  const a = appts[0];
-  await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
-  const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
-  return { reply: `Okay. For your ${what} ${sayTime(new Date(a.startsAt), senior.timezone || 'America/New_York')}, I've put a Book my Uber button on your Porchlight screen with everything filled in. One tap and it's booked. I'll let ${senior.primaryContactName || 'your family'} know you're going. Anything else?` };
+  const tz = senior.timezone || 'America/New_York';
+  const family = senior.primaryContactName || 'your family';
+  const place = rideDestination(text);
+  // Her appointment (or no place named): the ride for her next appointment.
+  if (!place || APPOINTMENT_PLACE.test(place)) {
+    const appts = (await store.list('appointments', { seniorId: senior._id }))
+      .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
+      .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+    if (!appts.length) return place ? null : { reply: 'Sure. Where would you like to go?' };
+    const a = appts[0];
+    await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
+    const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
+    return { reply: `Okay, a ride for your ${what} ${sayTime(new Date(a.startsAt), tz)}. ${STEPS} I'll let ${family} know you're going.` };
+  }
+  // Anywhere else she names: leave now, or at the time she said.
+  const when = parseWhen(text, tz);
+  const pickupAt = (when && when > new Date() ? when : new Date()).toISOString();
+  const leavingNow = !when || when - new Date() < 15 * 60000;
+  const where = place.replace(/^my /i, 'your ');
+  const bare = place.replace(/^(the|my|a|an) /i, '');
+  const details = { pickupAt, from: 'Home', to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: senior.city ? `${bare}, ${senior.city}` : bare }) };
+  const action = await store.insert('actions', {
+    seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
+    details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
+    history: [{ status: 'APPROVED', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `She asked on her call: "${text}"; family notified` } }],
+  });
+  await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber, then Request.` });
+  await audit.log('porchlight', 'voice.ride', { seniorId: senior._id, targetId: action._id, detail: `${where} ${leavingNow ? 'now' : pickupAt}` });
+  const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
+  const time = leavingNow ? 'now' : sayTime(new Date(pickupAt), tz);
+  for (const m of members.filter((x) => x.role === 'family')) await sms(m, `Heads-up: ${senior.preferredName} is taking an Uber to ${where.replace(/^your /, 'her ')} ${time}. She's booking it from her Porchlight screen.`);
+  return { reply: `Okay, an Uber from home to ${where}, ${leavingNow ? 'leaving now' : `leaving ${time}`}. ${STEPS} I'll let ${family} know.` };
 }
 
 // Runs the intent. Returns { reply, transfer?, end? } or null when nothing matched.
