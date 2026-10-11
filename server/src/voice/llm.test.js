@@ -69,3 +69,11 @@ test('scam check: everyday words are fine, real scams are caught', async () => {
   assert.equal((await scamCheck('Someone said I won a prize and must pay with gift cards')).verdict, 'likely scam');
   assert.equal((await scamCheck('My grandson is in jail and needs bail money, keep it secret')).verdict, 'likely scam');
 });
+
+test('phone greeting is short, skips the family opener, still says it is an AI', () => {
+  const g = greeting(peggy, 'Hi Mom, it’s Anne.', [], { phone: true });
+  assert.doesNotMatch(g, /it’s Anne/);
+  assert.match(g, /I'm an AI/);
+  assert.match(g, /never ask for money/);
+  assert.ok(g.split(' ').length < 30, g);
+});

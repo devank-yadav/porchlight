@@ -45,6 +45,7 @@ export const api = {
   missed: (seniorId) => call('POST', `/api/seniors/${seniorId}/missed`),
   resolve: (seniorId, memberId) => call('POST', `/api/seniors/${seniorId}/resolve`, { memberId }),
   phoneCall: (seniorId) => call('POST', `/api/seniors/${seniorId}/call`),
+  setSchedule: (seniorId, schedule) => call('PUT', `/api/seniors/${seniorId}/schedule`, schedule),
   scamCheck: (seniorId, text) => call('POST', '/api/scam-check', { seniorId, text }),
   addTask: (task) => call('POST', '/api/tasks', task),
   claim: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/claim`, { memberId }),

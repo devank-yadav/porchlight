@@ -40,14 +40,14 @@ Source: `origin/main` at `349eea6` (PR #8 merged). Refresh before acting on this
 | Area | Current repository state | Remaining work on the checklist |
 |---|---|---|
 | Voice / Person A | A3–A7 implemented and merged | A1 model key, A2 live call, A8 rehearsal/video/submission |
-| Backend / Rishi | B1–B8 implemented and merged; use the existing workflows | B9 MongoDB URI and persistence check; Devpost paragraph already exists |
+| Backend / Rishi | B1–B8 merged; B9 implemented and live Atlas persistence verified on `care/atlas` | B9 PR review/merge; Devpost paragraph already exists |
 | App / Manasv | C2–C8 implemented and merged | C1 two-phone validation, C9 screenshots/video |
 
 The initial backend implementation overlapped a published B1 claim. PR #8 preserved the merged workflows and added contract checks and seed fixes. Future agents should extend the existing actions, tasks, digest, filtering, and escalation implementations. The contract smoke check passes in empty-env mode with the server in UTC, and all eight voice safety tests pass. Those checks do not establish two-phone or real-call validation.
 
 ## Person A — Voice & AI + demo lead (Claude Code) — name: ____
-- [ ] A1 Model key live in .env
-- [ ] A2 Twilio + ngrok, first real call to a teammate's phone
+- [x] A1 Model key live in .env (Claude Haiku 4.5 through Anthropic's OpenAI-compatible endpoint, on Devank's laptop)
+- [x] A2 Twilio + ngrok, first real call: live streaming call (ConversationRelay) on Devank's upgraded Twilio account; heard every answer, ride request created for Anne's approval
 - [x] A3 Scam policy rule (backend, not prompt)
 - [x] A4 Ride detection with appointment context, never claims a booking (voice side; prompt uses appointments once B1 seeds them)
 - [x] A5 Med "not sure" status + safe wording
@@ -64,7 +64,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] B6 Digest per viewer
 - [x] B7 Escalation: unresolved (amber) semantics + quiet hours
 - [x] B8 ?viewer= filtering
-- [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize (code ready with fallback; needs MONGODB_URI; Devpost paragraph in DEVPOST.md)
+- [x] B9 — Rishi (Codex), `care/atlas`: implemented; [PR #25](https://github.com/devank-yadav/porchlight/pull/25): review/merge pending. Code commit `f0115dc`, current main integrated. Atlas credentials configured only in Git-ignored root `.env`. Checked: separate processes insert/update/read one temporary audit record and clean it up; `/api/state` reports `config.mongo: true`; API restart preserves seniors, 12 tasks, 3 check-ins, actions, appointments and notices; empty and invalid URI configurations still serve the demo in memory. Devpost paragraph already exists in A-owned `DEVPOST.md`. No shared API shape changes. Next: review and merge the code; other demo laptops need their own local Atlas configuration.
 
 ## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
@@ -82,6 +82,8 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] Demo controls hidden from Peggy's side — Devank (Claude Code, Part A thread), branch `claude/project-thread-lxigum`; implemented, merged via the PR after #17. Scope: `mobile/App.js` only (handoff from Manasv's area agreed by Devank): no Demo button on Peggy's side; long-press the Porchlight name opens demo controls on any side. Checked: iOS export OK. Not yet validated on a phone.
 - [ ] Merge sweep — Devank (Claude Code), branch `claude/project-thread-0o7kfs`; in progress, ongoing until judging. Scope: merge finished team PRs into main with regular merges only (no force-push, no feature work), keep other agents' TASKS.md entries, and after each merge check the server starts, `node --test server/src/voice/llm.test.js` passes and `cd mobile && npx expo export --platform ios` builds. Merged: PR #14 via [PR #16](https://github.com/devank-yadav/porchlight/pull/16). Checked at `f153f4b` (main): server up with empty .env, 8/8 voice tests, iOS export OK. Not validated on phones. Waiting: `app/evening-theme` (Manasv, 3 commits, merges cleanly) has no PR and came after feature freeze, so it needs Manasv or Devank to say go. Next: keep sweeping for new PRs.
 - [x] Shared task handoff — Rishi (Codex), branch `care/shared-handoff`; [PR #14](https://github.com/devank-yadav/porchlight/pull/14), ready for review. Added owner-branch checks, claim/handoff rules, merged-work snapshot, and validation limits.
+
+- [x] Real phone calls: daily call schedule, Call now, natural voice, live streaming conversation, shorter phone greeting — Devank (Claude Code: laptop session on `voice/daily-call` plus the Part A thread on `claude/project-thread-lxigum`). Merged: PR #22 (LLM_HEADERS), #23 (no Timeout param), #24 (schedule, Call now, ConversationRelay/record modes, Chirp3-HD voice), #27 (short phone greeting). Checked: 9/9 voice tests, server starts with empty .env, iOS export OK, and real calls placed to Devank's test phone. Needs: an upgraded Twilio account plus the AI/ML addendum for VOICE_MODE=relay; MONGODB_URI still a placeholder. Note: the New app UI thread owns `mobile/` from now on.
 
 ## Done
 - [x] Research → feature spec (PLAN.md), ranked Phase 1 (TEAM_PLAN.md)
