@@ -5,7 +5,20 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 
 ## Action product planning — October 11, 2026
 
-- [ ] P1 — Rishi (Codex), `care/action-plan`: in progress. User explicitly requested the PLAN.md update: family customer, calendar-aware ride selection and booking within preauthorized limits, trip updates, Uber demo strategy, and ranked follow-on features. Coordination notice to PLAN owner A and the team: documentation scope is PLAN.md, TASKS.md, and a new implementation note under server/src/care/; runtime code and the existing TEAM_PLAN.md contract are unchanged. Checked origin/main at 4b4ece8, owner branch task queues, and open PRs #20/#21/#24/#25; no overlapping plan edit found. PR #24 already covers daily scheduling; extend it after review rather than duplicate it. This planning task does not reopen the feature freeze or claim implementation work. Next: publish this claim, research official APIs, and submit the revised plan for team review.
+- [x] P1 — Rishi (Codex), `care/action-plan`: documentation implemented; review pending. User explicitly requested the PLAN.md update. Claim/owner notice was pushed in `005e590` before edits. Scope: PLAN.md and server/src/care/ACTION_PLAN.md describe the family customer, calendar-driven ride selection, booking within preauthorized limits, provider trip updates, Uber sandbox/local demo modes, and ranked follow-on features. Checked origin/main at `4b4ece8`, owner branch task queues, and open PRs #20/#21/#24/#25; no overlapping plan edit found. Official Uber and Google docs researched; no credentials, API access, provider call, paid booking, or phone GPS integration tested. Checked: Markdown links resolve and git diff --check passes; documentation-only change, so no runtime tests required. No runtime or existing TEAM_PLAN.md contract changes. Next: review the plan and claim R0 before implementation; this does not reopen the feature freeze.
+
+Proposed implementation queue (unclaimed; acceptance gates and dependencies in [ACTION_PLAN.md](server/src/care/ACTION_PLAN.md)):
+
+- [ ] R0 — B with A/C review: verify calendar/Uber access and payer model; agree the additive contract.
+- [ ] R1 — B: local quote provider, automatic ride policy, and atomic booking-intent claims.
+- [ ] R2 — B/C: selected calendar import and appointment edit/cancellation handling.
+- [ ] R3 — B: Uber sandbox adapter, durable jobs, timeout reconciliation, and trip cancellation.
+- [ ] R4 — B/A: signed webhooks, accurate parent/family notices, and delivery evidence.
+- [ ] R5 — C: ride-choice explanation, policy controls, trip timeline and tracking link.
+- [ ] R6 — A: two-phone rehearsal, 30-second pitch, and reconcile the earlier demo/product documents.
+
+Coordinate with open daily-call PR #24 and Atlas PR #25; do not duplicate their work. R0–R6 are proposed after the user-requested product change, not assigned work or permission to dispatch real rides.
+
 ## Shared context for every agent
 
 This file is the shared work queue. Every teammate's agent updates its own claims, progress, blockers, and handoff here. `TEAM_PLAN.md` defines acceptance criteria and data shapes; `PLAN.md` defines product decisions. Backend details and validation commands are in `server/src/care/INTEGRATION.md`.
