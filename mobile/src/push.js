@@ -11,9 +11,13 @@ Notifications.setNotificationHandler({
 });
 
 // Handle taps even when a notification cold-starts the app before Peggy's screen mounts.
+const handledResponses = new Set();
 const openFrom = async (response) => {
+  const id = response?.notification?.request?.identifier;
+  if (id && handledResponses.has(id)) return;
   const url = response?.notification?.request?.content?.data?.url;
   if (typeof url !== 'string' || !url.startsWith('https://m.uber.com/ul/?')) return;
+  if (id) handledResponses.add(id);
   try {
     // Native app deep links open Uber directly; retain the universal link for phones without Uber.
     await Linking.openURL(url.replace('https://m.uber.com/ul/', 'uber://'));
