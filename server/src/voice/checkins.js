@@ -8,9 +8,11 @@ import { handleIntent, dueReminders, localDate } from './intents.js';
 
 const YES = /^\s*(oh,? )?(yes|yeah|yep|sure|okay|ok|please|i('|’)?d (like|love) that|that would be (nice|lovely|great))\b/i;
 const CONNECT_ASK = /\b(connect|call|talk to|speak to|put me through)\b/i;
-// Answers to "Shall I hang up now?"
-const END_OK = /\b(bye|goodbye|that('|’)?s (all|it)|nothing else|go ahead|hang up|you can go|talk (to you )?tomorrow)\b/i;
-const NOT_YET = /^\s*(oh,? )?(no\b|nope|not yet|wait|hold on|hang on|actually|one more|just a (second|minute|moment))/i;
+export const MAX_TURNS = 10; // kept for callers; calls no longer end on a turn count
+// Every LONG_CALL turns Porchlight gently asks whether she'd like to keep going; it never just hangs up.
+const LONG_CALL = 20;
+// Her yes to "shall we say goodbye?": short, and not a new request ("no, but can you…" keeps talking).
+const CONFIRM_END = /^\s*(oh,? )?(yes|yeah|yep|ok(ay)?|sure|alright|that('|’)s (all|it|fine)|no,? (that('|’)s all|thanks?|thank you|nothing)|nope|nothing( else)?|bye|good ?bye|good night|i('|’)m (good|done|fine|all set)|go ahead|you can (go|hang up)|please do|hang up)\b(?![\s\S]*\b(but|can you|could you|wait|actually|one more)\b)[\s\S]{0,40}$/i;
 const BYE = /^\s*(ok(ay)?,? )?(bye|goodbye|talk (to you )?tomorrow)\b/i;
 const GOODBYE = /^\s*(no,? )?(that('|’)s (all|it)|nothing else|i('|’)m (all )?(good|fine|set)|bye|goodbye|talk (to you )?tomorrow)\b[\s\S]{0,40}$/i;
 
@@ -75,7 +77,7 @@ export async function startCheckin(seniorId, channel) {
 // onSentence (live calls only): sentences of the reply are handed over as they're written; the
 // result then has streamed: true and the caller doesn't speak `reply` again.
 export async function addTurn(checkinId, text, { onSentence } = {}) {
-  let checkin = await store.get('checkins', checkinId);
+  const checkin = await store.get('checkins', checkinId);
   const senior = await store.get('seniors', checkin.seniorId);
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
   const urgent = URGENT_WORDS.test(text);
@@ -86,24 +88,11 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     await store.update('checkins', checkinId, { transcript, transferredTo: intent.transfer });
     return { reply: intent.reply, ended: true, transfer: intent.transfer };
   }
-  // Porchlight never hangs up on its own: it asks "Shall I hang up now?" and waits for her answer.
-  if (checkin.confirmEnd && !urgent && !intent) {
-    const done = END_OK.test(text) || (YES.test(text) && !NOT_YET.test(text));
-    const reply = done ? (checkin.confirmEnd.bye || `Okay. Thank you, ${senior.preferredName}. I'll pass everything on to ${senior.primaryContactName}. Talk tomorrow!`)
-      : NOT_YET.test(text) ? "Of course, I'm still here. What else is on your mind?" : null;
-    if (reply) {
-      transcript.push({ who: 'porchlight', text: reply, at: new Date().toISOString() });
-      await store.update('checkins', checkinId, { transcript, confirmEnd: null });
-      return { reply, ended: done };
-    }
-    await store.update('checkins', checkinId, { confirmEnd: null }); // she moved on: keep talking
-    checkin = { ...checkin, confirmEnd: null };
-  }
-  if (intent?.end) { // "call me back later": the callback is booked, then ask before hanging up
-    const reply = intent.reply.replace(/\s*Bye for now!?\s*$/i, '') + ' Shall I hang up now?';
-    transcript.push({ who: 'porchlight', text: reply, at: new Date().toISOString() });
-    await store.update('checkins', checkinId, { transcript, confirmEnd: { bye: 'Okay. Talk to you then. Bye for now!' } });
-    return { reply, ended: false };
+  if (intent?.end) { // "call me back later": the callback is booked; still ask before hanging up
+    const ask = `${intent.reply.replace(/\s*Bye for now!?\s*$/i, '')} Shall I hang up now?`;
+    transcript.push({ who: 'porchlight', text: ask, at: new Date().toISOString() });
+    await store.update('checkins', checkinId, { transcript, askedToEnd: true });
+    return { reply: ask, ended: false };
   }
   // "Yes" to the activity Porchlight just suggested ("Would you like me to tell Anne you'd like to go?"):
   // tell the family now, so the offer is real.
@@ -120,15 +109,25 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     return { reply: said, ended: false };
   }
   const turns = transcript.filter((t) => t.who === 'senior').length;
-  // She can end the call herself ("no, that's all", "bye"), unless something is urgent.
-  // Out of turns: never end on a question she can't answer. Say goodbye instead.
-  const askedAnythingElse = /anything else|need anything/i.test(checkin.transcript[checkin.transcript.length - 1]?.text || '');
-  // No turn limit: the call lasts as long as she wants. When she says goodbye, ask before hanging up.
-  if (!intent && (BYE.test(text) || (askedAnythingElse && GOODBYE.test(text))) && !urgent && !checkin.urgentAlertedAt) {
-    const ask = `It was lovely talking with you, ${senior.preferredName}. Shall I hang up now?`;
-    const bye = `Okay. Thank you, ${senior.preferredName}. I'll pass everything on to ${senior.primaryContactName}, and I'll only tell you things once they're confirmed. Talk tomorrow!`;
+  // Porchlight never hangs up on its own. When she sounds done ("that's all", "bye"), or after a long
+  // chat, it ASKS; the call ends only when she says yes to that question.
+  if (checkin.askedToEnd && !intent && !urgent) {
+    if (CONFIRM_END.test(text)) {
+      const later = checkin.callbackAt ? 'Talk to you soon!' : 'Talk tomorrow!';
+      const bye = `Thank you, ${senior.preferredName}. I'll pass everything on to ${senior.primaryContactName}, and I'll only tell you things once they're confirmed. ${later}`;
+      transcript.push({ who: 'porchlight', text: bye, at: new Date().toISOString() });
+      await store.update('checkins', checkinId, { transcript, askedToEnd: false });
+      return { reply: bye, ended: true };
+    }
+    await store.update('checkins', checkinId, { askedToEnd: false }); // she wants to keep talking
+    checkin.askedToEnd = false;
+  } else if (!intent && !urgent && !checkin.urgentAlertedAt && turns >= 2
+    && (BYE.test(text) || GOODBYE.test(text) || (turns >= LONG_CALL && turns % LONG_CALL === 0))) {
+    const ask = turns >= LONG_CALL && !BYE.test(text) && !GOODBYE.test(text)
+      ? `I've loved chatting, ${senior.preferredName}. Is there anything else you'd like to talk about, or shall we say goodbye for today?`
+      : `Before I let you go, is there anything else you need? Or shall we say goodbye for today?`;
     transcript.push({ who: 'porchlight', text: ask, at: new Date().toISOString() });
-    await store.update('checkins', checkinId, { transcript, confirmEnd: { bye } });
+    await store.update('checkins', checkinId, { transcript, askedToEnd: true });
     return { reply: ask, ended: false };
   }
   const streamed = !intent && !!onSentence;
