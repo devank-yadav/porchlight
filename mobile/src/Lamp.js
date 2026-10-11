@@ -12,11 +12,12 @@ export function lampState(senior) {
   return 'dim';
 }
 
+// Tuned for the dark evening ground: light metal so the lamp reads, and a dim lamp that looks switched off.
 const PALETTE = {
-  lit: { core: '#F5A524', flame: '#FFD27A', glass: '#FFF6E0', metal: '#2B3A60', halo: 1 },
-  dim: { core: '#9AA6C2', flame: '#C9D1E3', glass: '#EEF1F8', metal: '#55627F', halo: 0.35 },
-  amber: { core: '#D98A1E', flame: '#F2C46B', glass: '#FBEFD9', metal: '#6A4300', halo: 0.6 },
-  alert: { core: '#E0573A', flame: '#F08A6E', glass: '#FDE9E4', metal: '#6B2A1D', halo: 1 },
+  lit: { core: '#F5A524', flame: '#FFD27A', glass: '#FFF6E0', metal: '#8C9BC2', halo: 1 },
+  dim: { core: '#9AA6C2', flame: '#4B5878', glass: '#2A3452', metal: '#8C9BC2', halo: 0.2 },
+  amber: { core: '#D98A1E', flame: '#F2C46B', glass: '#FBEFD9', metal: '#C9A46A', halo: 0.6 },
+  alert: { core: '#E0573A', flame: '#F08A6E', glass: '#FDE9E4', metal: '#D08A7A', halo: 1 },
 };
 
 export default function Lamp({ state = 'dim', size = 120, label }) {
