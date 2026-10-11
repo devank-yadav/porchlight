@@ -224,6 +224,10 @@ async function rideNow(senior, text, checkin = {}) {
       .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
     if (!appts.length) return place ? null : { reply: 'Sure. Where would you like to go?' };
     const a = appts[0];
+    if (!a.where?.trim()) {
+      if (checkin._id) await store.update('checkins', checkin._id, { rideAsked: true });
+      return { reply: 'I found your appointment, but its address is missing. What address should I enter for your Uber?' };
+    }
     await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
     const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
     return { reply: `Okay, a ride for your ${what} ${sayTime(new Date(a.startsAt), tz)}. ${STEPS} I'll let ${family} know you're going.` };
