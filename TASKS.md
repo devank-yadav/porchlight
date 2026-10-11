@@ -1,6 +1,6 @@
 # TASKS
 
-- [ ] N1 — Rishi (Codex), `app/uber-notification-link`; notification tap fix in progress for app-owner review. Owner notice: mobile/src/push.js and App.js only. Scope: handle tap at app startup and open Uber native link with web fallback; phone validation needed before merge.
+- [x] N1 — Rishi (Codex), `app/uber-notification-link`; implemented for app-owner review. Owner notice: mobile/src/push.js and App.js only. The root app handles warm and cold notification taps once, opens the native Uber link, and falls back to the web link if Uber is unavailable. Checked: source review against Expo SDK 57 notification docs and Uber deep-link docs. Local command runner is failing before startup, so lint, typecheck, iOS export, and physical-iPhone tap still need validation before merge.
 
 ## Two-experience redesign — October 11, 2026
 
