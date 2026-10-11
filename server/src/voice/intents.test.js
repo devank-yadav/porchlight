@@ -42,3 +42,13 @@ test('misheard names still find the right person ("Annie", "Marc", "Delores")', 
   assert.equal(detectIntent('I want to talk to Delores', members).member._id, 'dolores');
   assert.equal(detectIntent('Tell Mary hello', members), null);
 });
+
+test('"remind me to call the pharmacy tomorrow" → a reminder due tomorrow', async () => {
+  const { parseReminder } = await import('./intents.js');
+  const now = new Date('2026-10-11T15:00:00Z'); // a Sunday afternoon in New York
+  assert.deepEqual(parseReminder('Remind me to call the pharmacy tomorrow.', 'America/New_York', now), { what: 'call the pharmacy', when: 'tomorrow', due: '2026-10-12' });
+  assert.equal(parseReminder('Please remind me to water my roses on Wednesday', 'America/New_York', now).due, '2026-10-14');
+  assert.equal(parseReminder('remind me to water my roses', 'America/New_York', now).what, 'water your roses');
+  assert.equal(parseReminder('remind me to water my roses', 'America/New_York', now).due, null);
+  assert.equal(parseReminder('I forgot my keys', 'America/New_York', now), null);
+});

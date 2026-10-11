@@ -136,9 +136,11 @@ function mockReply(senior, transcript) {
 }
 
 // notices: confirmed facts since her last check-in (A7). Only confirmed facts are read out.
-export function greeting(senior, opener, notices = [], { phone = false } = {}) {
+export function greeting(senior, opener, notices = [], { phone = false, reminders = [] } = {}) {
   const news = notices.slice(0, 2).map((n) => n.text.trim().replace(/([^.!?])$/, '$1.')).join(' ');
-  const goodNews = news ? ` Good news first: ${news}` : '';
+  // Reminders she asked for ("remind me to call the pharmacy tomorrow") come before the news.
+  const remind = reminders.length ? ` You asked me to remind you to ${reminders.map((r) => r.what).join(', and to ')}.` : '';
+  const goodNews = `${remind}${news ? ` Good news first: ${news}` : ''}`;
   // On a call every second counts: no family opener (a robot voice saying "it's Anne" confuses), shorter intro.
   if (phone) {
     const helper = senior.primaryContactName ? `${senior.primaryContactName}'s check-in helper` : 'your check-in helper';

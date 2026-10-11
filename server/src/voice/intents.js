@@ -2,6 +2,7 @@
 // Things Peggy can get done just by saying them on a check-in:
 //   "Tell Mark thanks for the milk"      → Mark gets a text with her words, and she hears them read back.
 //   "Put me through to Anne"              → on a phone call, Porchlight connects her live to Anne.
+//   "Remind me to call the pharmacy tomorrow" → saved; the next call that day opens with it.
 // Rule-based (works with no AI key) and checked before the model replies.
 import * as store from '../store.js';
 import * as audit from '../care/audit.js';
@@ -60,8 +61,63 @@ export function dialableNumber(member) {
   return phone && !phone.startsWith('+1555') ? phone : null;
 }
 
+// ---------- Reminders ----------
+const REMIND = /\bremind me\s+(?:to\s+|that\s+|about\s+)?(.+?)[.!?]*$/i;
+const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const WHEN = /\s*,?\s*\b(today|tonight|this (?:afternoon|evening)|tomorrow(?: morning| afternoon| evening)?|on (?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)|(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday))\b\s*$/i;
+
+// Local calendar date (YYYY-MM-DD) in her time zone, `plus` days from now.
+export function localDate(tz = 'America/New_York', plus = 0, now = new Date()) {
+  const d = new Date(new Date(now.toLocaleString('en-US', { timeZone: tz })).getTime() + plus * 86400000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// "remind me to call the pharmacy tomorrow" → { what: 'call the pharmacy', when: 'tomorrow', due: '2026-10-12' }.
+// No day said → due at her next check-in on a later day.
+export function parseReminder(text, tz = 'America/New_York', now = new Date()) {
+  const r = String(text || '').match(REMIND);
+  if (!r) return null;
+  let what = r[1].trim();
+  const w = what.match(WHEN);
+  let when = null;
+  let due = null;
+  if (w) {
+    what = what.slice(0, w.index).trim();
+    when = w[1].toLowerCase();
+    const today = new Date(now.toLocaleString('en-US', { timeZone: tz })).getDay();
+    if (/^(today|tonight|this)/.test(when)) due = localDate(tz, 0, now);
+    else if (when.startsWith('tomorrow')) due = localDate(tz, 1, now);
+    else {
+      const day = DAYS.indexOf(when.replace(/^on /, ''));
+      due = localDate(tz, ((day - today + 7) % 7) || 7, now);
+    }
+  }
+  what = what.replace(/\bmy\b/gi, 'your').replace(/\bI\b/g, 'you');
+  return what.length > 2 ? { what, when, due } : null;
+}
+
+// Reminders due at a check-in today (and mark them said, so they're not repeated).
+export async function dueReminders(senior) {
+  const today = localDate(senior.timezone || 'America/New_York');
+  const all = senior.reminders || [];
+  const due = all.filter((r) => !r.saidAt && (r.due ? r.due <= today : r.createdOn < today));
+  if (due.length) {
+    const saidAt = new Date().toISOString();
+    await store.update('seniors', senior._id, { reminders: all.map((r) => (due.includes(r) ? { ...r, saidAt } : r)) });
+  }
+  return due;
+}
+
 // Runs the intent. Returns { reply, transfer? } or null when nothing matched.
 export async function handleIntent(senior, checkin, text) {
+  const reminder = parseReminder(text, senior.timezone);
+  if (reminder) {
+    const entry = { ...reminder, createdOn: localDate(senior.timezone), createdAt: new Date().toISOString(), checkinId: checkin._id };
+    await store.update('seniors', senior._id, { reminders: [...(senior.reminders || []), entry] });
+    await audit.log('porchlight', 'voice.reminder', { seniorId: senior._id, detail: `${reminder.what} (${reminder.when || 'next call'})` });
+    const when = !reminder.when ? 'on our next call' : /^(today|tonight|this)/.test(reminder.when) ? 'later today' : reminder.when;
+    return { reply: `Got it. I'll remind you ${when} to ${reminder.what}. Anything else?` };
+  }
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const intent = detectIntent(text, members);
   if (!intent) return null;
