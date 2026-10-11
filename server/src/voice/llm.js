@@ -137,7 +137,10 @@ export function policyReply(senior, text, memory = {}) {
   const name = senior.preferredName;
   const family = senior.primaryContactName;
   // "Hello?" / "Are you there?": answer instantly (no AI wait), so she knows Porchlight is listening.
-  if (/^\s*(hello|hi|hey|hallo|are you there|can you hear me)\b[\s?!.,]*((hello|hi|are you there|can you hear me)[\s?!.,]*)*$/i.test(text)) return `I'm here, ${name}. I can hear you. How are you today?`;
+  if (/^\s*(hello|hi|hey|hallo|are you there|can you hear me)\b[\s?!.,]*((hello|hi|are you there|can you hear me)[\s?!.,]*)*$/i.test(text)) {
+    // Her first "Hello?" is just how people answer the phone: a warm hi, not "I can hear you".
+    return /are you there|can you hear/i.test(text) ? `Yes, I'm here, ${name}, and I can hear you. How are you today?` : `Hi ${name}! It's Porchlight. How's your day going?`;
+  }
   if (URGENT_WORDS.test(text)) return `Oh ${name}, I'm sorry. I'm letting ${family} know right now. If you're hurt or can't get up, stay still, keep your phone close, and call 911 or press your help button. Are you safe where you are?`;
   if (SCAM_WORDS.test(text)) return `That sounds like a scam, ${name}, and you did the right thing telling me. Don't buy any gift cards or send money, and if they call back, just hang up. If you're worried about someone, call them on the number you already have, or I can put you through to ${family} right now. Did you give them any information?`;
   if (MED_UNSURE_WORDS.test(text)) return `That's okay, it happens to everyone. If you have a pill box, look at today's morning slot: if it's empty, you took it. If you can't tell, don't take an extra one just in case, and I'll let ${family} know so she can check with you. I'll remind you to look at your pill box on tomorrow's call. How are you feeling otherwise?`;
