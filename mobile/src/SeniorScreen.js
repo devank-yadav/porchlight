@@ -34,6 +34,8 @@ export default function SeniorScreen({ senior }) {
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
   const home = () => setMode('home');
   // Confirmed facts only (a ride that's booked, a task someone claimed). Newest first.
+  // Her next ride, if Porchlight is arranging one. Peggy books the real Uber herself; family is only told.
+  const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
   const notices = (state.notices || [])
     .filter((n) => n.seniorId === senior._id)
     .sort((a, b) => (a.at < b.at ? 1 : -1))
@@ -42,13 +44,45 @@ export default function SeniorScreen({ senior }) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Animated.View key={mode} entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={{ flex: 1 }}>
-        {mode === 'home' && <Home senior={senior} notices={notices} primary={primary} setMode={setMode} refresh={refresh} />}
+        {mode === 'home' && <Home senior={senior} ride={ride} notices={notices} primary={primary} setMode={setMode} refresh={refresh} />}
         {mode === 'talk' && <Talk senior={senior} done={() => { setMode('thanks'); refresh(); }} />}
         {mode === 'scam' && <ScamCheck senior={senior} back={home} />}
         {mode === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
         {mode === 'thanks' && <Thanks senior={senior} back={home} />}
       </Animated.View>
     </KeyboardAvoidingView>
+  );
+}
+
+function rideTime(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const days = Math.round((new Date(d.toDateString()) - new Date(new Date().toDateString())) / 86400000);
+  const day = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'long' });
+  return `${day} at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function RideCard({ ride }) {
+  const d = ride.details || {};
+  const to = String(d.to || '').replace(/\s*\(sample\)/i, '');
+  const pickup = rideTime(d.pickupAt);
+  return (
+    <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={st.notices} accessibilityLiveRegion="polite">
+      <View style={st.noticesHead}>
+        <Icon name="car.fill" size={18} color={accent.lamp} />
+        <Text style={st.noticesTitle} accessibilityRole="header">Your ride</Text>
+      </View>
+      <Text style={st.noticeText}>{pickup ? `Pickup ${pickup.charAt(0).toLowerCase() + pickup.slice(1)}` : 'A ride is being arranged'}{to ? `, to ${to}.` : '.'}</Text>
+      <BigButton
+        tone="lamp"
+        icon="car.side.fill"
+        title="Book with Uber"
+        sub="Your address is filled in"
+        hint="Opens the Uber app with your pickup and drop-off filled in. You confirm the ride there."
+        onPress={() => Linking.openURL(d.uberLink)}
+      />
+      {ride.simulated && <Text style={st.noticeMeta}>Porchlight’s booking is a demo. Uber is the real one.</Text>}
+    </Animated.View>
   );
 }
 
@@ -64,7 +98,7 @@ function Page({ children, center }) {
   );
 }
 
-function Home({ senior, notices, primary, setMode, refresh }) {
+function Home({ senior, ride, notices, primary, setMode, refresh }) {
   const [busy, setBusy] = useState(false);
   const checkedIn = !['help', 'missed'].includes(senior.status) && !!senior.lastCheckinAt && new Date(senior.lastCheckinAt).toDateString() === new Date().toDateString();
   const lamp = lampState(senior);
@@ -111,6 +145,8 @@ function Home({ senior, notices, primary, setMode, refresh }) {
           ))}
         </Animated.View>
       )}
+
+      {ride && <RideCard ride={ride} />}
 
       <View style={st.stack}>
         <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
