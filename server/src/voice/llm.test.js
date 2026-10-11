@@ -2,7 +2,7 @@
 // Runs against the rule-based fallback; keep LLM_* unset when running.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { policyReply, guardReply, reply, analyze, greeting } from './llm.js';
+import { policyReply, guardReply, reply, analyze, greeting, scamCheck } from './llm.js';
 
 const peggy = { _id: 'peggy', preferredName: 'Peggy', primaryContactName: 'Anne', meds: [{ name: 'blood pressure pill', when: 'morning' }], about: [], age: 82, city: 'Dayton' };
 const tomorrow = [{ title: 'Cardiology follow-up', with: 'Dr. Lena Ortiz (sample)', where: 'Valley Heart Clinic (sample)', startsAt: new Date(Date.now() + 864e5).toISOString(), transport: 'unknown' }];
@@ -62,4 +62,10 @@ test('greeting says it is an AI and reads confirmed notices only', () => {
   assert.match(g, /I'm an AI/);
   assert.match(g, /never ask you for money or codes/);
   assert.match(g, /Mark is bringing your milk Thursday\./);
+});
+
+test('scam check: everyday words are fine, real scams are caught', async () => {
+  assert.equal((await scamCheck("My first grandson called, I won't worry, it was wonderful shopping")).verdict, 'probably fine');
+  assert.equal((await scamCheck('Someone said I won a prize and must pay with gift cards')).verdict, 'likely scam');
+  assert.equal((await scamCheck('My grandson is in jail and needs bail money, keep it secret')).verdict, 'likely scam');
 });

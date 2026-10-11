@@ -268,15 +268,15 @@ export async function scamCheck(description) {
   }
   const checks = [
     [/gift ?card|itunes|google play card/i, 'Asked for gift cards'],
-    [/wire|western union|zelle|bitcoin|crypto|cash app/i, 'Asked for money by wire, app or crypto'],
-    [/code|pin|password|verification/i, 'Asked for a code or password'],
+    [/\bwire\b|western union|\bzelle\b|\bbitcoin|\bcrypto|cash app/i, 'Asked for money by wire, app or crypto'],
+    [/\bcodes?\b|\bpin\b|password|verification/i, 'Asked for a code or password'],
     [/social security|\bssn\b|medicare (card|number)|account number/i, 'Asked for personal ID numbers'],
     [/urgent|right now|immediately|today only|before it(’|')?s too late/i, 'Pushed you to act right away'],
     [/secret|don(’|')?t tell|keep (this|it) between/i, 'Told you to keep it secret'],
-    [/arrest|warrant|jail|bail|police|irs|lawsuit/i, 'Threatened arrest or legal trouble'],
-    [/won|prize|lottery|sweepstakes/i, 'Said you won a prize'],
-    [/grandson|granddaughter|nephew|it(’|')?s me/i, 'Claimed to be a relative in trouble'],
-    [/virus|computer|microsoft|apple support|remote access/i, 'Claimed your computer has a problem'],
+    [/\barrest|\bwarrant\b|\bjail\b|\bbail\b|\bpolice\b|\birs\b|lawsuit/i, 'Threatened arrest or legal trouble'],
+    [/\byou(’|')?ve won\b|\bwon (a|the)\b|\bprize\b|lottery|sweepstakes/i, 'Said you won a prize'],
+    [/(grandson|granddaughter|grandkid|nephew|niece|it(’|')?s me).*(trouble|jail|accident|money|lawyer|hospital|bail)/i, 'Claimed to be a relative in trouble'],
+    [/\bvirus|computer (is|has|problem)|microsoft|apple support|remote access/i, 'Claimed your computer has a problem'],
   ];
   const redFlags = checks.filter(([re]) => re.test(description)).map(([, f]) => f);
   const verdict = redFlags.length >= 2 ? 'likely scam' : redFlags.length === 1 ? 'be careful' : 'probably fine';
