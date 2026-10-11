@@ -8,7 +8,8 @@ export function buildDigest({ senior, checkins, tasks, actions, escalations, vie
   const name = senior.preferredName;
   const today = new Date().toDateString();
   const latest = checkins.find((c) => c.seniorId === senior._id && c.status === 'completed' && c.endedAt);
-  const activeEsc = escalations.find((e) => e.seniorId === senior._id && e.status === 'active');
+  // 'exhausted' = every step ran but nobody confirmed yet: still unresolved.
+  const activeEsc = escalations.find((e) => e.seniorId === senior._id && ['active', 'exhausted'].includes(e.status));
 
   if (activeEsc?.reason === 'help' || senior.status === 'help') items.push({ tone: 'urgent', text: `${name} needs help now`, target: { type: 'escalation', id: activeEsc?._id ?? null } });
   for (const f of latest?.flags || []) {

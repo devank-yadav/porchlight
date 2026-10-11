@@ -20,7 +20,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] B4 outcomes.js: ride → action, other requests → tasks with quote + suggested owner, meds unsure → sensitive task
 - [x] B5 Task handoff/accept/decline + notice when claimed
 - [x] B6 Digest per viewer
-- [ ] B7 Escalation: unresolved (amber) semantics + quiet hours
+- [x] B7 Escalation: unresolved (amber) semantics + quiet hours
 - [x] B8 ?viewer= filtering
 - [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize
 
