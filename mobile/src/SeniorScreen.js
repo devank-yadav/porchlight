@@ -8,6 +8,9 @@ import * as Speech from 'expo-speech';
 import { api } from './api';
 import { useCalendarSync } from './calendar';
 import { notifyLocally, pushRegistered, startPush } from './push';
+import { useMedReminders } from './meds/reminders';
+import PillsCard from './meds/PillsCard';
+import MedsList from './meds/MedsList';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { BigButton, Button, Press, T } from './design/ui';
@@ -36,6 +39,8 @@ export default function SeniorScreen({ senior, page = 'today' }) {
   const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
   // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
   useEffect(() => Platform.OS === 'web' ? undefined : startPush(senior._id), [senior._id]);
+  // Daily pill reminders on this phone, with an "I took it" button (meds/reminders.js).
+  useMedReminders(senior, state, refresh);
   // Fallback when push isn't set up: the app shows the Uber notification itself for rides that arrive while it's open.
   const seen = useRef(null);
   useEffect(() => {
@@ -54,6 +59,7 @@ export default function SeniorScreen({ senior, page = 'today' }) {
     {page === 'plans' && <Page><T v="readTitle">My plans</T><T v="read" muted>What’s coming up, all in one place.</T>
       {ride && <RideCard ride={ride} />}
       {plans.length ? plans.map((plan) => <PlanRow key={plan._id} plan={plan} senior={senior} state={state} />) : <T v="read" muted>No upcoming appointments. Your day is open.</T>}
+      <MedsList senior={senior} state={state} refresh={refresh} />
       <Notices notices={notices} />
       <BigButton icon="bubble.left.and.bubble.right" title="Ask about my plans" sub="Talk with your AI helper" onPress={() => go('talk')} />
       <HelpButton />
@@ -122,6 +128,7 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     {compact && checkinButton}
     {plans[0] ? <PlanRow plan={plans[0]} senior={senior} state={state} /> : <View style={st.agendaRow}><T v="readHeadline">A little room in your day</T><T v="readSmall" muted>No upcoming appointments.</T></View>}
     {!compact && checkinButton}
+    <PillsCard senior={senior} state={state} refresh={refresh} />
     <BigButton icon="bubble.left.and.bubble.right" title="Talk with Porchlight" sub="Your AI helper for the day" onPress={() => go('talk')} />
     <BigButton icon="phone.arrow.down.left" title={calling ? 'Call requested…' : 'Call me now'} sub="Porchlight rings your phone" hint="Requests a phone call. Porchlight is an AI and will talk first." onPress={callMe} disabled={calling} />
     <HelpButton />

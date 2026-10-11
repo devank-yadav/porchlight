@@ -2,7 +2,7 @@
 // The family digest: one line plus a few items, urgent first, then attention, then ok.
 const fmt = (iso) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-export function buildDigest({ senior, checkins, tasks, actions, escalations, viewer }) {
+export function buildDigest({ senior, checkins, tasks, actions, escalations, viewer, medsToday = [] }) {
   if (!senior) return { line: '', items: [] };
   const items = [];
   const name = senior.preferredName;
@@ -20,6 +20,11 @@ export function buildDigest({ senior, checkins, tasks, actions, escalations, vie
   }
   if (activeEsc?.reason === 'missed') items.push({ tone: 'attention', text: `Today's check-in is unresolved`, target: { type: 'escalation', id: activeEsc._id } });
   if (latest?.medStatus === 'unsure' && viewer?.seesMeds !== false) items.push({ tone: 'attention', text: `${name} wasn't sure about her pills`, target: { type: 'checkin', id: latest._id } });
+  // Pills she hasn't marked two hours after their time (her phone already reminded her twice).
+  if (viewer?.seesMeds !== false) {
+    const missed = medsToday.filter((d) => d.seniorId === senior._id && d.status === 'missed');
+    if (missed.length) items.push({ tone: 'attention', text: `${name} hasn't marked her ${missed.map((d) => `${d.label} ${d.name}`).join(' and ')} as taken`, target: { type: 'meds', id: missed[0].medId } });
+  }
   const open = tasks.filter((t) => t.seniorId === senior._id && t.status === 'open' && !t.hidden);
   const unowned = open.filter((t) => !t.assignee);
   if (unowned.length) items.push({ tone: 'attention', text: `${unowned.length} task${unowned.length > 1 ? 's' : ''} need${unowned.length > 1 ? '' : 's'} someone`, target: { type: 'task', id: unowned[0]._id } });

@@ -63,4 +63,10 @@ export const api = {
   decline: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/decline`, { memberId }),
   demoCall: (seniorId) => call('POST', '/api/demo/call', { seniorId }),
   reset: () => call('POST', '/api/demo/reset'),
+  // Medications (server/src/care/meds.js). med = { name, dose, times: ['08:00'] }; memberId = who edited (family), else Peggy.
+  addMed: (seniorId, med, memberId) => call('POST', `/api/seniors/${seniorId}/meds`, { ...med, memberId }),
+  editMed: (seniorId, medId, med, memberId) => call('PATCH', `/api/seniors/${seniorId}/meds/${medId}`, { ...med, memberId }),
+  removeMed: (seniorId, medId) => call('DELETE', `/api/seniors/${seniorId}/meds/${medId}`),
+  takeDose: (seniorId, medId, time, date, by = 'peggy') => call('POST', `/api/seniors/${seniorId}/doses`, { medId, time, date, by }),
+  undoDose: (seniorId, medId, time, date) => call('DELETE', `/api/seniors/${seniorId}/doses`, { medId, time, date }),
 };

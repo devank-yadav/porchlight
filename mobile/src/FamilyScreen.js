@@ -10,6 +10,7 @@ import { api } from './api';
 import * as Calendar from 'expo-calendar/legacy';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
+import MedsList, { MedsSummary } from './meds/MedsList';
 import { ago } from './useAppState';
 import { Appear, Badge, Button, Card, Divider, Dot, Fact, Press, Section, Segmented, T, useSettled } from './design/ui';
 import Icon from './design/Icon';
@@ -113,6 +114,7 @@ export default function FamilyScreen({ senior, me, page = 'today' }) {
       </Section>
       {(state.actions || []).filter((a) => a.seniorId === senior._id).map((action) => <ActionCard key={action._id} action={action} state={state} me={circle.find((m) => m._id === me)} run={run} senior={senior} />)}
       <Care {...ctx} />
+      <MedsList senior={senior} state={state} viewer={circle.find((m) => m._id === me)} refresh={ctxApp.refresh} />
     </>}
     {page === 'family' && <FamilyDetails {...ctx} />}
     {page === 'settings' && <>
@@ -157,6 +159,7 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
     {pending.length > 0 && <Section title="Needs a decision">{pending.map((action) => <ActionCard key={action._id} action={action} state={state} me={circle.find((m) => m._id === me)} run={run} senior={senior} />)}</Section>}
     {flags.length > 0 && <Section title="Worth a conversation">{flags.slice(0, 3).map((f, i) => <Card key={i} tone={['scam','urgent'].includes(f.type) ? 'red' : undefined}><T v="headline">{f.type === 'scam' ? 'Possible scam' : f.type === 'urgent' ? 'Needs attention' : 'Different from usual'}</T><T>{f.text}</T></Card>)}</Section>}
     <Button label={tasks.length ? `View ${tasks.length} open ${tasks.length === 1 ? 'task' : 'tasks'} for you` : 'View shared tasks'} icon="checklist" onPress={() => familyPath('plans')} />
+    <MedsSummary senior={senior} state={state} viewer={circle.find((m) => m._id === me)} onOpen={() => familyPath('plans')} />
     <Section title="Next on the calendar" action={<Button size="sm" variant="ghost" label="All plans" onPress={() => familyPath('plans')} />}>
       {plans[0] ? <PlanRow plan={plans[0]} senior={senior} state={state} /> : <T muted>No upcoming appointments.</T>}
     </Section>

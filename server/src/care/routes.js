@@ -10,6 +10,7 @@ import * as actions from './actions.js';
 import * as audit from './audit.js';
 import { buildDigest } from './digest.js';
 import { syncCalendar } from './calendar.js';
+import * as meds from './meds.js';
 import { wrap } from '../wrap.js';
 
 export const careRoutes = Router();
@@ -30,17 +31,20 @@ careRoutes.get('/api/state', wrap(async (req, res) => {
     store.list('actions', {}, { sort: { createdAt: -1 } }),
     store.list('notices', {}, { sort: { createdAt: -1 }, limit: 20 }),
   ]);
+  const doses = await store.list('doses');
+  let medsToday = seniors.filter((s) => s.meds?.length).flatMap((s) => meds.dosesToday(s, doses));
   const viewer = req.query.viewer ? members.find((m) => m._id === req.query.viewer) : null;
-  const digest = buildDigest({ senior: seniors.find((s) => s._id === 'peggy') || seniors[0], checkins, tasks, actions: actionList, escalations, viewer });
+  const digest = buildDigest({ senior: seniors.find((s) => s._id === 'peggy') || seniors[0], checkins, tasks, actions: actionList, escalations, viewer, medsToday });
   if (viewer && viewer.seesMeds === false) {
     const primary = members.find((m) => m.primary);
     seniors = seniors.map((s) => ({ ...s, meds: [] }));
+    medsToday = [];
     checkins = checkins.map((c) => ({ ...c, transcript: [], medStatus: 'private', medsTaken: null, flags: (c.flags || []).filter((f) => f.type !== 'meds_unsure') }));
     tasks = tasks.map((t) => (t.sensitive ? { ...t, title: `Private task (${primary?.name.split(' ')[0] || 'the primary caregiver'} can see it)`, quote: null } : t));
   }
   res.json({
     seniors, members, checkins, tasks, escalations, events, scamChecks,
-    appointments, actions: actionList, notices, digest,
+    appointments, actions: actionList, notices, digest, medsToday,
     notifications: recentNotifications(),
     config: { llm: llmEnabled, twilio: twilioEnabled, mongo: store.usingMongo() },
   });
@@ -49,6 +53,29 @@ careRoutes.get('/api/state', wrap(async (req, res) => {
 // Peggy's phone posts the next two weeks of her calendar (see care/calendar.js).
 careRoutes.post('/api/seniors/:id/calendar', wrap(async (req, res) => {
   res.json(await syncCalendar(req.params.id, req.body || {}));
+}));
+
+// ---------- Medications (care/meds.js) ----------
+// The list: Peggy or family add and edit { name, dose, times: ['08:00'] }.
+careRoutes.post('/api/seniors/:id/meds', wrap(async (req, res) => {
+  const med = await meds.addMed(req.params.id, req.body || {});
+  await audit.log(req.body?.memberId || 'peggy', 'meds.add', { seniorId: req.params.id, targetId: med.id, detail: med.name });
+  res.json(med);
+}));
+careRoutes.patch('/api/seniors/:id/meds/:medId', wrap(async (req, res) => {
+  const med = await meds.editMed(req.params.id, req.params.medId, req.body || {});
+  await audit.log(req.body?.memberId || 'peggy', 'meds.edit', { seniorId: req.params.id, targetId: med.id, detail: med.name });
+  res.json(med);
+}));
+careRoutes.delete('/api/seniors/:id/meds/:medId', wrap(async (req, res) => {
+  res.json(await meds.removeMed(req.params.id, req.params.medId));
+}));
+// A dose marked Taken (the reminder's button, Peggy's Today card, or family on her behalf); DELETE undoes it.
+careRoutes.post('/api/seniors/:id/doses', wrap(async (req, res) => {
+  res.json(await meds.markTaken(req.params.id, req.body || {}));
+}));
+careRoutes.delete('/api/seniors/:id/doses', wrap(async (req, res) => {
+  res.json(await meds.unmark(req.params.id, req.body || {}));
 }));
 
 // ---------- Senior buttons ----------
