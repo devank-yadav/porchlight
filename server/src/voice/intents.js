@@ -10,7 +10,7 @@
 // Rule-based (works with no AI key) and checked before the model replies.
 import * as store from '../store.js';
 import * as audit from '../care/audit.js';
-import { sms } from './notify.js';
+import { sms, push } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
 import { proposeRide } from '../care/actions.js';
 import { uberLink, geocode } from '../care/uber.js';
@@ -146,7 +146,7 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
 export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
 
 // Spoken on the call: short, so it isn't cut off. The screen notice carries the full steps.
-const STEPS = 'Just tap the big Book my Uber button on your Porchlight screen, then press Request in Uber.';
+const STEPS = "I've sent a notification to your phone. Tap it, and Uber opens with everything filled in, then press Request.";
 const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
 
 // "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
@@ -181,6 +181,7 @@ const GO_TO = /\b(want|need|have|like|wanna) to go to\b|\btake me to\b|\bi('m| a
 export function rideTurn(text, checkin) {
   const last = [...(checkin.transcript || [])].reverse().find((t) => t.who === 'porchlight')?.text || '';
   // "Where would you like to go?" stays open across a "Listen" or "Hello?" until she names a place.
+  if (checkin.rideFromAsked && !checkin.rideFrom && !checkin.rideTo) return true; // answering "leaving from home?"
   const waiting = ASKED_WHERE.test(last) || checkin.rideAsked;
   return RIDE.test(text) || (waiting && Boolean(bareDestination(text) || rideDestination(text))) || (waiting && GO_TO.test(text));
 }
@@ -191,7 +192,17 @@ async function rideNow(senior, text, checkin = {}) {
   // Where to: what she says now, a short answer to "Where would you like to go?", or a place she named
   // earlier in this call ("I want to go to Target" ... "just book me an Uber").
   const earlier = [...(checkin.transcript || [])].reverse().filter((t) => t.who === 'senior').map((t) => rideDestination(t.text) || (GO_TO.test(t.text) ? bareDestination(t.text) : null)).find(Boolean);
-  const place = rideDestination(text) || bareDestination(text) || earlier || null;
+  // Answering "Are you leaving from home?": the destination was already given; this turn is the pickup.
+  if (checkin.rideFromAsked && !checkin.rideFrom && checkin.rideFor) {
+    const home = /\b(yes|yeah|yep|home|house|here|my place|from home)\b/i.test(text) && !/\bnot\b/i.test(text);
+    const named = text.match(/\b(?:from|at|leaving) ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=[,.!?]|$)/i)?.[1];
+    const from = home ? 'home' : ((named && !NOT_A_PLACE.test(named) ? named.trim() : null) || bareDestination(text.replace(/^\s*no,?\s*/i, '')));
+    if (!from) return { reply: 'Sorry, where are you leaving from? Home, or somewhere else?' };
+    checkin = { ...checkin, rideFrom: from };
+    if (checkin._id) await store.update('checkins', checkin._id, { rideFrom: from });
+    text = checkin.rideWhenText || text;
+  }
+  const place = (checkin.rideFrom && checkin.rideFor) || rideDestination(text) || bareDestination(text) || earlier || null;
   // "I'm not looking for my cardiology follow-up" is a no, not a request for that ride.
   const notAppointment = /\b(not|don'?t|no)\b.{0,30}(doctor|appointment|cardiolog|clinic|follow.?up)/i.test(text);
   const forAppointment = !notAppointment && (APPOINTMENT_PLACE.test(text) || Boolean(place && APPOINTMENT_PLACE.test(place)));
@@ -212,17 +223,23 @@ async function rideNow(senior, text, checkin = {}) {
   }
   // Already set up on this call: don't make a second booking, just point her back to the button.
   if (checkin.rideTo && (!place || place.toLowerCase() === String(checkin.rideTo).toLowerCase())) {
-    return { reply: `It's all set. Your Uber to ${checkin.rideTo} is the big Book my Uber button on your Porchlight screen. Tap it, then press Request.` };
+    return { reply: `It's all set. Tap the Uber notification on your phone, or the Book my Uber button on your Porchlight screen, then press Request.` };
   }
-  // Anywhere else she names: leave now, or at the time she said.
-  const when = parseWhen(text, tz);
+  // Anywhere else she names. First: where from? (Home unless she says otherwise.)
+  if (!checkin.rideFrom) {
+    if (checkin._id) await store.update('checkins', checkin._id, { rideFor: place, rideFromAsked: true, rideWhenText: text, rideAsked: false });
+    return { reply: `${place.replace(/^(the|a|an) /i, (m) => m.toLowerCase()).replace(/^\w/, (c) => c.toUpperCase())}, got it. Are you leaving from home, or from somewhere else?` };
+  }
+  const when = parseWhen(checkin.rideWhenText || text, tz);
   const pickupAt = (when && when > new Date() ? when : new Date()).toISOString();
   const leavingNow = !when || when - new Date() < 15 * 60000;
   const where = place.replace(/^my /i, 'your ');
   const bare = place.replace(/^(the|my|a|an) /i, '');
   const query = senior.city ? `${bare}, ${senior.city}` : bare;
   const spot = await geocode(query); // real pin for Uber when OpenStreetMap knows the place
-  const details = { pickupAt, from: 'Home', to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng }) };
+  const fromHome = !checkin.rideFrom || checkin.rideFrom === 'home';
+  const fromSpot = fromHome ? null : await geocode(senior.city ? `${checkin.rideFrom.replace(/^(the|my|a|an) /i, '')}, ${senior.city}` : checkin.rideFrom);
+  const details = { pickupAt, from: fromHome ? 'Home' : checkin.rideFrom, to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng, ...(fromHome ? {} : { pickupPlace: fromSpot?.address || checkin.rideFrom, pickupLatLng: fromSpot?.latlng }) }) };
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
     details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
@@ -231,10 +248,12 @@ async function rideNow(senior, text, checkin = {}) {
   if (checkin._id) await store.update('checkins', checkin._id, { rideTo: bare, rideAsked: false });
   await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber. Uber opens with your home and ${where} filled in. Check the price, then press Request. Your driver's name, car and plate will show in Uber.` });
   await audit.log('porchlight', 'voice.ride', { seniorId: senior._id, targetId: action._id, detail: `${where} ${leavingNow ? 'now' : pickupAt}` });
+  // The notification on her phone: tap it and Uber opens with both addresses filled in.
+  await push(senior, { title: `Your Uber to ${where.replace(/^your /, '')} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: details.uberLink });
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const time = leavingNow ? 'now' : sayTime(new Date(pickupAt), tz);
   for (const m of members.filter((x) => x.role === 'family')) await sms(m, `Heads-up: ${senior.preferredName} is taking an Uber to ${where.replace(/^your /, 'her ')} ${time}. She's booking it from her Porchlight screen.`);
-  return { reply: `Okay, an Uber from home to ${where}, ${leavingNow ? 'leaving now' : `leaving ${time}`}. ${STEPS} I'll let ${family} know.` };
+  return { reply: `Okay, an Uber from ${fromHome ? 'home' : checkin.rideFrom} to ${where}, ${leavingNow ? 'leaving now' : `leaving ${time}`}. ${STEPS} I'll let ${family} know.` };
 }
 
 // Runs the intent. Returns { reply, transfer?, end? } or null when nothing matched.
