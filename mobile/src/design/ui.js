@@ -1,6 +1,6 @@
 import { Children, Fragment, createContext, useContext, useEffect, useId, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { accent, ease, font, night, radius, shadow } from './tokens';
@@ -533,11 +533,10 @@ export function useSettled(ms = 700) {
   useEffect(() => { const t = setTimeout(() => setSettled(true), ms); return () => clearTimeout(t); }, [ms]);
   return settled;
 }
-// on: animate in. index: stagger by 40ms per step (first mount of a screen's sections).
+// A section wrapper. Entrance animations are off: on some iPhones in Expo Go they never ran and
+// left whole screens invisible. on/index are kept so screens don't change.
 export function Appear({ on, index = 0, children, style }) {
-  const reduced = useReducedMotion();
-  const entering = on ? (reduced ? FadeIn.duration(200) : FadeInDown.duration(300).easing(ease.out).delay(index * 40)) : undefined;
-  return <Animated.View entering={entering} style={style}>{children}</Animated.View>;
+  return <View style={style}>{children}</View>;
 }
 
 // Label + value pair used in summary rows.
