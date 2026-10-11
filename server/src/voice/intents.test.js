@@ -109,3 +109,9 @@ test('filler words are never a place', async () => {
   for (const t of ['Listen.', 'Hello?', 'Wait', 'Hold on', 'Sorry?']) assert.equal(bareDestination(t), null, t);
   assert.equal(bareDestination('To Target please.'), 'Target');
 });
+
+test('a street address she says is the destination', async () => {
+  const { rideDestination } = await import('./intents.js');
+  assert.equal(rideDestination("Book me an Uber to my daughter Anne's house at 412 West Foster Avenue"), '412 West Foster Avenue');
+  assert.equal(rideDestination('Take me to the Weis Markets please'), 'the Weis Markets');
+});
