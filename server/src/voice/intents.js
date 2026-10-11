@@ -14,6 +14,7 @@ import { sms, push } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
 import { proposeRide } from '../care/actions.js';
 import { uberLink, geocode } from '../care/uber.js';
+import { markDueTaken } from '../care/meds.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -141,6 +142,10 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
   });
   return `${lines.join(' ')} Anything else?`;
 }
+
+// ---------- "I took my pills" ----------
+const TOOK_PILLS = /\bi(?:'ve| have)? (?:already |just )?took (?:my |the |all my )?(?:pills?|meds|medicines?|medications?|tablets?|blood pressure)|\bi(?:'ve| have) (?:already |just )?taken (?:my |the |all my )?(?:pills?|meds|medicines?|medications?|tablets?)/i;
+const NOT_SURE_PILLS = /not sure|don'?t (?:know|remember)|can'?t remember|forgot|did i|have i|maybe|i think|haven'?t|didn'?t/i;
 
 // ---------- "Book an Uber for me" ----------
 export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
@@ -274,6 +279,15 @@ export async function handleIntent(senior, checkin, text) {
     await store.update('checkins', checkin._id, { callbackAt: callback.toISOString() });
     await audit.log('porchlight', 'voice.callback', { seniorId: senior._id, detail: callback.toISOString() });
     return { reply: `No problem at all. I'll call you back ${sayTime(callback, tz)}. Bye for now!`, end: true };
+  }
+  // "I took my pill(s)" marks the doses due now as taken. Never on "not sure if I took" (that's the safe med-unsure path).
+  if (TOOK_PILLS.test(text) && !NOT_SURE_PILLS.test(text)) {
+    const marked = await markDueTaken(senior, 'call').catch(() => []);
+    if (marked.length) {
+      await audit.log('porchlight', 'voice.meds', { seniorId: senior._id, detail: marked.map((d) => `${d.name} ${d.time}`).join(', ') });
+      const list = marked.map((d) => `${d.name.replace(/^your /i, '')}`).join(' and ');
+      return { reply: `Thank you. I've marked your ${list} as taken for ${marked[0].label}. What else is going on today?` };
+    }
   }
   if (rideTurn(text, checkin)) {
     const ride = await rideNow(senior, text, checkin);
