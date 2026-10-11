@@ -62,7 +62,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [ ] C9 Screenshots + screen-recording backup
 
 ## Coordination
-- [x] Shared task handoff — Rishi (Codex), branch `care/shared-handoff`; ready for review. Added owner-branch checks, claim/handoff rules, merged-work snapshot, and validation limits.
+- [x] Shared task handoff — Rishi (Codex), branch `care/shared-handoff`; [PR #14](https://github.com/devank-yadav/porchlight/pull/14), ready for review. Added owner-branch checks, claim/handoff rules, merged-work snapshot, and validation limits.
 
 ## Done
 - [x] Research → feature spec (PLAN.md), ranked Phase 1 (TEAM_PLAN.md)
