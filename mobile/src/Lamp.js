@@ -3,10 +3,11 @@ import { Animated, Easing, View, AccessibilityInfo } from 'react-native';
 import Svg, { Circle, Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 
 // The porch light: the one bold element in the design.
-// lit = checked in today, dim = waiting, alert = missed / help.
+// lit = checked in today, dim = waiting, amber = check-in unresolved (calm), alert = help pressed (urgent).
 export function lampState(senior) {
   if (!senior) return 'dim';
-  if (['missed', 'help'].includes(senior.status)) return 'alert';
+  if (senior.status === 'help') return 'alert';
+  if (senior.status === 'missed') return 'amber';
   if (['ok', 'talking', 'scam', 'needs-human'].includes(senior.status)) return 'lit';
   return 'dim';
 }
@@ -14,6 +15,7 @@ export function lampState(senior) {
 const PALETTE = {
   lit: { core: '#F5A524', flame: '#FFD27A', glass: '#FFF6E0', metal: '#2B3A60', halo: 1 },
   dim: { core: '#9AA6C2', flame: '#C9D1E3', glass: '#EEF1F8', metal: '#55627F', halo: 0.35 },
+  amber: { core: '#D98A1E', flame: '#F2C46B', glass: '#FBEFD9', metal: '#6A4300', halo: 0.6 },
   alert: { core: '#E0573A', flame: '#F08A6E', glass: '#FDE9E4', metal: '#6B2A1D', halo: 1 },
 };
 
@@ -25,8 +27,9 @@ export default function Lamp({ state = 'dim', size = 120, label }) {
     let loop;
     AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
       if (reduce || state === 'dim') return pulse.setValue(1);
-      const low = state === 'alert' ? 0.3 : 0.8;
-      const ms = state === 'alert' ? 700 : 2000;
+      // Help pulses fast; an unresolved check-in breathes slowly so it reads as "follow up", not "emergency".
+      const low = state === 'alert' ? 0.3 : state === 'amber' ? 0.55 : 0.8;
+      const ms = state === 'alert' ? 700 : state === 'amber' ? 1600 : 2000;
       loop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulse, { toValue: low, duration: ms, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),

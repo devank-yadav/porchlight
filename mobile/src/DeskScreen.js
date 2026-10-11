@@ -6,7 +6,7 @@ import { color, font, radius } from './theme';
 
 const STATUS = {
   help: { label: 'Pressed help', rank: 0 },
-  missed: { label: 'Missed check-in', rank: 1 },
+  missed: { label: 'Check-in unresolved', rank: 1 },
   scam: { label: 'Possible scam', rank: 2 },
   'needs-human': { label: 'Needs a human call', rank: 3 },
   talking: { label: 'On a call now', rank: 4 },
@@ -14,7 +14,7 @@ const STATUS = {
   ok: { label: 'Okay today', rank: 6 },
 };
 const CHIP = {
-  help: [color.brickSoft, color.brick], missed: [color.brickSoft, color.brick], scam: [color.brickSoft, color.brick],
+  help: [color.brickSoft, color.brick], missed: [color.lampSoft, '#6A4300'], scam: [color.brickSoft, color.brick],
   'needs-human': [color.lampSoft, '#6A4300'], ok: [color.sageSoft, color.sage],
 };
 
@@ -38,7 +38,7 @@ export default function DeskScreen({ state, run }) {
         const urgent = info.rank <= 3;
         const [bg, fg] = CHIP[s.status] ?? [color.sky, color.dusk];
         return (
-          <View key={s._id} style={[st.row, urgent && { borderColor: color.brick }]}>
+          <View key={s._id} style={[st.row, urgent && { borderColor: s.status === 'missed' ? color.lamp : color.brick }]}>
             <View style={st.rowTop}>
               <Lamp state={lampState(s)} size={44} label={info.label} />
               <View style={{ flex: 1 }}>
