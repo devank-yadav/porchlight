@@ -6,12 +6,12 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 ## Person A — Voice & AI + demo lead (Claude Code) — name: ____
 - [ ] A1 Model key live in .env
 - [ ] A2 Twilio + ngrok, first real call to a teammate's phone
-- [ ] A3 Scam policy rule (backend, not prompt)
-- [ ] A4 Ride detection with appointment context, never claims a booking
-- [ ] A5 Med "not sure" status + safe wording
-- [ ] A6 Quotes on every request
-- [ ] A7 tellSenior() + greeting mentions confirmed notices
-- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal
+- [x] A3 Scam policy rule (backend, not prompt)
+- [x] A4 Ride detection with appointment context, never claims a booking (voice side; prompt uses appointments once B1 seeds them)
+- [x] A5 Med "not sure" status + safe wording
+- [x] A6 Quotes on every request
+- [x] A7 tellSenior() + greeting mentions confirmed notices
+- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md; rehearse, video, Devpost still to do)
 
 ## Person B — Backend & workflows (Codex) — name: ____
 - [ ] B1 Contract seed + new fields in /api/state (by 2:45, push early)
