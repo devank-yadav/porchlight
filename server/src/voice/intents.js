@@ -10,10 +10,26 @@ import { sms } from './notify.js';
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
 // "Anne", "my daughter", "Mark" → a circle member.
+// Speech-to-text hears "Annie" for Anne, "Marc" for Mark: allow one letter of slack, or a nickname ending.
+function sameName(heard, name) {
+  const sound = (x) => x.replace(/ph/g, 'f').replace(/c(?=[^eiy]|$)/g, 'k');
+  heard = sound(heard); name = sound(name);
+  if (heard === name) return true;
+  if (heard.length >= 3 && (heard.replace(/(ie|y)$/, '') === name.replace(/e$/, '') || name.replace(/(ie|y)$/, '') === heard.replace(/e$/, ''))) return true;
+  if (Math.abs(heard.length - name.length) > 1 || Math.min(heard.length, name.length) < 5) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < heard.length && j < name.length) {
+    if (heard[i] === name[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (heard.length > name.length) i++; else if (heard.length < name.length) j++; else { i++; j++; }
+  }
+  return edits + (heard.length - i) + (name.length - j) <= 1;
+}
+
 function findMember(word, members) {
   const w = String(word || '').toLowerCase().replace(/[^a-z]/g, '');
   if (!w) return null;
-  return members.find((m) => m.name.split(' ')[0].toLowerCase() === w)
+  return members.find((m) => sameName(w, m.name.split(' ')[0].toLowerCase()))
     || (RELATIONS[w] && members.find((m) => RELATIONS[w].test(m.relation || '')))
     || null;
 }
