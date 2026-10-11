@@ -10,6 +10,22 @@ import { wrap } from '../wrap.js';
 
 export const voiceRoutes = Router();
 
+// ---------- Demo: play the scripted call (DEMO.md lines) without a phone ----------
+export const DEMO_LINES = [
+  "I'm good. A man called about gift cards, I hung up",
+  "I don't have a ride to the heart doctor tomorrow",
+  "And I'm out of milk",
+  "No, that's all",
+];
+voiceRoutes.post('/api/demo/call', wrap(async (req, res) => {
+  const { checkin } = await startCheckin(req.body.seniorId || 'peggy', 'app');
+  for (const line of DEMO_LINES) {
+    const { ended } = await addTurn(checkin._id, line);
+    if (ended) break;
+  }
+  res.json(await finishCheckin(checkin._id));
+}));
+
 // ---------- In-app check-in ----------
 voiceRoutes.post('/api/checkins', wrap(async (req, res) => {
   const { checkin } = await startCheckin(req.body.seniorId, req.body.channel || 'app');

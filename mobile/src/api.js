@@ -55,5 +55,6 @@ export const api = {
   handoff: (taskId, from, to) => call('POST', `/api/tasks/${taskId}/handoff`, { from, to }),
   accept: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/accept`, { memberId }),
   decline: (taskId, memberId) => call('POST', `/api/tasks/${taskId}/decline`, { memberId }),
+  demoCall: (seniorId) => call('POST', '/api/demo/call', { seniorId }),
   reset: () => call('POST', '/api/demo/reset'),
 };

@@ -57,6 +57,8 @@ function Main() {
   const demoMenu = () => {
     tap();
     Alert.alert('Demo controls', state ? `AI: ${state.config.llm ? 'live model' : 'demo mode'} · Texts: ${state.config.twilio ? 'Twilio' : 'logged only'} · Data: ${state.config.mongo ? 'MongoDB' : 'in memory'}` : API_BASE, [
+      { text: 'Play the demo call (scam, no ride, milk)', onPress: run(() => api.demoCall('peggy')) },
+      { text: 'Peggy presses Help', onPress: run(() => api.help('peggy')) },
       { text: 'Simulate a missed check-in', onPress: run(() => api.missed('peggy')) },
       ...(state?.config.twilio ? [{ text: 'Call Peggy’s phone now', onPress: run(() => api.phoneCall('peggy')) }] : []),
       { text: 'Reset demo data', style: 'destructive', onPress: run(() => api.reset()) },

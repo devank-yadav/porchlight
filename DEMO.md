@@ -32,3 +32,15 @@ Expected replies and analysis: `server/src/voice/samples.md` ("Demo call" sectio
 ## Before going on stage
 - `node --test server/src/voice/llm.test.js` → all pass (safety replies, no false alarms, guard, demo-call analysis).
 - Say the three lines once on Talk; check Anne's phone gets the ride and the milk.
+
+## Test every feature on your iPhone (no keys needed)
+1. On the laptop: `git pull`, `npm run setup` (first time), `npm run dev`.
+2. iPhone (same Wi-Fi): open the Camera, scan the QR code in the terminal, it opens in **Expo Go**.
+3. Tap **Demo** (top right) → **Reset demo data**.
+4. Pick **Peggy** → **Talk with Porchlight**, dictate or type the three lines, then tap **I'm done talking**. Or: **Demo → Play the demo call** to run it in one tap.
+   - Scam line → the fixed scam reply. "No ride" → "I'll ask Anne… call you back once it's confirmed."
+5. Tap the Porchlight name → switch to **Family · Anne**: digest line, scam alert, the **ride card** with Peggy's words → **Approve**. Watch it go Requested → Confirmed, labelled "Simulated booking". Appointment chip turns confirmed.
+6. Switch to **Family · Mark**: the ride says "Waiting for Anne to approve" (he can't approve; the server returns 403). Meds show **Private**. Tap **I'll do it** on "Bring her milk".
+7. Switch to **Peggy**: notices "Your ride is confirmed: pickup tomorrow at 1:15 PM." and "Mark is bringing your milk." Start Talk again: the greeting opens with that good news.
+8. **Demo → Peggy presses Help**: red lamp, family ladder. **Demo → Simulate a missed check-in**: amber lamp (calm), not red.
+9. **Volunteer desk**: all sample seniors with their status.
