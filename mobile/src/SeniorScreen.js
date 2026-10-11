@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSh
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
+import { notifyLocally, pushRegistered, startPush } from './push';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { BigButton, Button, Press, T } from './design/ui';
@@ -30,6 +31,20 @@ export default function SeniorScreen({ senior, page = 'today' }) {
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
   const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
   const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
+  // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
+  useEffect(() => Platform.OS === 'web' ? undefined : startPush(senior._id), [senior._id]);
+  // Fallback when push isn't set up: the app shows the Uber notification itself for rides that arrive while it's open.
+  const seen = useRef(null);
+  useEffect(() => {
+    const ubers = (state.notices || []).filter((n) => n.seniorId === senior._id && n.kind === 'uber');
+    if (seen.current === null) { seen.current = new Set(ubers.map((n) => n._id)); return; }
+    for (const n of ubers) {
+      if (seen.current.has(n._id)) continue;
+      seen.current.add(n._id);
+      if (Platform.OS !== 'web' && !pushRegistered) notifyLocally({ title: 'Your Uber is ready to book', body: 'Tap to open Uber with your trip filled in, then press Request.', url: n.uberLink });
+    }
+  }, [state.notices, senior._id]);
+
   const plans = upcomingPlans(state, senior);
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     {page === 'today' && <Home senior={senior} primary={primary} plans={plans} state={state} refresh={refresh} notices={notices} />}

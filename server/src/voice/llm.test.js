@@ -77,3 +77,7 @@ test('phone greeting is short, skips the family opener, still says it is an AI',
   assert.match(g, /never ask for money/);
   assert.ok(g.split(' ').length < 30, g);
 });
+
+test('guard blocks the model claiming it set up an Uber button', () => {
+  assert.equal(guardReply(peggy, 'Got it! I\'ll put a "Book my Uber" button on your Porchlight screen with Target already filled in.'), null);
+});
