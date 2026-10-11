@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { api } from './api';
 import Lamp, { lampState } from './Lamp';
 import { ago } from './useAppState';
-import { Button, Card, Chip, H1, H2, Meta, P, Segmented } from './ui';
-import { color, font, radius } from './theme';
+import { Button, Card, Chip, Dot, Field, Heading, IconCircle, InfoList, List, Row, Screen, Section, Stats, Steps, T, Tabs } from './ui';
+import { color, radius, space } from './theme';
 
 const MOOD = { good: 'Cheerful', okay: 'Steady', low: 'A bit down' };
 
@@ -25,16 +25,9 @@ const TRANSPORT = {
 };
 
 // Ride steps shown on the approval card.
-const STEPS = [
-  ['PENDING_APPROVAL', 'Needs OK'],
-  ['APPROVED', 'Approved'],
-  ['REQUESTED', 'Requested'],
-  ['CONFIRMED', 'Confirmed'],
-];
-const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 3, COMPLETED: 4 };
+const STEPS = ['Needs OK', 'Approved', 'Requested', 'Confirmed'];
+const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 3, COMPLETED: 3 };
 const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
-
-const TONE_DOT = { urgent: color.brick, attention: color.lamp, ok: color.sage };
 
 function when(iso) {
   if (!iso) return '';
@@ -73,18 +66,18 @@ export default function FamilyScreen({ senior, state, me, run }) {
   return (
     <View style={{ flex: 1 }}>
       <View style={st.tabs}>
-        <Segmented
+        <Tabs
           options={[{ id: 'today', label: 'Today' }, { id: 'care', label: 'Care' }, { id: 'stories', label: 'Stories' }, { id: 'circle', label: 'Circle' }]}
           value={tab}
           onChange={setTab}
         />
       </View>
-      <ScrollView contentContainerStyle={st.pad} keyboardShouldPersistTaps="handled">
+      <Screen>
         {tab === 'today' && <Today {...ctx} />}
         {tab === 'care' && <Care {...ctx} />}
         {tab === 'stories' && <Stories {...ctx} />}
         {tab === 'circle' && <Circle {...ctx} />}
-      </ScrollView>
+      </Screen>
     </View>
   );
 }
@@ -96,10 +89,9 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
   const scamFlags = [
     ...(latestTalk?.flags || []).filter((f) => f.type === 'scam').map((f) => ({ text: f.text, at: latestTalk.endedAt })),
     ...state.scamChecks.filter((x) => x.seniorId === senior._id && x.verdict !== 'probably fine').map((x) => ({ text: x.description, at: x.createdAt })),
-  ].sort((a, b) => (a.at < b.at ? 1 : -1));
+  ].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 2);
   const otherFlags = (latestTalk?.flags || []).filter((f) => f.type !== 'scam');
   const week = checkins.filter((c) => c.channel !== 'button').slice(0, 7).reverse();
-  const lamp = lampState(senior);
   const isHelp = escalation?.reason === 'help';
   const meMember = state.members.find((m) => m._id === me);
   const actions = (state.actions || []).filter((a) => a.seniorId === senior._id && a.status !== 'COMPLETED');
@@ -113,104 +105,125 @@ function Today({ senior, state, me, run, checkins, latestTalk }) {
     : latest && new Date(latest.endedAt).toDateString() === new Date().toDateString() ? `${senior.preferredName} checked in ${ago(latest.endedAt)}`
     : `Waiting for ${senior.preferredName}’s ${senior.checkinTime} check-in`;
 
+  const needsYou = actions.length + scamFlags.length + otherFlags.length > 0;
+
   return (
     <>
-      {state.digest?.line ? <Digest digest={state.digest} /> : null}
-
-      <View style={[st.today, isHelp && { backgroundColor: color.brickSoft }]} accessibilityLiveRegion="polite">
-        <View style={st.todayTop}>
-          <Lamp state={lamp} size={88} label={headline} />
-          <H1 onDusk style={{ flex: 1, fontSize: 27, lineHeight: 31 }}>{headline}</H1>
+      <Card flush tone={isHelp ? 'urgent' : 'hero'} accessibilityLiveRegion="polite">
+        <View style={st.heroBody}>
+          <View style={st.heroTop}>
+            <Lamp state={lampState(senior)} size={72} label={headline} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <T v="title" accessibilityRole="header">{headline}</T>
+              {state.digest?.line ? <T v="caption" tone="soft">{state.digest.line}</T> : null}
+            </View>
+          </View>
+          {escalation ? (
+            <View style={{ gap: 12 }}>
+              {!isHelp && <T tone="soft">She may just be out or asleep. Porchlight is working down the list below.</T>}
+              <View style={{ gap: 10 }}>
+                {escalation.steps.map((s, i) => {
+                  const done = s.status === 'done';
+                  return (
+                    <View key={i} style={st.ladder}>
+                      <View style={[st.ladderMark, done && { backgroundColor: isHelp ? color.brick : color.lamp, borderColor: isHelp ? color.brick : color.lamp }]} />
+                      <T tone={done ? 'ink' : 'soft'} style={{ flex: 1 }}>{s.label}</T>
+                      <T v="caption" tone="soft">{done ? `sent ${ago(s.at)}` : s.status === 'held' ? 'held for quiet hours' : 'next'}</T>
+                    </View>
+                  );
+                })}
+              </View>
+              <Button variant="primary" label={`I reached ${senior.preferredName}, she’s okay`} onPress={run(() => api.resolve(senior._id, me))} />
+            </View>
+          ) : latest ? (
+            <T>{latest.summary}</T>
+          ) : null}
+          {!escalation && lastResolved && Date.now() - new Date(lastResolved.resolvedAt).getTime() < 3600000 && (
+            <T v="caption" tone="soft">Earlier alert resolved by {lastResolved.resolvedBy}, {ago(lastResolved.resolvedAt)}.</T>
+          )}
         </View>
-        {escalation ? (
-          <View style={{ gap: 12 }}>
-            {!isHelp && <Text style={st.summary}>She may just be out or asleep. Porchlight is working down the list below.</Text>}
-            {escalation.steps.map((s, i) => (
-              <View key={i} style={st.step}>
-                <View style={[st.stepMark, s.status === 'done' && (isHelp ? st.stepDone : st.stepDoneAmber)]} />
-                <Text style={[st.stepText, s.status === 'done' && { color: color.ink }]}>{s.label}</Text>
-                <Text style={st.stepWhen}>{s.status === 'done' ? `sent ${ago(s.at)}` : s.status === 'held' ? 'held for quiet hours' : 'next'}</Text>
+        {!escalation && (
+          <Stats
+            bare
+            items={[
+              { label: 'Mood', value: latest?.mood ? MOOD[latest.mood] : '—' },
+              { label: 'Pills', value: medLabel(latest) ?? '—' },
+              { label: 'Next call', value: senior.checkinTime },
+            ]}
+          />
+        )}
+      </Card>
+
+      {needsYou && (
+        <Section label="Needs you">
+          {actions.map((a) => <ActionCard key={a._id} action={a} state={state} me={meMember} run={run} senior={senior} />)}
+          {scamFlags.map((f, i) => (
+            <Card key={`s${i}`} tone="urgent">
+              <View style={st.cardHead}>
+                <Heading tone="brick" style={{ flex: 1 }}>Possible scam</Heading>
+                <Chip label={ago(f.at)} tone="urgent" />
+              </View>
+              <T v="quote">“{f.text}”</T>
+              <T tone="soft">Porchlight told her not to send anything. Worth a call today to make sure she didn’t share any details.</T>
+            </Card>
+          ))}
+          {otherFlags.map((f, i) => (
+            <Card key={`f${i}`} tone={f.type === 'urgent' ? 'urgent' : 'default'}>
+              <Heading tone={f.type === 'urgent' ? 'brick' : 'ink'}>{f.type === 'urgent' ? 'Needs attention now' : f.type === 'lonely' ? 'She sounded lonely' : 'Different from usual'}</Heading>
+              <T v="quote">“{f.text}”</T>
+            </Card>
+          ))}
+        </Section>
+      )}
+
+      {appointments.length > 0 && (
+        <Section label="Coming up">
+          <Card flush>
+            <List inset={72}>
+              {appointments.map((a) => {
+                const [label, tone] = TRANSPORT[a.transport] ?? TRANSPORT.unknown;
+                return (
+                  <Row key={a._id} leading={<IconCircle name="calendar" />} title={a.title} sub={[when(a.startsAt), a.where].filter(Boolean).join(' · ')}>
+                    <Chip label={label} tone={tone} style={{ marginTop: 6 }} />
+                  </Row>
+                );
+              })}
+            </List>
+          </Card>
+        </Section>
+      )}
+
+      <Section label="Things to talk about" footnote="From what she shared today. A real call beats any app.">
+        <Card flush>
+          <List>
+            {latestTalk?.starters?.length
+              ? latestTalk.starters.map((s) => <Row key={s}><T>{s}</T></Row>)
+              : [<Row key="none"><T tone="muted">After her next chat, you’ll see ideas here for your own call.</T></Row>]}
+          </List>
+        </Card>
+      </Section>
+
+      {week.length > 0 && (
+        <Section label="This week">
+          <Card style={st.week}>
+            {week.map((c) => (
+              <View key={c._id} style={st.weekDay} accessible accessibilityLabel={`${new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'long' })}: ${MOOD[c.mood]}`}>
+                <Dot tone={c.mood === 'good' ? 'attention' : c.mood === 'low' ? 'urgent' : 'neutral'} size={14} />
+                <T v="small">{new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'short' })}</T>
+                <T v="caption" tone="muted" style={{ fontSize: 12 }}>{MOOD[c.mood]}</T>
               </View>
             ))}
-            <Button label={`I reached ${senior.preferredName}, she’s okay`} variant="light" onPress={run(() => api.resolve(senior._id, me))} />
-          </View>
-        ) : (
-          <>
-            {latest && <Text style={st.summary}>{latest.summary}</Text>}
-            <View style={st.facts}>
-              {latest?.mood && <Fact label="Mood" value={MOOD[latest.mood]} />}
-              {latest && <Fact label="Pills" value={medLabel(latest)} />}
-              <Fact label="Next call" value={`Tomorrow ${senior.checkinTime}`} />
-            </View>
-            {lastResolved && Date.now() - new Date(lastResolved.resolvedAt).getTime() < 3600000 && (
-              <Text style={st.note}>Earlier alert resolved by {lastResolved.resolvedBy}, {ago(lastResolved.resolvedAt)}.</Text>
-            )}
-          </>
-        )}
-      </View>
-
-      {actions.map((a) => (
-        <ActionCard key={a._id} action={a} state={state} me={meMember} run={run} senior={senior} />
-      ))}
-
-      {appointments.map((a) => <AppointmentCard key={a._id} appt={a} />)}
-
-      {scamFlags.slice(0, 2).map((f, i) => (
-        <View key={`s${i}`} style={[st.flag, st.flagScam]}>
-          <Text style={[st.flagTitle, { color: color.brick }]}>Possible scam, {ago(f.at)}</Text>
-          <P>“{f.text}”</P>
-          <P muted>Porchlight told her not to send anything. Worth a call today to make sure she didn’t share any details.</P>
-        </View>
-      ))}
-      {otherFlags.map((f, i) => (
-        <View key={`f${i}`} style={[st.flag, f.type === 'urgent' && { borderColor: color.brick }]}>
-          <Text style={st.flagTitle}>{f.type === 'urgent' ? 'Needs attention now' : f.type === 'lonely' ? 'She sounded lonely' : 'Different from usual'}</Text>
-          <P>“{f.text}”</P>
-        </View>
-      ))}
-
-      <Card>
-        <H2>Things to talk about</H2>
-        <Meta>From what she shared today. A real call beats any app.</Meta>
-        {latestTalk?.starters?.length ? latestTalk.starters.map((s) => (
-          <View key={s} style={st.starter}><P>{s}</P></View>
-        )) : <P muted>After her next chat, you’ll see ideas here for your own call.</P>}
-      </Card>
-
-      <Card>
-        <H2>This week</H2>
-        <View style={st.week}>
-          {week.map((c) => (
-            <View key={c._id} style={st.weekDay} accessibilityLabel={`${new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'long' })}: ${MOOD[c.mood]}`}>
-              <View style={[st.weekDot, { backgroundColor: c.mood === 'good' ? color.lamp : c.mood === 'low' ? color.brick : color.muted }]} />
-              <Text style={st.weekLabel}>{new Date(c.endedAt).toLocaleDateString('en-US', { weekday: 'short' })}</Text>
-              <Text style={st.weekMood}>{MOOD[c.mood]}</Text>
-            </View>
-          ))}
-        </View>
-      </Card>
+          </Card>
+        </Section>
+      )}
     </>
-  );
-}
-
-function Digest({ digest }) {
-  return (
-    <Card style={{ gap: 10 }}>
-      <Text style={st.digestLine} accessibilityRole="header">{digest.line}</Text>
-      {(digest.items || []).slice(0, 4).map((it, i) => (
-        <View key={i} style={st.digestItem}>
-          <View style={[st.digestDot, { backgroundColor: TONE_DOT[it.tone] ?? color.line }]} />
-          <P style={{ flex: 1 }}>{it.text}</P>
-        </View>
-      ))}
-    </Card>
   );
 }
 
 function ActionCard({ action, state, me, run, senior }) {
   const approver = state.members.find((m) => m._id === action.approverId);
   const approverName = approver?.name.split(' ')[0] ?? 'the primary contact';
-  const idx = STEP_INDEX[action.status];
+  const idx = STEP_INDEX[action.status] ?? 0;
   const ended = ENDED[action.status];
   const pending = action.status === 'PENDING_APPROVAL';
   const canApprove = Boolean(me?.canApprove);
@@ -218,69 +231,31 @@ function ActionCard({ action, state, me, run, senior }) {
   const d = action.details || {};
 
   return (
-    <View style={[st.flag, pending && { borderColor: color.lamp }]} accessibilityLiveRegion="polite">
+    <Card accessibilityLiveRegion="polite">
       <View style={st.cardHead}>
-        <Text style={[st.flagTitle, { flex: 1 }]}>{action.title}</Text>
-        <Chip label={ended ?? (pending ? 'Needs your OK' : STEPS[Math.min(idx ?? 0, 3)][1])} tone={ended ? 'urgent' : pending ? 'attention' : idx >= 3 ? 'ok' : 'neutral'} />
+        <Heading style={{ flex: 1 }}>{action.title}</Heading>
+        <Chip label={ended ?? (pending ? 'Needs your OK' : STEPS[idx])} tone={ended ? 'urgent' : pending ? 'attention' : idx >= 3 ? 'ok' : 'neutral'} />
       </View>
-      {action.reason ? <Text style={st.quote}>{action.reason}</Text> : null}
-
-      <View style={{ gap: 4 }}>
-        {d.pickupAt && <P><Text style={st.label}>Pickup </Text>{when(d.pickupAt)}</P>}
-        {d.from && <P><Text style={st.label}>From </Text>{d.from}</P>}
-        {d.to && <P><Text style={st.label}>To </Text>{d.to}</P>}
-        {d.needs && <P><Text style={st.label}>Note </Text>{d.needs}</P>}
-      </View>
-
-      {!ended && (
-        <View style={st.steps} accessibilityLabel={`Status: ${STEPS[Math.min(idx ?? 0, 3)][1]}`}>
-          {STEPS.map(([key, label], i) => (
-            <View key={key} style={st.stepCol}>
-              <View style={[st.bar, i <= (idx ?? 0) && { backgroundColor: i === 3 ? color.sage : color.mutedOnDusk }]} />
-              <Text style={[st.stepLabel, i <= (idx ?? 0) && { color: color.ink, fontFamily: font.bodyBold }]}>{label}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {action.simulated && <Meta>Simulated booking, not a real ride{last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}</Meta>}
-      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <Meta>{last.evidence.note}</Meta> : null}
+      {action.reason ? <T v="quote" tone="soft">{action.reason}</T> : null}
+      <InfoList items={[['Pickup', when(d.pickupAt)], ['From', d.from], ['To', d.to], ['Note', d.needs]]} />
+      {!ended && <Steps steps={STEPS} index={idx} tone={idx >= 3 ? 'ok' : 'attention'} />}
 
       {pending && (canApprove ? (
         <View style={st.btnRow}>
-          <Button variant="solid" label="Approve ride" style={{ flex: 1 }} onPress={run(() => api.approve(action._id, me._id))} />
+          <Button variant="primary" label="Approve ride" style={{ flex: 1 }} onPress={run(() => api.approve(action._id, me._id))} />
           <Button label="Not now" style={{ flex: 1 }} onPress={run(() => api.reject(action._id, me._id))} />
         </View>
       ) : (
-        <Meta>Waiting for {approverName} to approve.</Meta>
+        <T v="caption" tone="muted">Waiting for {approverName} to approve.</T>
       ))}
       {action.status === 'CONFIRMED' && canApprove && (
-        <Button small label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id, me._id))} />
+        <Button label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id, me._id))} />
       )}
-    </View>
-  );
-}
-
-function AppointmentCard({ appt }) {
-  const [label, tone] = TRANSPORT[appt.transport] ?? TRANSPORT.unknown;
-  return (
-    <Card style={{ gap: 6 }}>
-      <View style={st.cardHead}>
-        <H2 style={{ flex: 1 }}>{appt.title}</H2>
-        <Chip label={label} tone={tone} />
-      </View>
-      <P bold>{when(appt.startsAt)}</P>
-      <Meta>{[appt.with, appt.where].filter(Boolean).join(' · ')}</Meta>
+      {action.simulated && (
+        <T v="caption" tone="muted" style={{ textAlign: 'center' }}>Simulated booking, not a real ride{last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}</T>
+      )}
+      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' ? <T v="caption" tone="muted" style={{ textAlign: 'center' }}>{last.evidence.note}</T> : null}
     </Card>
-  );
-}
-
-function Fact({ label, value }) {
-  return (
-    <View>
-      <Text style={st.factLabel}>{label}</Text>
-      <Text style={st.factValue}>{value}</Text>
-    </View>
   );
 }
 
@@ -302,40 +277,48 @@ function Care({ senior, state, me, run, circle }) {
 
   return (
     <>
-      <Card>
-        <H2>Care tasks</H2>
-        {open.length === 0 && <P muted>Nothing open. Add something below.</P>}
-        {open.map((t) => <TaskRow key={t._id} t={t} me={me} run={run} name={name} senior={senior} />)}
-        <View style={st.addRow}>
-          <TextInput style={st.addInput} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup Sunday’" placeholderTextColor={color.muted} returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
-          <Button small label="Add" onPress={add} />
-        </View>
-      </Card>
-
-      <Card>
-        <H2>Who’s been helping this month</H2>
-        {share.map(({ m, n }) => (
-          <View key={m._id} style={st.shareRow} accessibilityLabel={`${m.name}: ${n} tasks`}>
-            <Text style={st.shareName}>{m.name.split(' ')[0]}</Text>
-            <View style={st.shareBar}><View style={[st.shareFill, { width: `${(n / max) * 100}%` }]} /></View>
-            <Text style={st.shareN}>{n}</Text>
-          </View>
-        ))}
-      </Card>
-
-      <Card>
-        <H2>Get her out of the house</H2>
-        <Meta>Matched to what she enjoys. Offering a ride adds it to care tasks.</Meta>
-        {events.map((e) => (
-          <View key={e._id} style={st.row}>
-            <View style={{ flex: 1 }}>
-              <P bold>{e.title}</P>
-              <Meta>{e.when} · {e.where}</Meta>
+      <Section label="Open tasks">
+        <Card flush>
+          <List>
+            {open.length === 0
+              ? [<Row key="none"><T tone="muted">Nothing open. Add something below.</T></Row>]
+              : open.map((t) => <TaskRow key={t._id} t={t} me={me} run={run} name={name} senior={senior} />)}
+            <View style={st.addRow}>
+              <Field style={{ flex: 1 }} value={newTask} onChangeText={setNewTask} placeholder="Add a task, like ‘Drop off soup’" returnKeyType="done" onSubmitEditing={add} accessibilityLabel="New task" />
+              <Button size="sm" label="Add" onPress={add} />
             </View>
-            <Button small label="Offer a ride" onPress={run(() => api.addTask({ seniorId: senior._id, title: `Ride to ${e.title.toLowerCase()} (${e.when})`, type: 'ride', due: e.when }))} />
-          </View>
-        ))}
-      </Card>
+          </List>
+        </Card>
+      </Section>
+
+      <Section label="Who’s been helping this month">
+        <Card>
+          {share.map(({ m, n }) => (
+            <View key={m._id} style={st.shareRow} accessible accessibilityLabel={`${m.name}: ${n} tasks`}>
+              <T v="caption" style={{ width: 64, fontSize: 15 }}>{m.name.split(' ')[0]}</T>
+              <View style={st.shareBar}><View style={[st.shareFill, { width: `${(n / max) * 100}%` }]} /></View>
+              <T v="label" style={{ width: 20, textAlign: 'right' }}>{n}</T>
+            </View>
+          ))}
+        </Card>
+      </Section>
+
+      {events.length > 0 && (
+        <Section label="Get her out of the house" footnote="Matched to what she enjoys. Offering a ride adds it to care tasks.">
+          <Card flush>
+            <List>
+              {events.map((e) => (
+                <Row
+                  key={e._id}
+                  title={e.title}
+                  sub={`${e.when} · ${e.where}`}
+                  trailing={<Button size="sm" label="Offer a ride" onPress={run(() => api.addTask({ seniorId: senior._id, title: `Ride to ${e.title.toLowerCase()} (${e.when})`, type: 'ride', due: e.when }))} />}
+                />
+              ))}
+            </List>
+          </Card>
+        </Section>
+      )}
     </>
   );
 }
@@ -349,20 +332,20 @@ function TaskRow({ t, me, run, name, senior }) {
   if (ho && ho.to === me) {
     buttons = (
       <View style={st.btnRow}>
-        <Button small variant="solid" label="Accept" onPress={run(() => api.accept(t._id, me))} />
-        <Button small label="Decline" onPress={run(() => api.decline(t._id, me))} />
+        <Button size="sm" variant="primary" label="Accept" onPress={run(() => api.accept(t._id, me))} />
+        <Button size="sm" label="Decline" onPress={run(() => api.decline(t._id, me))} />
       </View>
     );
   } else if (ho) {
-    buttons = <Meta>Asked {name(ho.to)}, waiting for an answer</Meta>;
+    buttons = <T v="caption" tone="muted">Asked {name(ho.to)}, waiting for an answer</T>;
   } else if (t.assignee) {
-    buttons = <Button small label="Mark done" onPress={run(() => api.done(t._id))} />;
+    buttons = <View style={st.btnRow}><Button size="sm" label="Mark done" onPress={run(() => api.done(t._id))} /></View>;
   } else {
     buttons = (
       <View style={st.btnRow}>
-        <Button small variant="solid" label="I’ll do it" onPress={run(() => api.claim(t._id, me))} />
+        <Button size="sm" variant="primary" label="I’ll do it" onPress={run(() => api.claim(t._id, me))} />
         {suggested && suggested !== me && (
-          <Button small label={`Ask ${name(suggested)}`} onPress={run(() => api.handoff(t._id, me, suggested))} />
+          <Button size="sm" label={`Ask ${name(suggested)}`} onPress={run(() => api.handoff(t._id, me, suggested))} />
         )}
       </View>
     );
@@ -376,11 +359,14 @@ function TaskRow({ t, me, run, name, senior }) {
   ].filter(Boolean).join(' · ');
 
   return (
-    <View style={[st.taskRow]}>
-      <P bold>{t.title}</P>
-      {t.quote && who ? <Text style={st.quoteSmall}>{who} said: “{t.quote}”</Text> : null}
-      {meta ? <Meta>{meta}</Meta> : null}
-      {buttons}
+    <View style={st.task}>
+      <View style={st.cardHead}>
+        <T v="bodyBold" style={{ flex: 1 }}>{t.title}</T>
+        {t.sensitive && <Chip label="Private" />}
+      </View>
+      {t.quote && who ? <T v="quote" tone="soft">{who} said: “{t.quote}”</T> : null}
+      {meta ? <T v="caption" tone="muted">{meta}</T> : null}
+      <View style={{ marginTop: 6 }}>{buttons}</View>
     </View>
   );
 }
@@ -388,18 +374,20 @@ function TaskRow({ t, me, run, name, senior }) {
 function Stories({ senior, checkins }) {
   const stories = checkins.flatMap((c) => (c.stories || []).map((s) => ({ ...s, at: c.endedAt })));
   return (
-    <Card>
-      <H2>{senior.preferredName}’s stories</H2>
-      <Meta>Saved from her calls, for the whole family.</Meta>
-      {stories.length === 0 && <P muted>Stories she tells on her calls are saved here.</P>}
-      {stories.map((s, i) => (
-        <View key={i} style={st.story}>
-          <P bold>{s.title}</P>
-          <Text style={st.quote}>{s.text}</Text>
-          <Meta>{ago(s.at)}</Meta>
-        </View>
-      ))}
-    </Card>
+    <Section label={`${senior.preferredName}’s stories`} footnote="Saved from her calls, for the whole family.">
+      <Card flush>
+        <List inset={72}>
+          {stories.length === 0
+            ? [<Row key="none"><T tone="muted">Stories she tells on her calls are saved here.</T></Row>]
+            : stories.map((s, i) => (
+              <Row key={i} leading={<IconCircle name="book" />} title={s.title} style={{ alignItems: 'flex-start' }}>
+                <T v="quote" style={{ fontSize: 17, lineHeight: 25 }}>{s.text}</T>
+                <T v="caption" tone="muted">{ago(s.at)}</T>
+              </Row>
+            ))}
+        </List>
+      </Card>
+    </Section>
   );
 }
 
@@ -407,79 +395,55 @@ function Circle({ state, circle }) {
   const texts = state.notifications.filter((n) => circle.some((m) => m._id === n.toId)).slice(0, 8);
   return (
     <>
-      <Card>
-        <H2>The circle</H2>
-        {circle.map((m) => (
-          <View key={m._id} style={st.row}>
-            <View style={{ flex: 1 }}>
-              <P bold>{m.name}</P>
-              <Meta>{m.relation}</Meta>
-            </View>
-            <Text style={[st.clock, !isAwake(m.timezone) && { color: color.muted }]}>{localTime(m.timezone)}{isAwake(m.timezone) ? '' : ' · asleep'}</Text>
-          </View>
-        ))}
-      </Card>
-      <Card>
-        <H2>Texts sent by Porchlight</H2>
-        {texts.length === 0 && <P muted>When Porchlight needs the circle, the texts it sends show up here.</P>}
-        {texts.map((n, i) => (
-          <View key={i} style={st.text}>
-            <Meta>To {n.to.split(' ')[0]}, {ago(n.at)}</Meta>
-            <P>{n.text}</P>
-          </View>
-        ))}
-      </Card>
+      <Section label="The circle">
+        <Card flush>
+          <List inset={72}>
+            {circle.map((m) => {
+              const awake = isAwake(m.timezone);
+              return (
+                <Row
+                  key={m._id}
+                  leading={<IconCircle name="user" />}
+                  title={m.name}
+                  sub={m.relation}
+                  trailing={<T v="caption" tone={awake ? 'soft' : 'muted'} style={{ fontVariant: ['tabular-nums'] }}>{localTime(m.timezone)}{awake ? '' : ' · asleep'}</T>}
+                />
+              );
+            })}
+          </List>
+        </Card>
+      </Section>
+      <Section label="Texts sent by Porchlight">
+        <Card flush>
+          <List inset={72}>
+            {texts.length === 0
+              ? [<Row key="none"><T tone="muted">When Porchlight needs the circle, the texts it sends show up here.</T></Row>]
+              : texts.map((n, i) => (
+                <Row key={i} leading={<IconCircle name="message" />} style={{ alignItems: 'flex-start' }}>
+                  <T v="caption" tone="muted">To {n.to.split(' ')[0]}, {ago(n.at)}</T>
+                  <T>{n.text}</T>
+                </Row>
+              ))}
+          </List>
+        </Card>
+      </Section>
     </>
   );
 }
 
 const st = StyleSheet.create({
-  tabs: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  pad: { padding: 16, paddingBottom: 48, gap: 14 },
-  today: { backgroundColor: color.dusk, borderWidth: 1, borderColor: color.hairline, borderRadius: radius.lg, padding: 20, gap: 14 },
-  todayTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  summary: { fontFamily: font.body, fontSize: 18, lineHeight: 26, color: color.ink },
-  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 24 },
-  factLabel: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
-  factValue: { fontFamily: font.bodyBold, fontSize: 17, color: color.ink },
-  note: { fontFamily: font.body, fontSize: 14, color: color.mutedOnDusk },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  stepMark: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: color.mutedOnDusk },
-  stepDone: { backgroundColor: color.brick, borderColor: color.brick },
-  stepDoneAmber: { backgroundColor: color.lamp, borderColor: color.lamp },
-  digestLine: { fontFamily: font.displaySemi, fontSize: 18, lineHeight: 24, color: color.ink },
-  digestItem: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  digestDot: { width: 10, height: 10, borderRadius: 5 },
+  tabs: { paddingHorizontal: space.screen, paddingTop: 8 },
+  heroBody: { padding: space.card + 4, gap: 12 },
+  heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  ladder: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ladderMark: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: color.soft },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  label: { fontFamily: font.bodyBold, color: color.muted },
-  steps: { flexDirection: 'row', gap: 6 },
-  stepCol: { flex: 1, gap: 4 },
-  bar: { height: 6, borderRadius: 3, backgroundColor: color.line },
-  stepLabel: { fontFamily: font.body, fontSize: 12, color: color.muted },
-  btnRow: { flexDirection: 'row', gap: 10 },
-  stepText: { flex: 1, fontFamily: font.body, fontSize: 16, color: color.mutedOnDusk },
-  stepWhen: { fontFamily: font.body, fontSize: 13, color: color.mutedOnDusk },
-  flag: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: color.hairline, backgroundColor: color.surface, padding: 16, gap: 6 },
-  flagScam: { borderColor: color.brick, backgroundColor: color.brickSoft },
-  flagTitle: { fontFamily: font.displaySemi, fontSize: 17, color: color.ink },
-  starter: { borderLeftWidth: 3, borderLeftColor: color.lamp, paddingLeft: 12 },
-  week: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  weekDay: { alignItems: 'center', gap: 2, minWidth: 64, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: color.surface2 },
-  weekDot: { width: 16, height: 16, borderRadius: 8 },
-  weekLabel: { fontFamily: font.body, fontSize: 14, color: color.ink },
-  weekMood: { fontFamily: font.body, fontSize: 12, color: color.muted },
-  taskRow: { gap: 6, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: color.line },
-  quoteSmall: { fontFamily: font.bodyItalic, fontSize: 16, lineHeight: 22, color: color.ink },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: color.line },
-  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  addInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: color.hairline, backgroundColor: color.surface2, borderRadius: radius.sm, paddingHorizontal: 12, fontFamily: font.body, fontSize: 16, color: color.ink },
-  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  shareName: { width: 64, fontFamily: font.body, fontSize: 15, color: color.ink },
-  shareBar: { flex: 1, height: 10, borderRadius: 5, backgroundColor: color.surface2, overflow: 'hidden' },
-  shareFill: { height: '100%', borderRadius: 5, backgroundColor: color.mutedOnDusk },
-  shareN: { width: 24, textAlign: 'right', fontFamily: font.body, fontSize: 15, color: color.muted },
-  story: { gap: 4, paddingBottom: 8 },
-  quote: { fontFamily: font.bodyItalic, fontSize: 17, lineHeight: 26, color: color.ink },
-  clock: { fontFamily: font.body, fontSize: 15, color: color.ink, fontVariant: ['tabular-nums'] },
-  text: { backgroundColor: color.surface2, borderRadius: radius.sm, padding: 12, gap: 2 },
+  btnRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  week: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  weekDay: { alignItems: 'center', gap: 4, minWidth: 60, paddingVertical: 10, borderRadius: radius.control, backgroundColor: color.raised },
+  task: { padding: space.card, gap: 4 },
+  addRow: { flexDirection: 'row', gap: 8, alignItems: 'center', padding: 12 },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  shareBar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: color.raised, overflow: 'hidden' },
+  shareFill: { height: '100%', borderRadius: 4, backgroundColor: color.soft },
 });
