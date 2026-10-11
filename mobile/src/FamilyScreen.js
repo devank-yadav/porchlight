@@ -7,6 +7,7 @@ import { openRoleSheet, openDemoMenu } from './menus';
 import { toast } from './design/Toaster';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from './api';
+import * as Calendar from 'expo-calendar/legacy';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
 import { ago } from './useAppState';
@@ -302,6 +303,7 @@ function Care({ senior, state, me, run, circle }) {
 
   return (
     <>
+      <SeniorCalendar senior={senior} state={state} />
       <Section title="Shared tasks">
         <Card style={{ gap: 0, paddingVertical: 4 }}>
           {open.length === 0 && <T v="callout" muted style={{ paddingVertical: 14 }}>Nothing open. Add something below.</T>}
@@ -350,6 +352,82 @@ function Care({ senior, state, me, run, circle }) {
         </Card>
       </Section>
     </>
+  );
+}
+
+const TRANSPORT = {
+  unknown: ['Ride not sorted', 'neutral'],
+  self: ['Has a ride', 'green'],
+  at_risk: ['Needs a ride', 'lamp'],
+  requested: ['Ride requested', 'lamp'],
+  confirmed: ['Ride confirmed', 'green'],
+};
+// Peggy's iPhone calendar, as synced by her Porchlight app, plus sample appointments.
+function dayLabel(iso) {
+  const d = new Date(iso);
+  const days = Math.round((new Date(d.toDateString()) - new Date(new Date().toDateString())) / 86400000);
+  const day = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', days < 7 ? { weekday: 'long' } : { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${day}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function SeniorCalendar({ senior, state }) {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const name = senior.preferredName;
+  const cal = senior.calendar;
+  const list = (state.appointments || [])
+    .filter((a) => a.seniorId === senior._id && !a.cancelled && new Date(a.startsAt).getTime() > now - 3600000 && new Date(a.startsAt).getTime() < now + 14 * 86400000)
+    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+  const addToMine = (a) => async () => {
+    try {
+      await Calendar.createEventInCalendarAsync({
+        title: `${name}: ${a.title.replace(/\s*\(sample\)/i, '')}`,
+        startDate: new Date(a.startsAt), endDate: new Date(a.endsAt || new Date(a.startsAt).getTime() + 3600000),
+        location: a.where || undefined, notes: `From ${name}’s Porchlight.`,
+      });
+    } catch (e) {
+      toast.info('Couldn’t open your calendar', { description: e.message });
+    }
+  };
+
+  return (
+    <Section title={`${name}’s calendar`}>
+      <Card style={{ gap: 0, paddingVertical: 4 }}>
+        <View style={[st.row, { alignItems: 'flex-start' }]}>
+          <Icon name={cal?.connected ? 'checkmark.circle.fill' : 'calendar.badge.exclamationmark'} size={17} color={cal?.connected ? accent.green : light.muted} style={{ marginTop: 2 }} />
+          <T v="footnote" muted style={{ flex: 1 }}>
+            {cal?.connected
+              ? `Synced from ${name}’s iPhone ${ago(cal.syncedAt)}. Calls and rides use these events, and Porchlight adds her rides, reminders and call-backs to her calendar.`
+              : `Open Porchlight on ${name}’s phone and allow calendar access. Her real appointments then show here and on her calls.`}
+          </T>
+        </View>
+        {list.length === 0 && <><Divider /><T v="callout" muted style={{ paddingVertical: 14 }}>Nothing in the next two weeks.</T></>}
+        {list.map((a) => {
+          const [label, tone] = a.needsRide === false ? ['No ride needed', 'neutral'] : TRANSPORT[a.transport] ?? TRANSPORT.unknown;
+          return (
+            <View key={a._id}>
+              <Divider />
+              <View style={st.row}>
+                <View style={{ flex: 1, gap: 3 }}>
+                  <T v="headline">{a.title}</T>
+                  <T v="footnote" muted>{[dayLabel(a.startsAt), a.where].filter(Boolean).join(' · ')}</T>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
+                    <Badge label={label} tone={tone} />
+                    <Badge label={a.source === 'calendar' ? `Her calendar${a.calendar ? `: ${a.calendar}` : ''}` : 'Sample'} icon={a.source === 'calendar' ? 'calendar' : undefined} />
+                  </View>
+                </View>
+                <Press onPress={addToMine(a)} accessibilityLabel={`Add ${a.title} to my calendar`} style={st.calBtn}>
+                  <Icon name="calendar.badge.plus" size={15} color={light.ink} />
+                </Press>
+              </View>
+            </View>
+          );
+        })}
+      </Card>
+    </Section>
   );
 }
 
@@ -755,6 +833,7 @@ const st = StyleSheet.create({
   askBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: light.sunken, borderRadius: radius.sm, paddingLeft: 12, paddingRight: 6, minHeight: 48 },
   askInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: 44, fontSize: 16, color: light.ink },
   qRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  calBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   qRemove: { width: 44, height: 44, borderRadius: 22, backgroundColor: light.sunken, alignItems: 'center', justifyContent: 'center' },
   answering: { flexDirection: 'row', gap: 6 },
   askNext: { flexDirection: 'row', gap: 10, backgroundColor: light.sunken, borderRadius: radius.sm, padding: 12 },

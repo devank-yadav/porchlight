@@ -5,6 +5,7 @@ import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSh
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
+import { useCalendarSync } from './calendar';
 import { notifyLocally, pushRegistered, startPush } from './push';
 import { useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
@@ -28,6 +29,7 @@ const home = () => router.replace('/senior/today');
 
 export default function SeniorScreen({ senior, page = 'today' }) {
   const { state, refresh, setRole } = useAppContext();
+  useCalendarSync(senior, state);
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
   const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
   const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);

@@ -98,9 +98,9 @@ const rideReply = (senior) => (senior.askBeforeRides
   : `No problem. I've put a "Book my Uber" button on your Porchlight screen for that ride, with everything already filled in, and I'll let ${senior.primaryContactName} know you're going.`);
 
 function appointmentLines(appointments = [], family, senior = {}) {
-  const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date());
+  const upcoming = appointments.filter((a) => new Date(a.startsAt) > new Date() && !a.cancelled).sort((x, y) => (x.startsAt > y.startsAt ? 1 : -1));
   if (!upcoming.length) return '';
-  return `Upcoming appointments: ${upcoming.map((a) => `${a.title} with ${a.with} at ${a.where}, ${new Date(a.startsAt).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })} (transport: ${a.transport || 'unknown'})`).join('; ')}.
+  return `Upcoming appointments: ${upcoming.slice(0, 8).map((a) => `${a.title}${a.with ? ` with ${a.with}` : ''}${a.where ? ` at ${a.where}` : ''}, ${new Date(a.startsAt).toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: '2-digit' })} (transport: ${a.needsRide === false ? 'not needed' : a.transport || 'unknown'})`).join('; ')}.
 If transport is not confirmed, ask once: "Do you have a ride to your appointment?" If she has no ride, say: "${rideReply({ ...senior, primaryContactName: family })}" Never say a ride is booked, arranged or confirmed.\n`;
 }
 

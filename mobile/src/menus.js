@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { api, API_BASE } from './api';
+import { syncCalendarNow } from './calendar';
 import { PEOPLE } from './AppContext';
 import { sheet } from './design/Sheet';
 import { Press, T } from './design/ui';
@@ -70,6 +71,9 @@ export function openDemoMenu({ state, run, role }) {
       <MenuRow icon="clock.badge.exclamationmark" title="Simulate a missed check-in" sub="Starts the follow-up ladder" onPress={go(() => api.missed('peggy'), 'Missed check-in started')} />
       {cfg?.twilio ? (
         <MenuRow icon="phone.fill" title="Call Peggy’s phone now" sub="A real call through Twilio" onPress={go(() => api.phoneCall('peggy'), ['Calling Peggy', 'Her phone is ringing now.'])} />
+      ) : null}
+      {role?.id === 'senior' ? (
+        <MenuRow icon="calendar" title="Sync this phone’s calendar" sub="Her events in, Porchlight’s rides and reminders out" onPress={go(() => syncCalendarNow(state?.seniors?.find((s) => s._id === 'peggy'), state), 'Calendar synced')} />
       ) : null}
       <MenuRow icon="arrow.counterclockwise" tone="red" title="Reset demo data" sub="Back to the start of the story" onPress={go(() => api.reset(), 'Demo data reset')} />
     </View>

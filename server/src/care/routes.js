@@ -9,6 +9,7 @@ import { twilioEnabled, recentNotifications, tellSenior } from '../voice/notify.
 import * as actions from './actions.js';
 import * as audit from './audit.js';
 import { buildDigest } from './digest.js';
+import { syncCalendar } from './calendar.js';
 import { wrap } from '../wrap.js';
 
 export const careRoutes = Router();
@@ -43,6 +44,11 @@ careRoutes.get('/api/state', wrap(async (req, res) => {
     notifications: recentNotifications(),
     config: { llm: llmEnabled, twilio: twilioEnabled, mongo: store.usingMongo() },
   });
+}));
+
+// Peggy's phone posts the next two weeks of her calendar (see care/calendar.js).
+careRoutes.post('/api/seniors/:id/calendar', wrap(async (req, res) => {
+  res.json(await syncCalendar(req.params.id, req.body || {}));
 }));
 
 // ---------- Senior buttons ----------

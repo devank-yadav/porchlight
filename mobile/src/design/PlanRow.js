@@ -4,7 +4,7 @@ import { useTheme } from './theme';
 import { accent, radius } from './tokens';
 
 export function upcomingPlans(state, senior) {
-  return (state.appointments || []).filter((p) => p.seniorId === senior._id && new Date(p.startsAt).getTime() > Date.now() - 3600000).sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+  return (state.appointments || []).filter((p) => p.seniorId === senior._id && !p.cancelled && new Date(p.startsAt).getTime() > Date.now() - 3600000).sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
 }
 export function dayLabel(iso, timezone = 'America/New_York') {
   const date = new Date(iso);
@@ -20,7 +20,7 @@ export default function PlanRow({ plan, senior, state }) {
   const { c, isSenior } = useTheme();
   const action = (state.actions || []).find((a) => a._id === plan.actionId);
   const simulated = action?.simulated;
-  const transport = { unknown: 'Ride not arranged', self: 'You have a ride', at_risk: 'A ride is needed', requested: 'Ride requested', confirmed: simulated ? 'Demo ride confirmed' : 'Ride confirmed' }[plan.transport] || 'Ride not arranged';
+  const transport = plan.needsRide === false ? 'No ride needed' : { unknown: 'Ride not arranged', self: 'You have a ride', at_risk: 'A ride is needed', requested: 'Ride requested', confirmed: simulated ? 'Demo ride confirmed' : 'Ride confirmed' }[plan.transport] || 'Ride not arranged';
   const date = new Date(plan.startsAt);
   return <View style={[st.row, { borderColor: c.line }]}>
     {!isSenior && <View style={[st.date, { backgroundColor: c.sunken }]} accessible={false}>

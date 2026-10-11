@@ -23,7 +23,7 @@ export async function handleCheckinOutcome(senior, checkin, a) {
 
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const upcoming = (await store.list('appointments', { seniorId: senior._id }))
-    .filter((ap) => new Date(ap.startsAt) > new Date() && ap.transport !== 'confirmed')
+    .filter((ap) => new Date(ap.startsAt) > new Date() && ap.transport !== 'confirmed' && ap.needsRide !== false && !ap.cancelled)
     .sort((x, y) => new Date(x.startsAt) - new Date(y.startsAt));
 
   for (const r of a.requests) {
