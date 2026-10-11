@@ -5,11 +5,14 @@
 //   "Remind me to call the pharmacy tomorrow" → saved; the next call that day opens with it.
 //   "Call me back later, I'm busy"        → the call ends kindly and Porchlight rings again (in an hour, or when she says).
 //   "What do I have this week?"           → her appointments for the next 7 days, and only confirmed rides called confirmed.
+//   "Book an Uber for me"                 → right away, a "Book my Uber" button with the trip to her next
+//                                           appointment filled in shows on her screen; the family is told she's going.
 // Rule-based (works with no AI key) and checked before the model replies.
 import * as store from '../store.js';
 import * as audit from '../care/audit.js';
 import { sms } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
+import { proposeRide } from '../care/actions.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -138,6 +141,20 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
   return `${lines.join(' ')} Anything else?`;
 }
 
+// ---------- "Book an Uber for me" ----------
+export const RIDE = /\b(?:uber|lyft|taxi|cab|(?:need|want|get|book|order|call)(?: me| for me)? a (?:ride|car)|(?:don(?:'|’)?t|do not) have a ride|no ride)\b/i;
+
+async function rideNow(senior, text) {
+  const appts = (await store.list('appointments', { seniorId: senior._id }))
+    .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
+    .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
+  if (!appts.length) return null; // nothing coming up: let the conversation ask where she's going
+  const a = appts[0];
+  await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
+  const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
+  return { reply: `Okay. For your ${what} ${sayTime(new Date(a.startsAt), senior.timezone || 'America/New_York')}, I've put a Book my Uber button on your Porchlight screen with everything filled in. One tap and it's booked. I'll let ${senior.primaryContactName || 'your family'} know you're going. Anything else?` };
+}
+
 // Runs the intent. Returns { reply, transfer?, end? } or null when nothing matched.
 export async function handleIntent(senior, checkin, text) {
   const tz = senior.timezone || 'America/New_York';
@@ -148,6 +165,10 @@ export async function handleIntent(senior, checkin, text) {
     await store.update('checkins', checkin._id, { callbackAt: callback.toISOString() });
     await audit.log('porchlight', 'voice.callback', { seniorId: senior._id, detail: callback.toISOString() });
     return { reply: `No problem at all. I'll call you back ${sayTime(callback, tz)}. Bye for now!`, end: true };
+  }
+  if (RIDE.test(text)) {
+    const ride = await rideNow(senior, text);
+    if (ride) return ride;
   }
   if (MY_WEEK.test(text)) {
     return { reply: weekSummary(await store.list('appointments', { seniorId: senior._id }), tz) };

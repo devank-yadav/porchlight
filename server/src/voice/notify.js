@@ -55,7 +55,11 @@ export async function placeCall(to, twimlUrl, statusUrl) {
 export async function tellSenior(senior, text) {
   const entry = { at: new Date().toISOString(), to: senior.preferredName, toId: senior._id, text, delivered: 'logged' };
   feed.push(entry);
-  if (twilioEnabled && senior.phone && !senior.phone.startsWith('+1555')) {
+  // Already on a call with us (e.g. her ride confirmed mid-call): don't ring her a second time.
+  // Her screen notice and the next greeting carry it.
+  const onCall = (await import('../store.js')).list('checkins', { seniorId: senior._id, channel: 'phone', status: 'in-progress' })
+    .then((rows) => rows.some((c) => Date.now() - new Date(c.startedAt).getTime() < 20 * 60000));
+  if (twilioEnabled && senior.phone && !senior.phone.startsWith('+1555') && !(await onCall)) {
     const say = String(text).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
     try {
       await twilio('Calls.json', {
