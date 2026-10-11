@@ -24,7 +24,7 @@ Source: `origin/main` at `349eea6` (PR #8 merged). Refresh before acting on this
 | Area | Current repository state | Remaining work on the checklist |
 |---|---|---|
 | Voice / Person A | A3–A7 implemented and merged | A1 model key, A2 live call, A8 rehearsal/video/submission |
-| Backend / Rishi | B1–B8 implemented and merged; use the existing workflows | B9 MongoDB URI and persistence check; Devpost paragraph already exists |
+| Backend / Rishi | B1–B8 merged; B9 implemented and live Atlas persistence verified on `care/atlas` | B9 PR review/merge; Devpost paragraph already exists |
 | App / Manasv | C2–C8 implemented and merged | C1 two-phone validation, C9 screenshots/video |
 
 The initial backend implementation overlapped a published B1 claim. PR #8 preserved the merged workflows and added contract checks and seed fixes. Future agents should extend the existing actions, tasks, digest, filtering, and escalation implementations. The contract smoke check passes in empty-env mode with the server in UTC, and all eight voice safety tests pass. Those checks do not establish two-phone or real-call validation.
@@ -48,7 +48,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] B6 Digest per viewer
 - [x] B7 Escalation: unresolved (amber) semantics + quiet hours
 - [x] B8 ?viewer= filtering
-- [ ] B9 — Rishi (Codex), `care/atlas`: in progress. MongoDB Atlas persistence and connection lifecycle; add a restart persistence command that requires MongoDB and only cleans up its own sample record. Claim pushed before implementation. Waiting for a locally configured `MONGODB_URI`; Devpost paragraph already exists in `DEVPOST.md` (owner A). Next: connect Atlas and demonstrate persistence across restarts. No shared API shape changes.
+- [x] B9 — Rishi (Codex), `care/atlas`: implemented; PR review/merge pending. Atlas credentials configured only in Git-ignored root `.env`. Checked: separate processes insert/update/read one temporary audit record and clean it up; `/api/state` reports `config.mongo: true`; API restart preserves seniors, 12 tasks, 3 check-ins, actions, appointments and notices; empty and invalid URI configurations still serve the demo in memory. Devpost paragraph already exists in A-owned `DEVPOST.md`. No shared API shape changes. Next: review and merge the code; other demo laptops need their own local Atlas configuration.
 
 ## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
