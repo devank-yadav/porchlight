@@ -13,10 +13,10 @@ export async function seed() {
 
   const circleId = 'hollis';
   const members = [
-    { _id: 'anne', circleId, name: 'Anne Hollis', relation: 'Daughter', role: 'family', phone: '+15550100001', timezone: 'America/Los_Angeles', primary: true },
-    { _id: 'mark', circleId, name: 'Mark Hollis', relation: 'Son', role: 'family', phone: '+15550100002', timezone: 'America/New_York' },
-    { _id: 'dolores', circleId, name: 'Dolores Kim', relation: 'Neighbor, next door', role: 'neighbor', phone: '+15550100003', timezone: 'America/New_York' },
-    { _id: 'sam', circleId: null, name: 'Sam Ortiz', relation: 'Volunteer, sample reassurance program', role: 'volunteer', phone: '+15550100004', timezone: 'America/New_York' },
+    { _id: 'anne', circleId, name: 'Anne Hollis', relation: 'Daughter', role: 'family', phone: '+15550100001', timezone: 'America/Los_Angeles', primary: true, canApprove: true, seesMeds: true },
+    { _id: 'mark', circleId, name: 'Mark Hollis', relation: 'Son', role: 'family', phone: '+15550100002', timezone: 'America/New_York', canApprove: false, seesMeds: false },
+    { _id: 'dolores', circleId, name: 'Dolores Kim', relation: 'Neighbor, next door', role: 'neighbor', phone: '+15550100003', timezone: 'America/New_York', canApprove: false, seesMeds: false },
+    { _id: 'sam', circleId: null, name: 'Sam Ortiz', relation: 'Volunteer, sample reassurance program', role: 'volunteer', phone: '+15550100004', timezone: 'America/New_York', canApprove: false, seesMeds: false },
   ];
   for (const m of members) await store.insert('members', m);
 
@@ -80,14 +80,25 @@ export async function seed() {
   for (const h of history) {
     await store.insert('checkins', {
       seniorId: peggy._id, channel: 'phone', status: 'completed', startedAt: h.at, endedAt: h.at,
-      transcript: [], summary: h.summary, mood: h.mood, medsTaken: true, flags: [],
+      transcript: [], summary: h.summary, mood: h.mood, medsTaken: true, medStatus: 'taken', flags: [],
       starters: [], stories: h.stories, requests: [],
     });
   }
 
+  // Tomorrow 2:00 PM: the appointment the ride rescue is about.
+  const appt = new Date();
+  appt.setDate(appt.getDate() + 1);
+  appt.setHours(14, 0, 0, 0);
+  await store.insert('appointments', {
+    _id: 'cardiology', seniorId: peggy._id, title: 'Cardiology follow-up', with: 'Dr. Lena Ortiz (sample)',
+    where: 'Valley Heart Clinic (sample)', startsAt: appt.toISOString(), transport: 'unknown', actionId: null,
+  });
+
   const tasks = [
-    { title: 'Pick up blood pressure refill at the pharmacy', type: 'refill', due: 'Thursday', assignee: null, status: 'open' },
-    { title: 'Fix the loose porch step', type: 'repair', due: 'This weekend', assignee: 'mark', status: 'open' },
+    { title: 'Pick up blood pressure refill at the pharmacy', type: 'refill', due: 'Thursday', assignee: null, status: 'open',
+      quote: 'I only have three pills left.', requestedBy: 'peggy', suggestedOwner: 'anne', handoff: null, sensitive: false },
+    { title: 'Fix the loose porch step', type: 'repair', due: 'This weekend', assignee: 'mark', status: 'open',
+      quote: null, requestedBy: 'anne', suggestedOwner: 'mark', handoff: null, sensitive: false },
   ];
   const done = [['anne', 6], ['dolores', 3], ['mark', 1]];
   for (const t of tasks) await store.insert('tasks', { seniorId: peggy._id, source: 'family', ...t });
