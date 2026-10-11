@@ -284,7 +284,7 @@ export async function analyze(senior, transcript, { appointments = [], questions
  "medStatus": "taken" | "not_taken" | "unsure" | "no_answer",
  "flags": [{"type": "urgent"|"scam"|"health"|"lonely"|"change"|"meds_unsure", "severity": "high"|"medium"|"low", "text": "what she said, briefly"}],
  "starters": ["2-3 specific conversation starters for family based on what she talked about"],
- "stories": [{"title": "warm 3-6 word title", "text": "the memory retold in 1-3 sentences, first person, in her words where possible", "quote": "her single most vivid sentence, exactly as she said it", "about": ["people, places or decades in it"], "followUp": "one question the family could ask her to hear more", "question": "the family question this answers, copied exactly, or null"}],
+ "stories": [{"title": "warm 3-6 word title", "text": "the memory retold in 1-3 sentences, first person, in her words where possible", "quote": "her single most vivid sentence, exactly as she said it", "about": ["people, places or decades in it"], "followUp": "one question the family could ask her to hear more", "question": "the family question this answers, copied exactly, or null", "summary": "one line, third person, e.g. How Peggy met Walt", "when": "the era or year she means, e.g. 1955, or null", "place": "where it happened, or null", "people": ["names she mentions"], "theme": "love"|"family"|"work"|"home"|"travel"|"food"|"faith"|"friends"|"childhood"|"music"|"garden"}],
  "requests": [{"type": "ride"|"groceries"|"refill"|"visit"|"errand"|"repair", "title": "short task", "when": "as she said it or null", "quote": "her exact words asking for it", "blocker": true if she has no way to do it herself (e.g. no ride to an appointment), else false}]}
 Never diagnose. "change" means different from her usual. If she was unsure whether she took a pill, medStatus is "unsure" and add a "meds_unsure" flag.
 A story is a memory from her life (people, places, how things used to be), not today's news. Only include real memories; [] if she told none.`,
@@ -326,8 +326,15 @@ function normalize(a, transcript) {
       text: st.text || st.quote,
       quote: st.quote || null,
       about: Array.isArray(st.about) ? st.about.slice(0, 4) : [],
-      followUp: st.followUp || null,
+      followUp: st.followUp || st.askNext || null,
       question: st.question || null,
+      // The app's story card reads these names (PR #51); askNext/people mirror followUp/about.
+      askNext: st.followUp || st.askNext || null,
+      people: Array.isArray(st.people) ? st.people.slice(0, 4) : (Array.isArray(st.about) ? st.about.filter((x) => /^[A-Z][a-z]+$/.test(x)).slice(0, 4) : []),
+      summary: st.summary || null,
+      when: st.when || null,
+      place: st.place || null,
+      theme: st.theme || null,
     })),
     requests,
   };

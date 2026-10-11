@@ -81,7 +81,9 @@ export async function seed() {
     {
       at: daysAgo(3), mood: 'good', medStatus: 'taken', medsTaken: true,
       summary: 'Peggy sounded cheerful and talked about her tomatoes and the crossword. Took her pills.',
-      stories: [{ title: 'The tomato contest', text: 'Walt and I used to enter the county fair every August. He always said my tomatoes were the reason we won, but it was his pie.' }],
+      stories: [{ title: 'The tomato contest', text: 'Walt and I used to enter the county fair every August. He always said my tomatoes were the reason we won, but it was his pie.',
+        quote: 'He always said my tomatoes were the reason we won, but it was his pie.', summary: 'Peggy and Walt at the county fair', when: 'Every August', place: 'County fair', people: ['Walt'], about: ['Walt', 'County fair'], theme: 'garden',
+        followUp: 'Ask her what kind of pie Walt made, and whether she still has the recipe.', askNext: 'Ask her what kind of pie Walt made, and whether she still has the recipe.' }],
     },
     {
       at: daysAgo(2), mood: 'okay', medStatus: 'no_answer', medsTaken: null,
@@ -91,7 +93,9 @@ export async function seed() {
     {
       at: daysAgo(1), mood: 'good', medStatus: 'taken', medsTaken: true,
       summary: 'Peggy sounded happy and talked about big band music on the radio. Took her pills.',
-      stories: [{ title: 'Dancing at the Elks lodge', text: 'When I was nineteen there was a band at the Elks lodge every Saturday. That’s where I met Walt. He stepped on my feet all night.' }],
+      stories: [{ title: 'Dancing at the Elks lodge', text: 'When I was nineteen there was a band at the Elks lodge every Saturday. That’s where I met Walt. He stepped on my feet all night.',
+        quote: 'He stepped on my feet all night.', summary: 'How Peggy met Walt', when: '1955', place: 'Elks lodge', people: ['Walt'], about: ['Walt', 'Elks lodge'], theme: 'love',
+        followUp: 'Ask her what song was playing when Walt first asked her to dance.', askNext: 'Ask her what song was playing when Walt first asked her to dance.' }],
     },
   ];
   for (const h of history) {
