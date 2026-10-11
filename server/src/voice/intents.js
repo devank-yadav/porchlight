@@ -161,7 +161,7 @@ export function rideDestination(text) {
   const m = all.at(-1);
   const place = m?.[1]?.trim().replace(/^(?:(?:go|get|come|head|drive me)\s+to\s+)+/i, '').replace(/\s+(please|now)$/i, '');
   // A place is a name, not a sentence: "I just need an Uber" or "listen to me" is never a destination.
-  if (!place || place.split(/\s+/).length > 6 || NOT_A_PLACE.test(place)) return null;
+  if (!place || place.split(/\s+/).length > 10 || NOT_A_PLACE.test(place)) return null;
   return /^(go|get|be|talk|speak|book|call)$/i.test(place.replace(/^(the|my|a|an) /i, '')) ? null : place;
 }
 const NOT_A_PLACE = /\b(i|me|you|we|it|need|want|wanna|just|uber|lyft|ride|cab|taxi|listen|talk|say|said|tell|know|help|that|this)\b/i;
@@ -172,7 +172,8 @@ export function bareDestination(text) {
     .replace(/^(oh,? |um,? |uh,? |well,? |yeah,? |yes,? )+/i, '')
     .replace(/^(i (want|need|would like|'d like|wanna|have) to go to|i('m| am) going to|take me to|go to|to)\s+/i, '')
     .replace(/\s+(please|now|right now|today)$/i, '').trim();
-  if (!t || t.split(/\s+/).length > 5) return null;
+  // Any place she names works ("my friend Ruth's house on Beaver Avenue"); "from home" is a pickup, not a destination.
+  if (!t || t.split(/\s+/).length > 10 || /^from\b/i.test(t)) return null;
   if (/^(yes|yeah|no|nope|okay|ok|sure|fine|i don'?t know|not sure|nothing|nowhere|never ?mind)$/i.test(t)) return null;
   if (/\b(i|you|me|book|uber|ride|car|want|need|feel|am|is|was)\b/i.test(t) || NOT_A_PLACE.test(t)) return null;
   if (/^(listen|wait|hold on|hang on|hello|hi|what|huh|sorry|pardon|excuse me|one (second|moment|minute)|hmm+|um+|uh+)$/i.test(t)) return null;
@@ -209,7 +210,8 @@ async function rideNow(senior, text, checkin = {}) {
   }
   const place = (checkin.rideFrom && checkin.rideFor) || rideDestination(text) || bareDestination(text) || earlier || null;
   // "I'm not looking for my cardiology follow-up" is a no, not a request for that ride.
-  const notAppointment = /\b(not|don'?t|no)\b.{0,30}(doctor|appointment|cardiolog|clinic|follow.?up)/i.test(text);
+  // But "I don't have a ride to the heart doctor" is a yes: she needs that ride.
+  const notAppointment = !/\b(don'?t|do not) have a ride\b|\bno ride\b/i.test(text) && /\b(not|don'?t|no)\b.{0,30}(doctor|appointment|cardiolog|clinic|follow.?up)/i.test(text);
   const forAppointment = !notAppointment && (APPOINTMENT_PLACE.test(text) || Boolean(place && APPOINTMENT_PLACE.test(place)));
   if (!place && !forAppointment) {
     if (checkin._id) await store.update('checkins', checkin._id, { rideAsked: true });
@@ -233,7 +235,7 @@ async function rideNow(senior, text, checkin = {}) {
   // Anywhere else she names. First: where from? (Home unless she says otherwise.)
   if (!checkin.rideFrom) {
     if (checkin._id) await store.update('checkins', checkin._id, { rideFor: place, rideFromAsked: true, rideWhenText: text, rideAsked: false });
-    return { reply: `${place.replace(/^(the|a|an) /i, (m) => m.toLowerCase()).replace(/^\w/, (c) => c.toUpperCase())}, got it. Are you leaving from home, or from somewhere else?` };
+    return { reply: `${place.replace(/^my /i, 'your ').replace(/^(the|a|an) /i, (m) => m.toLowerCase()).replace(/^\w/, (c) => c.toUpperCase())}, got it. Are you leaving from home, or from somewhere else?` };
   }
   const when = parseWhen(checkin.rideWhenText || text, tz);
   const pickupAt = (when && when > new Date() ? when : new Date()).toISOString();

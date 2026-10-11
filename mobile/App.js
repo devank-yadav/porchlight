@@ -7,7 +7,6 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { useFonts, AtkinsonHyperlegible_400Regular, AtkinsonHyperlegible_700Bold, AtkinsonHyperlegible_400Regular_Italic } from '@expo-google-fonts/atkinson-hyperlegible';
 import { api } from './src/api';
 import { useAppState } from './src/useAppState';
-import { usePeggyNotifications } from './src/notify';
 import { AppContext, useAppContext as useAppContextSafe, HEADER_H } from './src/AppContext';
 import StartScreen from './src/StartScreen';
 import SeniorScreen from './src/SeniorScreen';
@@ -75,9 +74,6 @@ function Shell() {
   const { state, error, role, refresh } = useAppContextSafe();
   const peggy = state?.seniors.find((s) => s._id === 'peggy');
   const dusk = role.id === 'senior';
-
-  // Peggy's phone gets a notification when her Uber is ready; tapping it opens Uber.
-  usePeggyNotifications(role.id === 'senior' ? peggy : null, state?.notices);
 
   let body;
   if (!state || !peggy) body = <Loading error={error} refresh={refresh} />;

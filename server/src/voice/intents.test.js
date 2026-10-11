@@ -80,6 +80,11 @@ test('ride destination: any place she names, appointment words go to her appoint
   assert.equal(rideDestination('Can you get me a ride to my sister\'s house at 4?'), "my sister's house");
   assert.equal(rideDestination('I need a ride to Wegmans now please'), 'Wegmans');
   assert.equal(rideDestination('book an Uber for me'), null);
+  // Any place she names, however long; not a fixed list.
+  assert.equal(rideDestination("I need an Uber to my friend Ruth's house on Beaver Avenue"), "my friend Ruth's house on Beaver Avenue");
+  const { bareDestination } = await import('./intents.js');
+  assert.equal(bareDestination('Weis Markets on Westerly Parkway please'), 'Weis Markets on Westerly Parkway');
+  assert.equal(bareDestination('From home'), null);
   assert.equal(rideDestination('I need a ride to the doctor tomorrow'), 'the doctor');
 });
 
