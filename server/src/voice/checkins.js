@@ -6,6 +6,7 @@ import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
 import { forecast, cachedForecast } from './weather.js';
 import { handleIntent, dueReminders, localDate } from './intents.js';
+import { medsDueNow } from '../care/meds.js';
 
 const YES = /^\s*(oh,? )?(yes|yeah|yep|sure|okay|ok|please|i('|’)?d (like|love) that|that would be (nice|lovely|great))\b/i;
 const CONNECT_ASK = /\b(connect|call|talk to|speak to|put me through)\b/i;
@@ -140,7 +141,8 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     memory.askNow = memory.questions[0];
     await store.update('checkins', checkinId, { askedQuestion: memory.askNow.text });
   }
-  const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id), memory, onSentence });
+  const medsDue = intent ? [] : await medsDueNow(senior).catch(() => []);
+  const answer = intent?.reply ?? await reply({ ...senior, medsDue }, transcript, { appointments: await appointmentsFor(senior._id), memory, onSentence });
   await followUps(senior, checkin, text, answer);
   // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
   if (urgent && !checkin.urgentAlertedAt) {

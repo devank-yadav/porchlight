@@ -71,3 +71,21 @@ test('a call where she says she took her pills marks due doses; missed doses rea
   assert.equal(dose.by, 'call');
   assert.equal(dose.medId, 'a');
 });
+
+test('on a call, "I took my pills" marks due doses; "not sure if I took my pill" never does', async () => {
+  const { handleIntent } = await import('../voice/intents.js');
+  await store.connect();
+  await store.clearAll();
+  const senior = await store.insert('seniors', { _id: 'peggy', preferredName: 'Peggy', primaryContactName: 'Anne', meds: [{ id: 'a', name: 'blood pressure pill', times: ['00:00'] }] });
+  const checkin = await store.insert('checkins', { seniorId: 'peggy', channel: 'app', transcript: [] });
+  for (const text of ["I'm not sure if I took my pill", "I didn't take my pills yet", 'I took the bus to church']) {
+    const r = await handleIntent(senior, checkin, text);
+    assert.ok(!/marked/.test(r?.reply || ''), text);
+  }
+  assert.equal((await store.list('doses')).length, 0);
+  const r = await handleIntent(senior, checkin, 'Yes, I already took my pills this morning');
+  assert.match(r.reply, /marked your 12:00 AM blood pressure pill as taken, so Anne can see it/);
+  assert.equal((await store.list('doses'))[0].by, 'call');
+  // Nothing left due: the intent steps aside and the conversation carries on.
+  assert.ok(!/marked/.test((await handleIntent(senior, checkin, 'I took my pills'))?.reply || ''));
+});

@@ -118,13 +118,14 @@ function memoryLines(memory = {}) {
   return out.length ? `${out.join('\n')}\n` : '';
 }
 
+const doseLine = (d) => `${d.name}${d.dose ? ` (${d.dose})` : ''} at ${d.label}`;
 function personaPrompt(senior, appointments, memory) {
   const now = new Date().toLocaleString('en-US', { timeZone: senior.timezone || 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
 Right now it is ${now} where she lives. If she asks the day, date or time, tell her exactly that.
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
-Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories: ask a follow-up about the people and places in them.
+${senior.medsDue?.length ? `Pills still due today and not marked taken yet: ${senior.medsDue.map(doseLine).join('; ')}. Gently ask once whether she has taken them. Never suggest how much to take or to take a missed dose late.\n` : ''}Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories: ask a follow-up about the people and places in them.
 ${memoryLines(memory)}${appointmentLines(appointments, senior.primaryContactName, senior)}If she isn't sure whether she took a pill, suggest she check her pill box for today's slot, tell her not to take another just in case, and that you'll let ${senior.primaryContactName} know.
 ${RULES(senior.primaryContactName)}`;
 }

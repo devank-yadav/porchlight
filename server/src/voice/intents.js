@@ -14,6 +14,7 @@ import { sms, push } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
 import { proposeRide } from '../care/actions.js';
 import { uberLink, geocode } from '../care/uber.js';
+import { markDueTaken } from '../care/meds.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
 
@@ -265,6 +266,9 @@ async function rideNow(senior, text, checkin = {}) {
 }
 
 // Runs the intent. Returns { reply, transfer?, end? } or null when nothing matched.
+const TOOK_PILLS = /\b(i|i've|i have|i just|i already|already)\b.{0,20}\b(took|taken|had)\b.{0,25}\b(pills?|meds|medicines?|medications?|tablets?|vitamins?|blood pressure)\b|\b(yes|yeah|yep)\b.{0,10}\b(took|taken|had) (it|them|those)\b/i;
+const NOT_TAKEN = /not sure|don(’|')?t (remember|know)|can(’|')?t (remember|recall)|forg[eo]t|whether|\bif i\b|didn(’|')?t|haven(’|')?t|not yet|\bnot\b.{0,10}\btaken/i;
+
 export async function handleIntent(senior, checkin, text) {
   const tz = senior.timezone || 'America/New_York';
   const callback = checkin.channel === 'phone' ? callbackTime(text, tz) : null;
@@ -274,6 +278,14 @@ export async function handleIntent(senior, checkin, text) {
     await store.update('checkins', checkin._id, { callbackAt: callback.toISOString() });
     await audit.log('porchlight', 'voice.callback', { seniorId: senior._id, detail: callback.toISOString() });
     return { reply: `No problem at all. I'll call you back ${sayTime(callback, tz)}. Bye for now!`, end: true };
+  }
+  // "I took my pills": mark the doses due so far today. Never on "not sure if I took it" (policyReply handles that).
+  if (TOOK_PILLS.test(text) && !NOT_TAKEN.test(text) && senior.meds?.length) {
+    const marked = await markDueTaken(senior, 'call');
+    if (marked.length) {
+      const what = marked.map((d) => `${d.label} ${d.name}`);
+      return { reply: `Thank you. I've marked your ${what.length > 1 ? `${what.slice(0, -1).join(', ')} and ${what.at(-1)}` : what[0]} as taken, so ${senior.primaryContactName || 'your family'} can see it. Anything else?` };
+    }
   }
   if (rideTurn(text, checkin)) {
     const ride = await rideNow(senior, text, checkin);
