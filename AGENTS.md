@@ -21,13 +21,15 @@ Works with an empty .env (demo mode: rule-based AI, in-memory data, texts logged
 
 ## Layout
 ```
-mobile/App.js               Fonts, role picker ("Who's using this phone?"), header, demo menu
+mobile/App.js               Providers, floating header, toasts, sheet host
+mobile/src/StartScreen.js   "Who is this phone for?" two doors + family picker
+mobile/src/menus.js         Sheets: switch person, demo controls (long-press the name)
 mobile/src/SeniorScreen.js  Peggy: big buttons, talk (speech out + keyboard dictation in), scam check, help
-mobile/src/FamilyScreen.js  Family: Today / Care / Stories / Circle tabs
+mobile/src/FamilyScreen.js  Family: Today / Care (daily call) / Stories / Circle tabs
 mobile/src/DeskScreen.js    Volunteer desk for the nonprofit
 mobile/src/Lamp.js          The porch light (status icon, animated)
-mobile/src/ui.js            Shared components: Button, BigButton, Card, Segmented, text styles
-mobile/src/theme.js         Design tokens (colors, fonts, radii)
+mobile/src/design/          Design system: tokens.js, ui.js (T, Press, Button, BigButton, Card, Badge, Segmented),
+                            Toaster.js (toast()), Sheet.js (sheet.open()), Icon.js (SF Symbols), theme.js, haptics.js
 mobile/src/api.js           Server calls + API base URL
 mobile/src/useAppState.js   Polls /api/state every 2s
 server/src/index.js          SHARED wiring only (mounts voice + care routes). Don't add routes here
@@ -61,9 +63,12 @@ The data contract between A, B and C is in TEAM_PLAN.md. Follow it exactly.
 Edit only your area unless you've told the owner. Shared files (index.js, env.js, wrap.js, .env.example, AGENTS.md, TEAM_PLAN.md) change only after telling the team.
 
 ## Design rules (keep the look consistent)
-- One bold element: the porch light (Lamp.js). lit = checked in, dim = waiting, alert = missed/help. Don't add other bright accents.
-- Use tokens from theme.js and components from ui.js. Don't add new colors or one-off button styles.
-- Fonts: Atkinson Hyperlegible (body, designed for low vision) + Bricolage Grotesque (headings).
+- Style: Emil Kowalski's design engineering (Sonner, Vaul, emilkowalski/skills). Quiet neutrals, hairline borders, soft depth.
+- One bold element: the porch light (Lamp.js). lit = checked in, dim = waiting, amber = unresolved, alert = help. Red only for help and scams.
+- Use tokens from design/tokens.js and components from design/ui.js. Don't add new colors or one-off button styles.
+- Fonts: Atkinson Hyperlegible on Peggy's side (low vision); the system font (SF Pro) elsewhere. Icons: SF Symbols via design/Icon.js.
+- Motion: Reanimated only. Press = scale 0.97 in 120ms. Ease-out curve (0.23, 1, 0.32, 1), under 300ms. Never animate tab switches.
+  Feedback goes through toast(); short choices through sheet.open(). Respect Reduce Motion.
 - Senior screens: text ≥ 20pt, buttons ≥ 104pt tall, plain words, every button labelled for VoiceOver.
 - Copy: plain, warm, sentence case. Buttons say what happens ("Offer a ride", not "Submit").
 

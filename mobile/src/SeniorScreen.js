@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, withDelay } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
+import { HEADER_H, useAppContext } from './AppContext';
 import Lamp, { lampState } from './Lamp';
-import { BigButton, Button, H1 } from './ui';
-import { color, font, radius } from './theme';
+import { BigButton, Button, Press, T } from './design/ui';
+import Icon from './design/Icon';
+import { haptic } from './design/haptics';
+import { toast } from './design/Toaster';
+import { accent, dark, ease, font, radius } from './design/tokens';
+
+// Peggy's side. Evening palette, Atkinson Hyperlegible, text ≥ 20pt, buttons ≥ 104pt.
 
 function greetingFor(d = new Date()) {
   const h = d.getHours();
@@ -18,7 +26,10 @@ function say(text) {
   });
 }
 
-export default function SeniorScreen({ senior, state, refresh, onError }) {
+const onError = (e) => toast.error('Something went wrong', { description: e.message });
+
+export default function SeniorScreen({ senior }) {
+  const { state, refresh } = useAppContext();
   const [mode, setMode] = useState('home'); // home | talk | scam | help | thanks
   const primary = state.members.find((m) => m.circleId === senior.circleId && m.primary);
   const home = () => setMode('home');
@@ -30,25 +41,34 @@ export default function SeniorScreen({ senior, state, refresh, onError }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {mode === 'home' && <Home senior={senior} notices={notices} primary={primary} setMode={setMode} refresh={refresh} onError={onError} />}
-      {mode === 'talk' && <Talk senior={senior} done={() => { setMode('thanks'); refresh(); }} onError={onError} />}
-      {mode === 'scam' && <ScamCheck senior={senior} back={home} onError={onError} />}
-      {mode === 'help' && <Help senior={senior} back={home} refresh={refresh} onError={onError} />}
-      {mode === 'thanks' && (
-        <ScrollView contentContainerStyle={[st.pad, st.center]}>
-          <Lamp state="lit" size={170} label="Porch light on" />
-          <H1 onDusk style={st.bigH1}>Thank you, {senior.preferredName}.</H1>
-          <Text style={st.lead}>Your family will see that you’re doing well today.</Text>
-          <BigButton title="Back to start" onPress={home} style={{ alignSelf: 'stretch' }} />
-        </ScrollView>
-      )}
+      <Animated.View key={mode} entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)} style={{ flex: 1 }}>
+        {mode === 'home' && <Home senior={senior} notices={notices} primary={primary} setMode={setMode} refresh={refresh} />}
+        {mode === 'talk' && <Talk senior={senior} done={() => { setMode('thanks'); refresh(); }} />}
+        {mode === 'scam' && <ScamCheck senior={senior} back={home} />}
+        {mode === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
+        {mode === 'thanks' && <Thanks senior={senior} back={home} />}
+      </Animated.View>
     </KeyboardAvoidingView>
   );
 }
 
-function Home({ senior, notices, primary, setMode, refresh, onError }) {
+function Page({ children, center }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[st.pad, center && st.center, { paddingTop: insets.top + HEADER_H + 16, paddingBottom: insets.bottom + 40 }]}
+    >
+      {children}
+    </ScrollView>
+  );
+}
+
+function Home({ senior, notices, primary, setMode, refresh }) {
   const [busy, setBusy] = useState(false);
-  const checkedIn = senior.status === 'ok' && senior.lastCheckinAt && new Date(senior.lastCheckinAt).toDateString() === new Date().toDateString();
+  const checkedIn = !['help', 'missed'].includes(senior.status) && !!senior.lastCheckinAt && new Date(senior.lastCheckinAt).toDateString() === new Date().toDateString();
+  const lamp = lampState(senior);
+  const primaryFirst = primary?.name.split(' ')[0];
 
   const imOkay = async () => {
     setBusy(true);
@@ -57,53 +77,57 @@ function Home({ senior, notices, primary, setMode, refresh, onError }) {
       await refresh();
       setMode('thanks');
     } catch (e) {
-      onError(e.message);
+      onError(e);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={st.pad}>
+    <Page>
       <View style={st.hero}>
-        <Lamp state={lampState(senior)} size={120} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
-        <View style={{ flex: 1 }}>
-          <H1 onDusk style={st.bigH1}>{greetingFor()}, {senior.preferredName}.</H1>
+        <Lamp state={lamp} size={96} label={checkedIn ? 'Porch light on. You checked in today.' : 'Porch light waiting for today’s check-in'} />
+        <View style={[st.statusPill, checkedIn && { backgroundColor: 'rgba(245,165,36,0.14)' }]}>
+          <View style={[st.statusDot, { backgroundColor: checkedIn ? accent.lamp : dark.muted }]} />
+          <Text style={[st.statusText, checkedIn && { color: '#FFD58A' }]}>{checkedIn ? 'You checked in today' : 'Waiting for today’s check-in'}</Text>
         </View>
       </View>
-      <Text style={st.lead}>{checkedIn ? 'You’ve checked in today. Your porch light is on.' : 'Your porch light is waiting for today’s check-in.'}</Text>
+      <T v="readTitle" style={{ marginTop: -6 }}>{greetingFor()},{'\n'}{senior.preferredName}.</T>
 
       {notices.length > 0 && (
-        <View style={st.notices} accessibilityLiveRegion="polite">
-          <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
+        <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} layout={LinearTransition.duration(200)} style={st.notices} accessibilityLiveRegion="polite">
+          <View style={st.noticesHead}>
+            <Icon name="sparkles" size={18} color={accent.lamp} />
+            <Text style={st.noticesTitle} accessibilityRole="header">Good news</Text>
+          </View>
           {notices.map((n) => (
-            <View
-              key={n._id}
-              style={st.notice}
-              accessible
-              accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}
-            >
-              <Text style={st.noticeText}>{n.text}</Text>
-              {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
+            <View key={n._id} style={st.notice} accessible accessibilityLabel={`${n.text}${n.simulated ? ' This is a demo booking.' : ''}`}>
+              <Icon name="checkmark.circle.fill" size={22} color="#6FCF8E" style={{ marginTop: 4 }} />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={st.noticeText}>{n.text}</Text>
+                {n.simulated && <Text style={st.noticeMeta}>Demo booking</Text>}
+              </View>
             </View>
           ))}
-        </View>
+        </Animated.View>
       )}
 
       <View style={st.stack}>
-        <BigButton tone="lamp" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
-        <BigButton title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
+        <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="A friendly chat about your day" hint="Starts a conversation. Porchlight is an AI and will talk first." onPress={() => setMode('talk')} />
+        <BigButton icon="checkmark.circle.fill" title="I’m okay today" sub="One tap lets your family know" hint="Tells your family you are okay today." onPress={imOkay} disabled={busy} />
         {primary && (
-          <BigButton title={`Call ${primary.name.split(' ')[0]}`} sub={primary.relation} hint={`Opens a phone call to ${primary.name.split(' ')[0]}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
+          <BigButton icon="phone.fill" title={`Call ${primaryFirst}`} sub={primary.relation} hint={`Opens a phone call to ${primaryFirst}.`} onPress={() => Linking.openURL(`tel:${primary.phone}`)} />
         )}
-        <BigButton title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
-        <BigButton tone="help" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
+        <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Tell me about a call or letter" hint="Opens a page where you can describe the call or letter." onPress={() => setMode('scam')} />
+        <BigButton tone="help" icon="hand.raised.fill" title="I need help" sub="Your family and neighbor are alerted" hint="Asks you to confirm before anyone is alerted." onPress={() => setMode('help')} />
       </View>
-    </ScrollView>
+      <Text style={st.footer}>Porchlight is an AI helper. It never asks for money, codes or passwords.</Text>
+    </Page>
   );
 }
 
-function Talk({ senior, done, onError }) {
+function Talk({ senior, done }) {
+  const insets = useSafeAreaInsets();
   const [checkin, setCheckin] = useState(null);
   const [lines, setLines] = useState([]);
   const [draft, setDraft] = useState('');
@@ -127,12 +151,12 @@ function Talk({ senior, done, onError }) {
         if (voiceRef.current) await say(c.transcript[0].text);
         setPhase('ready');
       } catch (e) {
-        onError(e.message);
+        onError(e);
         setPhase('ready');
       }
     })();
     return () => { Speech.stop(); };
-  }, [senior._id, onError]);
+  }, [senior._id]);
 
   const finish = async (c = checkin) => {
     if (!c) return;
@@ -142,7 +166,7 @@ function Talk({ senior, done, onError }) {
       await api.finish(c._id);
       done();
     } catch (e) {
-      onError(e.message);
+      onError(e);
       setPhase('ready');
     }
   };
@@ -150,6 +174,7 @@ function Talk({ senior, done, onError }) {
   const send = async () => {
     const text = draft.trim();
     if (!text || !checkin) return;
+    haptic.tap();
     setDraft('');
     Speech.stop();
     setLines((l) => [...l, { who: 'senior', text }]);
@@ -162,56 +187,86 @@ function Talk({ senior, done, onError }) {
       if (r.ended) return finish(checkin);
       setPhase('ready');
     } catch (e) {
-      onError(e.message);
+      onError(e);
       setPhase('ready');
     }
   };
 
-  const status = { starting: 'Calling…', speaking: 'Porchlight is talking', ready: 'Your turn', thinking: 'Thinking…', ending: 'Saying goodbye…' }[phase];
+  const status = { starting: 'Calling…', speaking: 'Porchlight is talking', ready: 'Your turn', thinking: 'Thinking', ending: 'Saying goodbye…' }[phase];
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, paddingTop: insets.top + HEADER_H }}>
       <View style={st.talkHead}>
-        <Lamp state="lit" size={64} label="Porch light on" />
-        <Text style={st.talkStatus} accessibilityLiveRegion="polite">{status}</Text>
+        <Lamp state="lit" size={56} label="Porch light on" />
+        <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={st.talkStatus} accessibilityLiveRegion="polite">{status}</Text>
+            {(phase === 'thinking' || phase === 'starting') && <Dots />}
+          </View>
+          <Text style={st.talkSub}>Porchlight is an AI</Text>
+        </View>
         <View style={st.voiceToggle}>
+          <Switch value={voiceOn} onValueChange={(v) => { haptic.select(); setVoiceOn(v); }} trackColor={{ true: accent.lamp }} accessibilityLabel="Read replies aloud" />
           <Text style={st.toggleLabel}>Read aloud</Text>
-          <Switch value={voiceOn} onValueChange={setVoiceOn} trackColor={{ true: color.lamp }} accessibilityLabel="Read replies aloud" />
         </View>
       </View>
 
       <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={st.transcript} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: true })}>
         {lines.map((l, i) => (
-          <View key={i} style={[st.line, l.who === 'senior' ? st.lineSenior : st.linePorch]}>
-            <Text style={[st.lineWho, l.who === 'senior' && { color: color.muted }]}>{l.who === 'porchlight' ? 'Porchlight' : senior.preferredName}</Text>
-            <Text style={[st.lineText, l.who === 'senior' && { color: color.ink }]}>{l.text}</Text>
-          </View>
+          <Animated.View key={i} entering={FadeInDown.duration(250).easing(ease.out)} style={[st.bubble, l.who === 'senior' ? st.bubbleMe : st.bubbleThem]}>
+            <Text style={[st.bubbleWho, l.who === 'senior' && { color: '#52525B' }]}>{l.who === 'porchlight' ? 'Porchlight' : senior.preferredName}</Text>
+            <Text style={[st.bubbleText, l.who === 'senior' && { color: '#111' }]}>{l.text}</Text>
+          </Animated.View>
         ))}
       </ScrollView>
 
-      <View style={st.composer}>
-        <Text style={st.hint}>Tap the microphone on the keyboard to speak your answer.</Text>
+      <View style={[st.composer, { paddingBottom: insets.bottom + 10 }]}>
+        <View style={st.hintRow}>
+          <Icon name="mic.fill" size={15} color={dark.muted} />
+          <Text style={st.hint}>Tap the microphone on the keyboard to speak.</Text>
+        </View>
         <View style={st.typeRow}>
           <TextInput
             style={st.input}
             value={draft}
             onChangeText={setDraft}
             placeholder="Your answer"
-            placeholderTextColor="#7B859C"
+            placeholderTextColor="#71717A"
             returnKeyType="send"
             onSubmitEditing={send}
             editable={phase !== 'ending'}
             accessibilityLabel="Your answer"
           />
-          <Button label="Send" variant="light" onPress={send} disabled={!draft.trim() || phase === 'thinking'} style={{ minHeight: 56 }} />
+          <Press onPress={send} disabled={!draft.trim() || phase === 'thinking'} accessibilityLabel="Send" style={st.sendBtn} feedback={null}>
+            <Icon name="arrow.up" size={24} color={accent.lampInk} weight="bold" />
+          </Press>
         </View>
-        <Button label="I’m done talking" variant="quiet" onDusk onPress={() => finish()} disabled={!checkin || phase === 'ending'} style={st.doneBtn} />
+        <Button label="I’m done talking" variant="ghost" onPress={() => finish()} disabled={!checkin || phase === 'ending'} style={{ alignSelf: 'center' }} />
       </View>
     </View>
   );
 }
 
-function ScamCheck({ senior, back, onError }) {
+// Three dots while Porchlight thinks. Runs only while waiting.
+function Dots() {
+  return (
+    <View style={{ flexDirection: 'row', gap: 4 }} accessible={false}>
+      {[0, 1, 2].map((i) => <Dot key={i} i={i} />)}
+    </View>
+  );
+}
+function Dot({ i }) {
+  const reduced = useReducedMotion();
+  const o = useSharedValue(0.3);
+  useEffect(() => {
+    if (reduced) { o.set(0.8); return; }
+    o.set(withDelay(i * 150, withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1)));
+  }, [i, o, reduced]);
+  const style = useAnimatedStyle(() => ({ opacity: o.get() }));
+  return <Animated.View style={[{ width: 7, height: 7, borderRadius: 4, backgroundColor: dark.ink }, style]} />;
+}
+
+function ScamCheck({ senior, back }) {
   const [text, setText] = useState('');
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -222,22 +277,27 @@ function ScamCheck({ senior, back, onError }) {
     try {
       const r = await api.scamCheck(senior._id, text);
       setResult(r);
+      if (r.verdict === 'likely scam') haptic.warn();
       say(`${r.verdict === 'likely scam' ? 'This looks like a scam.' : r.verdict === 'be careful' ? 'Be careful with this one.' : 'This looks okay.'} ${r.advice}`);
     } catch (e) {
-      onError(e.message);
+      onError(e);
     } finally {
       setBusy(false);
     }
   };
 
   const tone = result?.verdict === 'likely scam' ? 'danger' : result?.verdict === 'be careful' ? 'warn' : 'safe';
-  const bg = { danger: color.brickSoft, warn: color.lampSoft, safe: color.sageSoft }[tone];
-  const fg = { danger: color.brick, warn: '#6A4300', safe: color.sage }[tone];
+  const V = {
+    danger: { bg: '#2A1311', border: '#5B231B', fg: '#FF9B88', icon: 'exclamationmark.octagon.fill' },
+    warn: { bg: '#2A1F0C', border: '#5A4116', fg: '#FFCF7A', icon: 'exclamationmark.triangle.fill' },
+    safe: { bg: '#10241A', border: '#1F4A33', fg: '#8EE0AC', icon: 'checkmark.shield.fill' },
+  }[tone];
 
   return (
-    <ScrollView contentContainerStyle={st.pad} keyboardShouldPersistTaps="handled">
-      <H1 onDusk style={st.bigH1}>Is this a scam?</H1>
-      <Text style={st.lead}>Tell me who contacted you and what they asked for.</Text>
+    <Page>
+      <BackLink onPress={back} />
+      <T v="readTitle">Is this a scam?</T>
+      <T v="read" muted>Tell me who contacted you and what they asked for.</T>
       {!result ? (
         <View style={st.stack}>
           <TextInput
@@ -246,92 +306,137 @@ function ScamCheck({ senior, back, onError }) {
             value={text}
             onChangeText={setText}
             placeholder="A man called and said my grandson is in jail…"
-            placeholderTextColor="#7B859C"
+            placeholderTextColor="#71717A"
             accessibilityLabel="Describe the call or message"
           />
-          <Text style={st.hint}>Tap the microphone on the keyboard to say it out loud.</Text>
-          <BigButton tone="lamp" title={busy ? 'Checking…' : 'Check it'} onPress={check} disabled={busy || !text.trim()} />
+          <View style={st.hintRow}>
+            <Icon name="mic.fill" size={15} color={dark.muted} />
+            <Text style={st.hint}>Tap the microphone on the keyboard to say it out loud.</Text>
+          </View>
+          <BigButton tone="lamp" icon="magnifyingglass" title={busy ? 'Checking…' : 'Check it'} onPress={check} disabled={busy || !text.trim()} />
         </View>
       ) : (
-        <View style={[st.verdict, { backgroundColor: bg }]} accessibilityLiveRegion="polite">
-          <Text style={[st.verdictWord, { color: fg }]}>
-            {result.verdict === 'likely scam' ? 'This looks like a scam.' : result.verdict === 'be careful' ? 'Be careful.' : 'This looks okay.'}
-          </Text>
-          {result.redFlags?.map((f) => <Text key={f} style={st.verdictText}>•  {f}</Text>)}
+        <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Icon name={V.icon} size={32} color={V.fg} />
+            <Text style={[st.verdictWord, { color: V.fg }]}>
+              {result.verdict === 'likely scam' ? 'This looks like a scam.' : result.verdict === 'be careful' ? 'Be careful.' : 'This looks okay.'}
+            </Text>
+          </View>
+          {result.redFlags?.map((f) => (
+            <View key={f} style={{ flexDirection: 'row', gap: 10 }}>
+              <Text style={[st.verdictText, { color: V.fg }]}>•</Text>
+              <Text style={[st.verdictText, { flex: 1 }]}>{f}</Text>
+            </View>
+          ))}
           <Text style={st.verdictText}>{result.advice}</Text>
-          {result.verdict !== 'probably fine' && <Text style={[st.verdictText, { fontFamily: font.bodyBold }]}>I’ve let your family know.</Text>}
-        </View>
+          {result.verdict !== 'probably fine' && <Text style={[st.verdictText, { fontFamily: font.readBold }]}>I’ve let your family know.</Text>}
+        </Animated.View>
       )}
-      <Button label="Back to start" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
-    </ScrollView>
+      {result && <BigButton icon="house.fill" title="Back to start" onPress={back} />}
+    </Page>
   );
 }
 
-function Help({ senior, back, refresh, onError }) {
+function Help({ senior, back, refresh }) {
   const [sent, setSent] = useState(false);
   const send = async () => {
     try {
       await api.help(senior._id);
+      haptic.warn();
       setSent(true);
       refresh();
     } catch (e) {
-      onError(e.message);
+      onError(e);
     }
   };
   return (
-    <ScrollView contentContainerStyle={[st.pad, st.center]}>
+    <Page>
       {!sent ? (
         <>
-          <H1 onDusk style={st.bigH1}>Do you need help now?</H1>
-          <Text style={st.lead}>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</Text>
-          <View style={[st.stack, { alignSelf: 'stretch' }]}>
-            <BigButton tone="help" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
-            <BigButton title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
+          <BackLink onPress={back} label="No, go back" />
+          <T v="readTitle">Do you need help now?</T>
+          <T v="read" muted>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</T>
+          <View style={st.stack}>
+            <BigButton tone="help" icon="bell.and.waves.left.and.right.fill" title="Yes, alert my family" hint="Texts your family now, then your neighbor." onPress={send} />
+            <BigButton icon="phone.fill" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} />
           </View>
-          <Button label="No, go back" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
         </>
       ) : (
-        <>
-          <Lamp state="alert" size={150} label="Help requested" />
-          <H1 onDusk style={st.bigH1}>Help is on the way.</H1>
-          <Text style={st.lead}>Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</Text>
-          <BigButton tone="help" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
-          <Button label="Back to start" variant="quiet" onDusk onPress={back} style={st.doneBtn} />
-        </>
+        <Animated.View entering={FadeIn.duration(250)} style={{ gap: 18, alignItems: 'center' }}>
+          <Lamp state="alert" size={160} label="Help requested" />
+          <T v="readTitle" center>Help is on the way.</T>
+          <T v="read" muted center>Your family has been texted. Stay where you are if you can. If you’re hurt, call 911.</T>
+          <BigButton tone="help" icon="phone.fill" title="Call 911" hint="Opens a phone call to 911." onPress={() => Linking.openURL('tel:911')} style={{ alignSelf: 'stretch' }} />
+          <Button label="Back to start" variant="ghost" onPress={back} />
+        </Animated.View>
       )}
-    </ScrollView>
+    </Page>
+  );
+}
+
+// The light switching on: the one celebration in the app.
+function Thanks({ senior, back }) {
+  const [lit, setLit] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => { setLit(true); haptic.success(); }, 250);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Page center>
+      <Lamp state={lit ? 'lit' : 'dim'} size={180} label="Porch light on" />
+      <T v="readTitle" center>Thank you, {senior.preferredName}.</T>
+      <T v="read" muted center>Your family will see that you’re doing well today.</T>
+      <BigButton icon="house.fill" title="Back to start" onPress={back} style={{ alignSelf: 'stretch', marginTop: 8 }} />
+    </Page>
+  );
+}
+
+function BackLink({ onPress, label = 'Back' }) {
+  return (
+    <Press onPress={onPress} accessibilityLabel={label} style={st.back}>
+      <Icon name="chevron.left" size={18} color={dark.ink} weight="bold" />
+      <Text style={st.backText}>{label}</Text>
+    </Press>
   );
 }
 
 const st = StyleSheet.create({
-  pad: { padding: 20, paddingBottom: 48, gap: 18 },
+  pad: { paddingHorizontal: 18, gap: 18 },
   center: { alignItems: 'center' },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bigH1: { fontSize: 36, lineHeight: 40, textAlign: 'left' },
-  lead: { fontFamily: font.body, fontSize: 21, lineHeight: 29, color: '#DFE5F3' },
-  stack: { gap: 14 },
-  notices: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 20, gap: 14 },
-  noticesTitle: { fontFamily: font.displaySemi, fontSize: 22, color: color.dusk },
-  notice: { borderLeftWidth: 4, borderLeftColor: color.sage, paddingLeft: 14, gap: 4 },
-  noticeText: { fontFamily: font.body, fontSize: 22, lineHeight: 30, color: color.ink },
-  noticeMeta: { fontFamily: font.body, fontSize: 16, color: color.muted },
-  talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 8 },
-  talkStatus: { flex: 1, fontFamily: font.displaySemi, fontSize: 22, color: '#fff' },
-  voiceToggle: { alignItems: 'center', gap: 2 },
-  toggleLabel: { fontFamily: font.body, fontSize: 13, color: '#DFE5F3' },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: -10 },
+  statusPill: { flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: dark.surface, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  statusDot: { width: 9, height: 9, borderRadius: 5 },
+  statusText: { fontFamily: font.readBold, fontSize: 17, color: dark.ink2, flexShrink: 1 },
+  stack: { gap: 12 },
+  notices: { backgroundColor: dark.surface, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, borderColor: dark.lineStrong, padding: 20, gap: 16 },
+  noticesHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  noticesTitle: { fontFamily: font.readBold, fontSize: 22, color: dark.ink },
+  notice: { flexDirection: 'row', gap: 12 },
+  noticeText: { fontFamily: font.read, fontSize: 22, lineHeight: 30, color: dark.ink },
+  noticeMeta: { fontFamily: font.read, fontSize: 17, color: dark.muted },
+  footer: { fontFamily: font.read, fontSize: 16, lineHeight: 22, color: dark.muted, textAlign: 'center', paddingHorizontal: 12 },
+  talkHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: dark.line },
+  talkStatus: { fontFamily: font.readBold, fontSize: 22, color: dark.ink },
+  talkSub: { fontFamily: font.read, fontSize: 15, color: dark.muted },
+  voiceToggle: { alignItems: 'center', gap: 4 },
+  toggleLabel: { fontFamily: font.read, fontSize: 13, color: dark.muted },
   transcript: { padding: 16, gap: 12 },
-  line: { padding: 16, borderRadius: radius.lg, maxWidth: '88%' },
-  linePorch: { backgroundColor: color.dusk2, alignSelf: 'flex-start' },
-  lineSenior: { backgroundColor: '#fff', alignSelf: 'flex-end' },
-  lineWho: { fontFamily: font.bodyBold, fontSize: 14, color: '#DFE5F3', marginBottom: 2 },
-  lineText: { fontFamily: font.body, fontSize: 21, lineHeight: 28, color: '#fff' },
-  composer: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8, gap: 8, borderTopWidth: 1, borderTopColor: color.dusk2 },
-  hint: { fontFamily: font.body, fontSize: 16, color: '#DFE5F3' },
+  bubble: { paddingHorizontal: 18, paddingVertical: 14, borderRadius: 24, maxWidth: '88%' },
+  bubbleThem: { backgroundColor: dark.raised, alignSelf: 'flex-start', borderBottomLeftRadius: 8 },
+  bubbleMe: { backgroundColor: '#FAFAFA', alignSelf: 'flex-end', borderBottomRightRadius: 8 },
+  bubbleWho: { fontFamily: font.readBold, fontSize: 14, color: dark.muted, marginBottom: 3 },
+  bubbleText: { fontFamily: font.read, fontSize: 22, lineHeight: 30, color: dark.ink },
+  composer: { paddingHorizontal: 16, paddingTop: 10, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: dark.line, backgroundColor: dark.bg },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hint: { fontFamily: font.read, fontSize: 16, color: dark.muted, flex: 1 },
   typeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  input: { flex: 1, minHeight: 56, backgroundColor: '#fff', borderRadius: radius.sm, paddingHorizontal: 14, fontFamily: font.body, fontSize: 21, color: color.ink },
-  textarea: { minHeight: 140, paddingTop: 14, textAlignVertical: 'top', flex: 0 },
-  doneBtn: { alignSelf: 'center' },
-  verdict: { borderRadius: radius.lg, padding: 22, gap: 10 },
-  verdictWord: { fontFamily: font.display, fontSize: 30, lineHeight: 34 },
-  verdictText: { fontFamily: font.body, fontSize: 20, lineHeight: 28, color: color.ink },
+  input: { flex: 1, minHeight: 60, backgroundColor: dark.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: dark.lineStrong, paddingHorizontal: 18, fontFamily: font.read, fontSize: 22, color: dark.ink },
+  textarea: { minHeight: 150, paddingTop: 16, textAlignVertical: 'top', flex: 0 },
+  sendBtn: { width: 60, height: 60, borderRadius: 30, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center' },
+  verdict: { borderRadius: radius.xl, borderWidth: 1, padding: 22, gap: 12 },
+  verdictWord: { fontFamily: font.readBold, fontSize: 28, lineHeight: 34, flex: 1 },
+  verdictText: { fontFamily: font.read, fontSize: 21, lineHeight: 29, color: dark.ink },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, alignSelf: 'flex-start' },
+  backText: { fontFamily: font.readBold, fontSize: 20, color: dark.ink },
 });
