@@ -24,10 +24,13 @@ export function relayTwiml(checkin) {
   const wss = base.replace(/^http/, 'ws') + '/twilio/relay';
   const { ttsProvider, voice } = ttsFor(VOICE);
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Connect action="${base}/twilio/relay-done?checkinId=${checkin._id}">`
-    + `<ConversationRelay url="${wss}" welcomeGreeting="${xml(checkin.transcript[0].text)}" ttsProvider="${ttsProvider}" voice="${voice}" language="en-US" interruptible="true">`
+    + `<ConversationRelay url="${wss}" welcomeGreeting="${xml(checkin.transcript[0].text)}" ttsProvider="${ttsProvider}" voice="${voice}" language="en-US" interruptible="true" hints="${HINTS}">`
     + `<Parameter name="checkinId" value="${checkin._id}"/>`
     + `</ConversationRelay></Connect></Response>`;
 }
+
+// Words she's likely to say, so the transcriber hears "headache", not "FedEx".
+const HINTS = 'headache,dizzy,pills,blood pressure,vitamin D,doctor,heart doctor,appointment,ride,milk,groceries,pharmacy,refill,scam,gift cards,grandson,Anne,Mark,Maya,Dolores,Peggy,Porchlight';
 
 // Roughly how long Twilio needs to say a line, so "goodbye" isn't cut off before we hang up.
 const speakMs = (text) => 1500 + text.split(/\s+/).length * 380;
