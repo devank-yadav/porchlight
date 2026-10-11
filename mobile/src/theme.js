@@ -1,25 +1,26 @@
-// Porchlight design tokens: an evening theme. Near-black blue ground, charcoal-dusk surfaces,
-// off-white ink, one warm element (the porch light). Token names are kept from the light theme;
-// every text/background pair below has at least 4.5:1 contrast.
+// Porchlight design tokens: a calm evening theme.
+// Surfaces separate by tone, not borders. One warm accent (the porch light) used sparingly.
+// Every text/background pair below has at least 4.5:1 contrast. Token names are kept for older screens.
 export const color = {
-  sky: '#0A0F1C', // page background
-  surface: '#161D2E', // cards
-  surface2: '#1F2840', // nested panels (Inset), inputs, neutral chips
-  dusk: '#1A2547', // dusk-blue panels (hero cards)
-  dusk2: '#2A3658', // secondary panels, chat bubbles, tab highlight
-  ink: '#EEF1F8', // body and heading text
-  muted: '#A3AEC8',
-  mutedOnDusk: '#C3CCE0',
-  line: '#273049', // solid dividers and progress tracks
-  hairline: 'rgba(255,255,255,0.10)', // 1px borders on cards and buttons
-  highlight: 'rgba(255,255,255,0.15)', // 1px top inside edge on cards and buttons
+  sky: '#0B0F17', // page background
+  surface: '#151B27', // cards and grouped lists
+  surface2: '#1D2533', // inputs, secondary buttons, neutral chips, pressed rows
+  surface3: '#263044', // segmented thumb, avatar circles
+  dusk: '#151B27', // hero cards (same as surface: no special panels)
+  dusk2: '#263044',
+  ink: '#F2F4F8', // primary text
+  muted: '#98A2B6', // secondary text
+  mutedOnDusk: '#B6BFD1', // tertiary text that still needs to be read comfortably
+  line: '#232B3A', // row dividers, progress tracks
+  hairline: 'rgba(255,255,255,0.06)',
+  highlight: 'rgba(255,255,255,0.05)',
   lamp: '#F5A524',
-  lampInk: '#2A1A00',
-  lampSoft: '#2E2412',
-  sage: '#7FCB98',
-  sageSoft: '#15291D',
-  brick: '#F28B74',
-  brickSoft: '#3A1A17',
+  lampInk: '#241600',
+  lampSoft: 'rgba(245,165,36,0.14)',
+  sage: '#6FCF97',
+  sageSoft: 'rgba(111,207,151,0.13)',
+  brick: '#FF8B73',
+  brickSoft: 'rgba(255,139,115,0.13)',
 };
 
 export const font = {
@@ -30,7 +31,9 @@ export const font = {
   displaySemi: 'BricolageGrotesque_600SemiBold',
 };
 
-// sm: buttons, inputs and nested panels. lg: cards.
-export const radius = { sm: 14, lg: 24 };
+// sm: buttons, inputs, chips. md: rows inside cards. lg: cards and big buttons.
+export const radius = { sm: 12, md: 16, lg: 22 };
 
-export const motion = { enter: 160, enterOffset: 8, pressScale: 0.97 };
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+
+export const motion = { enter: 180, enterOffset: 6, pressScale: 0.98 };
