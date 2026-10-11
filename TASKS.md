@@ -20,19 +20,19 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] B4 outcomes.js: ride → action, other requests → tasks with quote + suggested owner, meds unsure → sensitive task
 - [x] B5 Task handoff/accept/decline + notice when claimed
 - [x] B6 Digest per viewer
-- [ ] B7 Escalation: unresolved (amber) semantics + quiet hours
+- [x] B7 Escalation: unresolved (amber) semantics + quiet hours (demo: POST /api/seniors/peggy/missed?night=1 shows held steps)
 - [x] B8 ?viewer= filtering
 - [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize
 
 ## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
-- [ ] C2 (Manasv, in progress) Peggy's notices card
-- [ ] C3 (Manasv, in progress) Family Today: digest + approval card (approve only if canApprove)
-- [ ] C4 (Manasv, in progress) Appointment card with transport chip
-- [ ] C5 (Manasv, in progress) Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
-- [ ] C6 (Manasv, in progress) Amber unresolved state, red only for help
-- [ ] C7 (Manasv, in progress) Med status labels incl. Private
-- [ ] C8 (Manasv, in progress) Desk restyle + VoiceOver labels on Peggy's screen
+- [x] C2 (Manasv) Peggy's notices card
+- [x] C3 (Manasv) Family Today: digest + approval card (approve only if canApprove)
+- [x] C4 (Manasv) Appointment card with transport chip
+- [x] C5 (Manasv) Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
+- [x] C6 (Manasv) Amber unresolved state, red only for help
+- [x] C7 (Manasv) Med status labels incl. Private
+- [x] C8 (Manasv) Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
 
 ## Done

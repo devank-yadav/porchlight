@@ -63,9 +63,10 @@ careRoutes.post('/api/seniors/:id/help', wrap(async (req, res) => {
   res.json(await escalation.start(await store.get('seniors', req.params.id), 'help'));
 }));
 
-// Demo control: pretend she didn't answer today's call.
+// Demo control: pretend she didn't answer today's call. { night: true } (or ?night=1) shows quiet hours.
 careRoutes.post('/api/seniors/:id/missed', wrap(async (req, res) => {
-  res.json(await escalation.start(await store.get('seniors', req.params.id), 'missed'));
+  const night = req.body?.night === true || req.query.night === '1';
+  res.json(await escalation.start(await store.get('seniors', req.params.id), 'missed', { night }));
 }));
 
 careRoutes.post('/api/seniors/:id/resolve', wrap(async (req, res) => {
