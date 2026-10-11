@@ -4,7 +4,7 @@ import * as store from '../store.js';
 import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
-import { handleIntent, dueReminders } from './intents.js';
+import { handleIntent, dueReminders, localDate } from './intents.js';
 
 const YES = /^\s*(oh,? )?(yes|yeah|yep|sure|okay|ok|please|i('|’)?d (like|love) that|that would be (nice|lovely|great))\b/i;
 const CONNECT_ASK = /\b(connect|call|talk to|speak to|put me through)\b/i;
@@ -121,6 +121,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     await store.update('checkins', checkinId, { askedQuestion: memory.askNow.text });
   }
   const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id), memory, onSentence });
+  await followUps(senior, checkin, text, answer);
   // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
   if (urgent && !checkin.urgentAlertedAt) {
     await alertFamilyNow(senior, text);
@@ -129,6 +130,23 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   transcript.push({ who: 'porchlight', text: answer, at: new Date().toISOString() });
   await store.update('checkins', checkinId, { transcript });
   return { reply: answer, ended: false, streamed };
+}
+
+// Promises Porchlight just made out loud are kept: a check-back call when she's unwell, and a
+// pill-box reminder on tomorrow's call when she wasn't sure about a pill.
+async function followUps(senior, checkin, said, answer) {
+  const fresh = await store.get('seniors', senior._id);
+  if (/quick call in a couple of hours/.test(answer) && checkin.channel === 'phone' && !fresh.callbackAt) {
+    await store.update('seniors', senior._id, { callbackAt: new Date(Date.now() + 2 * 3600000).toISOString(), callbackReason: 'check-back' });
+  }
+  if (/remind you to look at your pill box/.test(answer)) {
+    const tz = senior.timezone || 'America/New_York';
+    const due = localDate(tz, 1);
+    const reminders = fresh.reminders || [];
+    if (!reminders.some((r) => r.what === 'look at your pill box' && r.due === due && !r.saidAt)) {
+      await store.update('seniors', senior._id, { reminders: [...reminders, { what: 'look at your pill box', when: 'tomorrow', due, createdOn: localDate(tz), createdAt: new Date().toISOString(), checkinId: checkin._id }] });
+    }
+  }
 }
 
 async function alertFamilyNow(senior, said) {
@@ -152,6 +170,15 @@ export async function finishCheckin(checkinId) {
       familyQuestions: (senior.familyQuestions || []).map((q) => (answered.has(q.text) ? { ...q, answeredAt: new Date().toISOString(), checkinId, answeredCheckinId: checkinId } : q)),
     });
   }
+  // One card per story: a memory she tells again (same title, or mostly the same words) isn't saved twice.
+  const key = (x) => String(x || '').toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/).filter((w) => w.length > 3);
+  const told = (await store.list('checkins', { seniorId: senior._id })).filter((c) => c._id !== checkinId).flatMap((c) => c.stories || []);
+  const same = (a, b) => {
+    if (key(a.title).join(' ') === key(b.title).join(' ')) return true;
+    const wa = new Set(key(a.text)); const wb = key(b.text);
+    return wb.length > 0 && wb.filter((w) => wa.has(w)).length / wb.length >= 0.6;
+  };
+  analysis.stories = (analysis.stories || []).filter((st) => !told.some((old) => same(old, st)));
   const updated = await store.update('checkins', checkinId, {
     ...analysis, status: 'completed', endedAt: new Date().toISOString(),
   });
