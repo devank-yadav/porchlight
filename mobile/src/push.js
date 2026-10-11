@@ -20,7 +20,7 @@ const openFrom = async (response) => {
   if (id) handledResponses.add(id);
   try {
     // Native app deep links open Uber directly; retain the universal link for phones without Uber.
-    await Linking.openURL(url.replace('https://m.uber.com/ul/', 'uber://'));
+    await Linking.openURL(url.replace('https://m.uber.com/ul/?action=setPickup&', 'uber://riderequest?'));
   } catch {
     await Linking.openURL(url).catch((e) => console.warn('[push] could not open Uber:', e.message));
   } finally {
