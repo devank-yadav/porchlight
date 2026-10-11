@@ -2,7 +2,7 @@ import { Children, useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Speech from 'expo-speech';
 import { api } from './api';
@@ -485,22 +485,21 @@ function Talk({ senior, done }) {
 // Porchlight speaks from the left, next to a small lamp; Peggy's words sit on the right in ink.
 function Bubble({ line, reduced }) {
   const me = line.who === 'senior';
-  const entering = reduced ? undefined : FadeInDown.duration(250).easing(ease.out);
   if (me) {
-    return <Animated.View entering={entering} style={[st.bubble, st.bubbleMe]} accessible accessibilityLabel={'You said: ' + line.text}>
+    return <View style={[st.bubble, st.bubbleMe]} accessible accessibilityLabel={'You said: ' + line.text}>
       <Text style={[st.bubbleText, { color: night.ink }]}>{line.text}</Text>
-    </Animated.View>;
+    </View>;
   }
-  return <Animated.View entering={entering} style={st.themRow} accessible accessibilityLabel={'Porchlight said: ' + line.text}>
+  return <View style={st.themRow} accessible accessibilityLabel={'Porchlight said: ' + line.text}>
     <LampAvatar />
     <View style={[st.bubble, st.bubbleThem]}><Text style={st.bubbleText}>{line.text}</Text></View>
-  </Animated.View>;
+  </View>;
 }
 function LampAvatar() {
   return <View style={st.lampAvatar}><Lamp state="lit" size={40} night /></View>;
 }
 function Typing({ reduced }) {
-  return <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} style={st.themRow} accessible accessibilityLabel="Porchlight is thinking">
+  return <Animated.View style={st.themRow} accessible accessibilityLabel="Porchlight is thinking">
     <LampAvatar />
     <View style={[st.bubble, st.bubbleThem, st.typing]}><Dots /></View>
   </Animated.View>;
@@ -606,7 +605,7 @@ function TechHelp({ senior, back }) {
         accessibilityLabel="Your question, optional"
       />
       {answer && (
-        <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
+        <Animated.View style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
           <View style={[st.verdictIcon, { backgroundColor: V.solid }]}><Icon name={answer.scam ? V.icon : answer.done ? V.icon : 'lightbulb.fill'} size={40} color={V.on} /></View>
           <Text style={[st.verdictWord, { color: V.fg }]}>{answer.scam ? 'This looks like a scam.' : answer.done ? 'All done.' : 'Next step'}</Text>
           <Text style={[st.verdictText, { textAlign: 'center' }]}>{answer.says}</Text>
@@ -674,7 +673,7 @@ function ScamCheck({ senior, back }) {
         </>
       ) : (
         <>
-          <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
+          <Animated.View style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
             <View style={[st.verdictIcon, { backgroundColor: V.solid }]}><Icon name={V.icon} size={40} color={V.on} /></View>
             <Text style={[st.verdictWord, { color: V.fg }]} accessibilityRole="header">
               {result.verdict === 'likely scam' ? 'This looks like a scam.' : result.verdict === 'be careful' ? 'Be careful.' : 'This looks okay.'}
@@ -728,7 +727,7 @@ function Help({ senior, back, refresh }) {
   if (sent) {
     return (
       <Screen contentStyle={st.centerPage}>
-        <Animated.View entering={FadeIn.duration(250)} style={st.centerStack}>
+        <Animated.View style={st.centerStack}>
           <Lamp state="alert" size={168} label="Help requested" />
           <T v="readTitle" center>Your help request is sent.</T>
           <T v="read" muted center>Porchlight has asked your family to contact you. A response is not confirmed yet. If you’re hurt, call 911.</T>
