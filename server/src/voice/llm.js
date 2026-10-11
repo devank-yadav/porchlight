@@ -5,16 +5,26 @@
 const BASE = process.env.LLM_BASE_URL;
 const KEY = process.env.LLM_API_KEY;
 const MODEL = process.env.LLM_MODEL;
+// The post-call summary/stories aren't time-critical, so they can use a stronger model (e.g. claude-sonnet-5-5).
+const ANALYSIS_MODEL = process.env.LLM_ANALYSIS_MODEL || MODEL;
 // Optional extra headers as JSON, e.g. a workspace header some providers need with user-level keys.
 let EXTRA_HEADERS = {};
 try { EXTRA_HEADERS = JSON.parse(process.env.LLM_HEADERS || '{}'); } catch { console.warn('[llm] LLM_HEADERS is not valid JSON; ignoring it'); }
 export const llmEnabled = Boolean(BASE && KEY && MODEL);
+// Newer Claude models (Haiku/Sonnet 5.5, Opus 5+, Fable) reject a custom temperature and think before
+// answering. A caller is waiting, so they get low reasoning effort (LLM_REASONING_EFFORT, '' to omit).
+const NO_SAMPLING = /claude-(haiku|sonnet)-5|claude-opus-5|claude-fable|claude-opus-4-[78]/i;
+const EFFORT = process.env.LLM_REASONING_EFFORT ?? 'low';
+function tuning(json, model = MODEL) {
+  if (model && NO_SAMPLING.test(model)) return EFFORT ? { reasoning_effort: EFFORT } : {};
+  return { temperature: json ? 0.2 : 0.7 };
+}
 
-async function chat(messages, { json = false, maxTokens = 300 } = {}) {
+async function chat(messages, { json = false, maxTokens = 300, model = MODEL } = {}) {
   const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
-    body: JSON.stringify({ model: MODEL, messages, temperature: json ? 0.2 : 0.7, max_tokens: maxTokens }),
+    body: JSON.stringify({ model, messages, ...tuning(json, model), max_tokens: maxTokens + (NO_SAMPLING.test(model || '') ? 400 : 0) }),
     // A phone caller is waiting: give up and use the fallback rather than leave dead air.
     signal: AbortSignal.timeout(json ? 20000 : 8000),
   });
@@ -28,7 +38,7 @@ async function chatStream(messages, { maxTokens = 120, onText }) {
   const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
-    body: JSON.stringify({ model: MODEL, messages, temperature: 0.7, max_tokens: maxTokens, stream: true }),
+    body: JSON.stringify({ model: MODEL, messages, ...tuning(false), max_tokens: maxTokens + (NO_SAMPLING.test(MODEL || '') ? 400 : 0), stream: true }),
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok || !res.body) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -106,7 +116,9 @@ function memoryLines(memory = {}) {
 }
 
 function personaPrompt(senior, appointments, memory) {
+  const now = new Date().toLocaleString('en-US', { timeZone: senior.timezone || 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
+Right now it is ${now} where she lives. If she asks the day, date or time, tell her exactly that.
 What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
 Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories: ask a follow-up about the people and places in them.
@@ -295,7 +307,7 @@ A story is a memory from her life (people, places, how things used to be), not t
           },
           { role: 'user', content: `About her: ${senior.about.join(' ')}\n${questions.length ? `Questions her family asked Porchlight to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
         ],
-        { json: true, maxTokens: 900 },
+        { json: true, maxTokens: 900, model: ANALYSIS_MODEL },
       );
       return normalize(parseJson(out), transcript);
     } catch (e) {
