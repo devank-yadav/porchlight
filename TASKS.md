@@ -60,6 +60,7 @@ The initial backend implementation overlapped a published B1 claim. PR #8 preser
 - [x] C7 (Manasv) Med status labels incl. Private
 - [x] C8 (Manasv) Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
+- [ ] C10 Evening theme onto main — Manasv (Claude Code), branch `app/evening-theme`; **ready for review**, [PR #20](https://github.com/devank-yadav/porchlight/pull/20). Scope: mobile/* only. Merged origin/main (f153f4b, then again after #19) into the branch with a regular merge (no force-push); two conflicts in mobile/App.js resolved by keeping main's Peggy-side demo long press (#19) and main's two-sided start screen (#15) and applying evening tokens to it; C8 desk + Peggy VoiceOver changes from main kept. Checked: `npx expo export --platform ios` OK, `node --test server/src/voice/llm.test.js` 8/8, server starts with empty .env and /api/state returns all contract fields. Not yet validated on phones. Next: Manasv checks Peggy + Anne in Expo Go, then merge.
 
 ## Coordination
 - [x] Voice A3–A7 + safety hardening, backend B1–B8, demo menu, two-sided start screen — Devank (Claude Code, Part A thread), branch `claude/project-thread-lxigum`; merged in PRs #1, #3–#7, #9, #10, #12, #13, #15. Backend and `mobile/` edits were done with Devank's OK at 6:36 PM while B/C were free. Checked: 8/8 voice tests, curl flow (demo call → ride action → Anne approves → simulated CONFIRMED → notices; Mark 403; viewer=mark hides meds), iOS export OK. Running on Devank's laptop (Expo Go); not yet validated on two phones.

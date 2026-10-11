@@ -1,20 +1,25 @@
-// Porchlight design tokens: evening sky ground, dusk-blue ink, one warm element (the porch light).
+// Porchlight design tokens: an evening theme. Near-black blue ground, charcoal-dusk surfaces,
+// off-white ink, one warm element (the porch light). Token names are kept from the light theme;
+// every text/background pair below has at least 4.5:1 contrast.
 export const color = {
-  sky: '#EEF2F8',
-  surface: '#FFFFFF',
-  dusk: '#1E2A47',
-  dusk2: '#2B3A60',
-  ink: '#1B2236',
-  muted: '#4B556B',
-  mutedOnDusk: '#C7D0E6',
-  line: '#D5DCEB',
+  sky: '#0A0F1C', // page background
+  surface: '#161D2E', // cards
+  surface2: '#1F2840', // nested panels (Inset), inputs, neutral chips
+  dusk: '#1A2547', // dusk-blue panels (hero cards)
+  dusk2: '#2A3658', // secondary panels, chat bubbles, tab highlight
+  ink: '#EEF1F8', // body and heading text
+  muted: '#A3AEC8',
+  mutedOnDusk: '#C3CCE0',
+  line: '#273049', // solid dividers and progress tracks
+  hairline: 'rgba(255,255,255,0.10)', // 1px borders on cards and buttons
+  highlight: 'rgba(255,255,255,0.15)', // 1px top inside edge on cards and buttons
   lamp: '#F5A524',
   lampInk: '#2A1A00',
-  lampSoft: '#FFF1D6',
-  sage: '#2F6B46',
-  sageSoft: '#E3F1E7',
-  brick: '#A8402B',
-  brickSoft: '#FBE7E2',
+  lampSoft: '#2E2412',
+  sage: '#7FCB98',
+  sageSoft: '#15291D',
+  brick: '#F28B74',
+  brickSoft: '#3A1A17',
 };
 
 export const font = {
@@ -25,4 +30,7 @@ export const font = {
   displaySemi: 'BricolageGrotesque_600SemiBold',
 };
 
-export const radius = { sm: 10, lg: 20 };
+// sm: buttons, inputs and nested panels. lg: cards.
+export const radius = { sm: 14, lg: 24 };
+
+export const motion = { enter: 160, enterOffset: 8, pressScale: 0.97 };

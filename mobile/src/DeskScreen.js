@@ -84,7 +84,7 @@ const st = StyleSheet.create({
   pad: { padding: 16, paddingBottom: 48, gap: 12 },
   stats: { flexDirection: 'row', gap: 10, marginVertical: 4 },
   stat: { flex: 1, padding: 14, gap: 2 },
-  statValue: { fontFamily: font.display, fontSize: 32, lineHeight: 36, color: color.dusk },
+  statValue: { fontFamily: font.display, fontSize: 32, lineHeight: 36, color: color.ink },
   section: { marginTop: 8 },
   row: { padding: 14, gap: 10 },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
