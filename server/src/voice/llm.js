@@ -24,7 +24,7 @@ async function chat(messages, { json = false, maxTokens = 300, model = MODEL } =
   const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
-    body: JSON.stringify({ model, messages, ...tuning(json, model), max_tokens: maxTokens + (NO_SAMPLING.test(model || '') ? 400 : 0) }),
+    body: JSON.stringify({ model, messages, ...tuning(json, model), max_tokens: maxTokens + (NO_SAMPLING.test(model || '') ? 1500 : 0) }),
     // A phone caller is waiting: give up and use the fallback rather than leave dead air.
     signal: AbortSignal.timeout(json ? 20000 : 8000),
   });
@@ -38,7 +38,7 @@ async function chatStream(messages, { maxTokens = 120, onText }) {
   const res = await fetch(`${BASE.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}`, ...EXTRA_HEADERS },
-    body: JSON.stringify({ model: MODEL, messages, ...tuning(false), max_tokens: maxTokens + (NO_SAMPLING.test(MODEL || '') ? 400 : 0), stream: true }),
+    body: JSON.stringify({ model: MODEL, messages, ...tuning(false), max_tokens: maxTokens + (NO_SAMPLING.test(MODEL || '') ? 1500 : 0), stream: true }),
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok || !res.body) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -221,6 +221,7 @@ export async function reply(senior, transcript, { appointments = [], memory = {}
       console.warn('[llm] streamed reply failed:', e.message);
     }
     if (spoken) return spoken;
+    console.warn(`[llm] streamed reply empty${blocked ? ' (blocked by guard)' : ''}, asking her to repeat`);
     // The AI was slow or down: don't recite a scripted line that ignores what she said; ask her to repeat.
     const fallback = "Sorry, I missed that. Could you say it once more?";
     onSentence(fallback);
