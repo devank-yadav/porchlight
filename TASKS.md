@@ -11,7 +11,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] A5 Med "not sure" status + safe wording
 - [x] A6 Quotes on every request
 - [x] A7 tellSenior() + greeting mentions confirmed notices
-- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md; rehearse, video, Devpost still to do)
+- [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md, Devpost draft in DEVPOST.md; rehearse + video still to do)
 
 ## Person B — Backend & workflows (Codex) — name: ____ (B1–B6, B8 built by Claude for Devank at 6:40 PM since B was free)
 - [x] B1 Contract seed + new fields in /api/state (by 2:45, push early)
@@ -22,17 +22,17 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] B6 Digest per viewer
 - [x] B7 Escalation: unresolved (amber) semantics + quiet hours
 - [x] B8 ?viewer= filtering
-- [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize
+- [ ] B9 MongoDB Atlas + Devpost paragraph for the MongoDB prize (code ready with fallback; needs MONGODB_URI; Devpost paragraph in DEVPOST.md)
 
 ## Person C — iOS app (Claude Code) — name: Manasv
 - [ ] C1 Two phones running in Expo Go
-- [ ] C2 (Manasv, in progress) Peggy's notices card
-- [ ] C3 (Manasv, in progress) Family Today: digest + approval card (approve only if canApprove)
-- [ ] C4 (Manasv, in progress) Appointment card with transport chip
-- [ ] C5 (Manasv, in progress) Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
-- [ ] C6 (Manasv, in progress) Amber unresolved state, red only for help
-- [ ] C7 (Manasv, in progress) Med status labels incl. Private
-- [ ] C8 (Manasv, in progress) Desk restyle + VoiceOver labels on Peggy's screen
+- [x] C2 (Manasv) Peggy's notices card
+- [x] C3 (Manasv) Family Today: digest + approval card (approve only if canApprove)
+- [x] C4 (Manasv) Appointment card with transport chip
+- [x] C5 (Manasv) Tasks: quote, suggested owner, I'll do it / Ask / Accept / Decline / Done
+- [x] C6 (Manasv) Amber unresolved state, red only for help
+- [x] C7 (Manasv) Med status labels incl. Private
+- [x] C8 (Manasv) Desk restyle + VoiceOver labels on Peggy's screen
 - [ ] C9 Screenshots + screen-recording backup
 
 ## Done
