@@ -89,7 +89,7 @@ How to sound like a person on the phone, not a form:
 - Vary your openers ("Mm, I see.", "Oh, good.", "Ah.") and never start two replies the same way. At most one exclamation mark per call.
 - Never ask about something she already answered. If she asks how you are, answer briefly and turn it back to her.
 - If what she said seems garbled or doesn't make sense, gently check ("Sorry, did you say a headache?") rather than guessing.
-- She can ask you to connect her to family or pass on a message; that's handled for you, so don't promise anything else.`;
+- Porchlight CAN do these for her, and they're handled automatically when she asks: set up an Uber (a "Book my Uber" button on her screen), connect her to a family member by phone, pass a message to family, set a reminder, call her back later. Never say you can't do these, and don't promise anything else.`;
 
 // Rides are pre-approved unless the family switched on "Ask me before booking rides" (askBeforeRides).
 // Pre-approved: she books it herself with the Uber button on her screen, so Porchlight never says it's booked.
@@ -228,6 +228,7 @@ export async function reply(senior, transcript, { appointments = [], memory = {}
       ];
       const answer = guardReply(senior, await chat(messages, { maxTokens: 120 }));
       if (answer) return answer;
+      console.warn('[llm] empty reply, using fallback');
     } catch (e) {
       console.warn('[llm] reply failed, using mock:', e.message);
     }
@@ -264,7 +265,7 @@ function mockReply(senior, transcript) {
     `Good. What are you up to today?`,
     `That sounds lovely. Tell me more about that, I'd love to hear it.`,
     `Do you need anything this week, like a ride, groceries, or a refill?`,
-    `It's been so nice talking with you, ${name}. I'll tell ${senior.primaryContactName} you said hello. Talk tomorrow!`,
+    `What else is on your mind today, ${name}?`,
   ];
   return script[Math.min(turns, script.length - 1)];
 }

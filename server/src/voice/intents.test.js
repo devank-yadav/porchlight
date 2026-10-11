@@ -82,3 +82,17 @@ test('ride destination: any place she names, appointment words go to her appoint
   assert.equal(rideDestination('book an Uber for me'), null);
   assert.equal(rideDestination('I need a ride to the doctor tomorrow'), 'the doctor');
 });
+
+test('rides: ask where first, take a short answer, remember a place said earlier', async () => {
+  const { rideDestination, bareDestination, rideTurn } = await import('./intents.js');
+  assert.equal(rideDestination('I want to go to Target'), 'Target');
+  assert.equal(rideDestination('Can you book me an Uber?'), null);
+  assert.equal(bareDestination('Target'), 'Target');
+  assert.equal(bareDestination('I want to go to the library please'), 'the library');
+  assert.equal(bareDestination('Yeah.'), null);
+  assert.equal(bareDestination("I don't wanna give you that detail"), null);
+  const asked = { transcript: [{ who: 'porchlight', text: 'Of course. Where would you like to go?' }] };
+  assert.ok(rideTurn('Target', asked));
+  assert.ok(!rideTurn('Target', { transcript: [{ who: 'porchlight', text: 'How are you?' }] }));
+  assert.ok(rideTurn('Just book me an Uber', { transcript: [] }));
+});

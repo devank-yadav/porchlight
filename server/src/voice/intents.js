@@ -150,17 +150,50 @@ const APPOINTMENT_PLACE = /doctor|appointment|clinic|cardiolog|heart|dentist/i;
 
 // "to the grocery store", "to my sister's house at 4" → "grocery store", "sister's house".
 export function rideDestination(text) {
-  const m = String(text || '').match(/\bto ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=\s+(?:at|by|around|tomorrow|tonight|today|now|right now|in \d|in an?|please|for|this)\b|[,!?]|\.(?:\s|$)|$)/i);
-  const place = m?.[1]?.trim().replace(/\s+(please|now)$/i, '');
+  // The LAST "to X" wins: "I want to go to Target" → "Target", not "go to Target".
+  const all = [...String(text || '').matchAll(/\bto ((?:the |my |a |an )?[a-z0-9'’ .-]+?)(?=\s+(?:at|by|around|tomorrow|tonight|today|now|right now|in \d|in an?|please|for|this)\b|[,!?]|\.(?:\s|$)|$)/gi)];
+  const m = all.at(-1);
+  const place = m?.[1]?.trim().replace(/^(?:(?:go|get|come|head|drive me)\s+to\s+)+/i, '').replace(/\s+(please|now)$/i, '');
   return place && !/^(go|get|be|talk|speak|book|call)$/i.test(place.replace(/^(the|my|a|an) /i, '')) ? place : null;
 }
 
-async function rideNow(senior, text) {
+// A short answer to "Where would you like to go?": "Target", "the library please", "to Walmart".
+export function bareDestination(text) {
+  const t = String(text || '').trim().replace(/[.!?]+$/, '')
+    .replace(/^(oh,? |um,? |uh,? |well,? |yeah,? |yes,? )+/i, '')
+    .replace(/^(i (want|need|would like|'d like|wanna|have) to go to|i('m| am) going to|take me to|go to|to)\s+/i, '')
+    .replace(/\s+(please|now|right now|today)$/i, '').trim();
+  if (!t || t.split(/\s+/).length > 5) return null;
+  if (/^(yes|yeah|no|nope|okay|ok|sure|fine|i don'?t know|not sure|nothing|nowhere|never ?mind)$/i.test(t)) return null;
+  if (/\b(i|you|me|book|uber|ride|car|want|need|feel|am|is|was)\b/i.test(t)) return null;
+  return t;
+}
+
+const ASKED_WHERE = /where would you like to go\?/i;
+const GO_TO = /\b(want|need|have|like|wanna) to go to\b|\btake me to\b|\bi('m| am) going to\b/i;
+
+// Is this turn about a ride? An explicit ask ("book me an Uber"), or an answer to "Where would you like to go?".
+export function rideTurn(text, checkin) {
+  const last = [...(checkin.transcript || [])].reverse().find((t) => t.who === 'porchlight')?.text || '';
+  return RIDE.test(text) || (ASKED_WHERE.test(last) && (bareDestination(text) || rideDestination(text))) || (checkin.rideAsked && GO_TO.test(text));
+}
+
+async function rideNow(senior, text, checkin = {}) {
   const tz = senior.timezone || 'America/New_York';
   const family = senior.primaryContactName || 'your family';
-  const place = rideDestination(text);
-  // Her appointment (or no place named): the ride for her next appointment.
-  if (!place || APPOINTMENT_PLACE.test(place)) {
+  // Where to: what she says now, a short answer to "Where would you like to go?", or a place she named
+  // earlier in this call ("I want to go to Target" ... "just book me an Uber").
+  const earlier = [...(checkin.transcript || [])].reverse().filter((t) => t.who === 'senior').map((t) => rideDestination(t.text) || (GO_TO.test(t.text) ? bareDestination(t.text) : null)).find(Boolean);
+  const place = rideDestination(text) || bareDestination(text) || earlier || null;
+  // "I'm not looking for my cardiology follow-up" is a no, not a request for that ride.
+  const notAppointment = /\b(not|don'?t|no)\b.{0,30}(doctor|appointment|cardiolog|clinic|follow.?up)/i.test(text);
+  const forAppointment = !notAppointment && (APPOINTMENT_PLACE.test(text) || Boolean(place && APPOINTMENT_PLACE.test(place)));
+  if (!place && !forAppointment) {
+    if (checkin._id) await store.update('checkins', checkin._id, { rideAsked: true });
+    return { reply: 'Of course. Where would you like to go?' };
+  }
+  // Her appointment: the ride for her next appointment.
+  if (forAppointment) {
     const appts = (await store.list('appointments', { seniorId: senior._id }))
       .filter((a) => new Date(a.startsAt) > new Date() && a.transport !== 'confirmed')
       .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1));
@@ -169,6 +202,10 @@ async function rideNow(senior, text) {
     await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
     const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
     return { reply: `Okay, a ride for your ${what} ${sayTime(new Date(a.startsAt), tz)}. ${STEPS} I'll let ${family} know you're going.` };
+  }
+  // Already set up on this call: don't make a second booking, just point her back to the button.
+  if (checkin.rideTo && (!place || place.toLowerCase() === String(checkin.rideTo).toLowerCase())) {
+    return { reply: `It's all set. Your Uber to ${checkin.rideTo} is the big Book my Uber button on your Porchlight screen. Tap it, then press Request.` };
   }
   // Anywhere else she names: leave now, or at the time she said.
   const when = parseWhen(text, tz);
@@ -184,6 +221,7 @@ async function rideNow(senior, text) {
     details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
     history: [{ status: 'APPROVED', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `She asked on her call: "${text}"; family notified` } }],
   });
+  if (checkin._id) await store.update('checkins', checkin._id, { rideTo: bare, rideAsked: false });
   await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber, then Request.` });
   await audit.log('porchlight', 'voice.ride', { seniorId: senior._id, targetId: action._id, detail: `${where} ${leavingNow ? 'now' : pickupAt}` });
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
@@ -203,8 +241,8 @@ export async function handleIntent(senior, checkin, text) {
     await audit.log('porchlight', 'voice.callback', { seniorId: senior._id, detail: callback.toISOString() });
     return { reply: `No problem at all. I'll call you back ${sayTime(callback, tz)}. Bye for now!`, end: true };
   }
-  if (RIDE.test(text)) {
-    const ride = await rideNow(senior, text);
+  if (rideTurn(text, checkin)) {
+    const ride = await rideNow(senior, text, checkin);
     if (ride) return ride;
   }
   if (MY_WEEK.test(text)) {
