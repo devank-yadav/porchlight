@@ -3,6 +3,7 @@
 // us as text over a WebSocket and speaks our replies with a natural voice. She can interrupt,
 // and there's no "beep, now talk" turn-taking. Needs VOICE_MODE=relay and a paid Twilio account with the AI/ML addendum on.
 import { WebSocketServer } from 'ws';
+import * as store from '../store.js';
 import { addTurn } from './checkins.js';
 import { VOICE } from './notify.js';
 
@@ -59,6 +60,18 @@ function onConnection(ws) {
         console.warn('[relay] turn failed:', e.message);
         send({ type: 'text', token: "Sorry, I lost my train of thought. Could you say that again?", last: true });
       });
+    } else if (msg.type === 'interrupt' && checkinId) {
+      // She cut in: keep only what she actually heard, so the next reply doesn't assume the rest.
+      const heard = String(msg.utteranceUntilInterrupt || '').trim();
+      queue = queue.then(async () => {
+        const c = await store.get('checkins', checkinId);
+        const t = [...c.transcript];
+        const i = t.map((x) => x.who).lastIndexOf('porchlight');
+        if (i > 0 && heard && heard.length < t[i].text.length) {
+          t[i] = { ...t[i], text: `${heard}…`, interrupted: true };
+          await store.update('checkins', checkinId, { transcript: t });
+        }
+      }).catch(() => {});
     } else if (msg.type === 'error') {
       console.warn('[relay] Twilio error:', msg.description);
     }
