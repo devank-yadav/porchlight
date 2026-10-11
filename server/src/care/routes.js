@@ -52,7 +52,7 @@ careRoutes.post('/api/seniors/:id/ok', wrap(async (req, res) => {
   await store.insert('checkins', {
     seniorId: senior._id, channel: 'button', status: 'completed', startedAt: now, endedAt: now,
     transcript: [], summary: `${senior.preferredName} tapped "I'm okay".`, mood: 'okay',
-    medsTaken: null, flags: [], starters: [], stories: [], requests: [],
+    medsTaken: null, medStatus: 'no_answer', flags: [], starters: [], stories: [], requests: [],
   });
   await store.update('seniors', senior._id, { status: 'ok', lastCheckinAt: now });
   const n = await escalation.resolve(senior._id, `${senior.preferredName} herself`);

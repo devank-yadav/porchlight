@@ -8,6 +8,23 @@ const daysAgo = (n, hour = 10) => {
   return d.toISOString();
 };
 
+// Use Peggy's local calendar even when the server runs in another time zone.
+const tomorrowAt = (hour, timeZone = 'America/New_York') => {
+  const partsAt = (date) => Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date).filter((p) => p.type !== 'literal').map((p) => [p.type, Number(p.value)]));
+  const today = partsAt(new Date());
+  const local = Date.UTC(today.year, today.month - 1, today.day + 1, hour);
+  let instant = local;
+  for (let i = 0; i < 2; i++) {
+    const p = partsAt(new Date(instant));
+    const offset = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - instant;
+    instant = local - offset;
+  }
+  return new Date(instant).toISOString();
+};
+
 export async function seed() {
   await store.clearAll();
 
@@ -62,17 +79,17 @@ export async function seed() {
 
   const history = [
     {
-      at: daysAgo(3), mood: 'good',
+      at: daysAgo(3), mood: 'good', medStatus: 'taken', medsTaken: true,
       summary: 'Peggy sounded cheerful and talked about her tomatoes and the crossword. Took her pills.',
       stories: [{ title: 'The tomato contest', text: 'Walt and I used to enter the county fair every August. He always said my tomatoes were the reason we won, but it was his pie.' }],
     },
     {
-      at: daysAgo(2), mood: 'okay',
+      at: daysAgo(2), mood: 'okay', medStatus: 'no_answer', medsTaken: null,
       summary: 'Peggy was steady. She mentioned Maya has exams and that she misses going to church since she stopped driving.',
       stories: [],
     },
     {
-      at: daysAgo(1), mood: 'good',
+      at: daysAgo(1), mood: 'good', medStatus: 'taken', medsTaken: true,
       summary: 'Peggy sounded happy and talked about big band music on the radio. Took her pills.',
       stories: [{ title: 'Dancing at the Elks lodge', text: 'When I was nineteen there was a band at the Elks lodge every Saturday. That’s where I met Walt. He stepped on my feet all night.' }],
     },
@@ -80,23 +97,20 @@ export async function seed() {
   for (const h of history) {
     await store.insert('checkins', {
       seniorId: peggy._id, channel: 'phone', status: 'completed', startedAt: h.at, endedAt: h.at,
-      transcript: [], summary: h.summary, mood: h.mood, medsTaken: true, medStatus: 'taken', flags: [],
+      transcript: [], summary: h.summary, mood: h.mood, medsTaken: h.medsTaken, medStatus: h.medStatus, flags: [],
       starters: [], stories: h.stories, requests: [],
     });
   }
 
   // Tomorrow 2:00 PM: the appointment the ride rescue is about.
-  const appt = new Date();
-  appt.setDate(appt.getDate() + 1);
-  appt.setHours(14, 0, 0, 0);
   await store.insert('appointments', {
     _id: 'cardiology', seniorId: peggy._id, title: 'Cardiology follow-up', with: 'Dr. Lena Ortiz (sample)',
-    where: 'Valley Heart Clinic (sample)', startsAt: appt.toISOString(), transport: 'unknown', actionId: null,
+    where: 'Valley Heart Clinic (sample)', startsAt: tomorrowAt(14), transport: 'unknown', actionId: null,
   });
 
   const tasks = [
     { title: 'Pick up blood pressure refill at the pharmacy', type: 'refill', due: 'Thursday', assignee: null, status: 'open',
-      quote: 'I only have three pills left.', requestedBy: 'peggy', suggestedOwner: 'anne', handoff: null, sensitive: false },
+      quote: 'I only have three pills left.', requestedBy: 'peggy', suggestedOwner: 'anne', handoff: null, sensitive: true },
     { title: 'Fix the loose porch step', type: 'repair', due: 'This weekend', assignee: 'mark', status: 'open',
       quote: null, requestedBy: 'anne', suggestedOwner: 'mark', handoff: null, sensitive: false },
   ];
@@ -104,9 +118,20 @@ export async function seed() {
   for (const t of tasks) await store.insert('tasks', { seniorId: peggy._id, source: 'family', ...t });
   for (const [who, n] of done) {
     for (let i = 0; i < n; i++) {
-      await store.insert('tasks', { seniorId: peggy._id, title: 'Earlier task', type: 'errand', assignee: who, status: 'done', source: 'history', hidden: true });
+      await store.insert('tasks', {
+        seniorId: peggy._id, title: 'Earlier task', type: 'errand', assignee: who,
+        status: 'done', source: 'history', hidden: true, quote: null, requestedBy: 'anne',
+        suggestedOwner: who, handoff: null, sensitive: false,
+      });
     }
   }
+
+  // This sample fact refers to the repair Mark already owns, not an unbooked ride.
+  await store.insert('notices', {
+    _id: 'peggy-porch-repair', seniorId: peggy._id, kind: 'task',
+    text: 'Mark will fix your loose porch step this weekend.',
+    at: new Date().toISOString(), simulated: true,
+  });
 
   const events = [
     { title: 'Chair yoga', where: 'Community center (sample)', when: 'Tuesdays, 10 AM', tags: ['exercise'] },

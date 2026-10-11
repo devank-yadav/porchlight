@@ -13,7 +13,7 @@ Feature freeze 6:30 PM. Judging 8:00 PM.
 - [x] A7 tellSenior() + greeting mentions confirmed notices
 - [ ] A8 Demo script, backup video, Devpost, ask organizers about 1B judging / Luminal (script in DEMO.md, Devpost draft in DEVPOST.md; rehearse + video still to do)
 
-## Person B — Backend & workflows (Codex) — name: ____ (B1–B6, B8 built by Claude for Devank at 6:40 PM since B was free)
+## Person B — Backend & workflows (Codex) — name: Rishi (B1–B6, B8 initial implementation merged from the teammate branch; integration checks on `care/contract-seed`)
 - [x] B1 Contract seed + new fields in /api/state (by 2:45, push early)
 - [x] B2 actions.js: state machine, idempotent approve, 403 for non-approvers, history, audit
 - [x] B3 Sandbox ride provider (clearly simulated), appointment transport, notice on confirm
