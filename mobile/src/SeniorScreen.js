@@ -158,9 +158,8 @@ function Home({ senior, primary, plans, refresh, notices }) {
       </HeroCard>
     </Appear>
 
-    {help && <Card tone="red" style={{ gap: 14 }}>
-      <T v="readHeadline" color={accent.redText}>You’ve asked for help.</T>
-      <T v="read">If you’re hurt or in danger, call 911.</T>
+    {help && <Card tone="red" style={{ gap: 16 }}>
+      <T v="readHeadline" color={accent.redText}>If you’re hurt or in danger, call 911.</T>
       <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
     </Card>}
 
@@ -589,7 +588,7 @@ function TechHelp({ senior, back }) {
     <Screen>
       <BackLink onPress={back} />
       <PageHead icon="iphone" title="Help with my phone" sub={answer ? null : 'Show me the screen. I’ll tell you what to do, one step at a time.'} />
-      {!answer && <TextInput
+      <TextInput
         style={st.textarea}
         multiline
         value={question}
@@ -597,7 +596,7 @@ function TechHelp({ senior, back }) {
         placeholder="What would you like to do? (optional)"
         placeholderTextColor={P.muted}
         accessibilityLabel="Your question, optional"
-      />}
+      />
       {answer && (
         <Animated.View entering={FadeInDown.duration(300).easing(ease.out)} style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
           <View style={[st.verdictIcon, { backgroundColor: V.solid }]}><Icon name={answer.scam ? V.icon : answer.done ? V.icon : 'lightbulb.fill'} size={40} color={V.on} /></View>
