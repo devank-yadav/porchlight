@@ -253,9 +253,13 @@ async function rideNow(senior, text, checkin = {}) {
   const bare = place.replace(/^(the|my|a|an) /i, '');
   const query = senior.city ? `${bare}, ${senior.city}` : bare;
   // Real pin for Uber: near her town first ("Walmart, State College"), then anywhere ("Pittsburgh airport").
-  const spot = (await geocode(query)) || (query !== bare ? await geocode(bare) : null);
   const fromHome = !checkin.rideFrom || checkin.rideFrom === 'home';
-  const fromSpot = fromHome ? null : await geocode(senior.city ? `${checkin.rideFrom.replace(/^(the|my|a|an) /i, '')}, ${senior.city}` : checkin.rideFrom);
+  // Looked up together so she isn't kept waiting on the line.
+  const [near, anywhere, fromSpot] = await Promise.all([
+    geocode(query), query !== bare ? geocode(bare) : null,
+    fromHome ? null : geocode(senior.city ? `${checkin.rideFrom.replace(/^(the|my|a|an) /i, '')}, ${senior.city}` : checkin.rideFrom),
+  ]);
+  const spot = near || anywhere;
   const details = { pickupAt, from: fromHome ? 'Home' : checkin.rideFrom, to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng, ...(fromHome ? {} : { pickupPlace: fromSpot?.address || checkin.rideFrom, pickupLatLng: fromSpot?.latlng }) }) };
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
