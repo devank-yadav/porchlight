@@ -596,20 +596,50 @@ function TaskRow({ t, me, run, name, senior }) {
 }
 
 // ── Stories & Circle ───────────────────────────────────────────────────────
+// While a call is in progress the saved stories don't exist yet (the AI writes them when the call ends),
+// so we pick out the lines that sound like a memory as she says them. The real ones replace these at hang-up.
+const MEMORY = /remember|used to|when i was|back in|years ago|growing up|my (late )?husband|walt|we met|as a girl/i;
+function liveStories(checkin) {
+  return (checkin.transcript || [])
+    .filter((t) => t.who === 'senior' && MEMORY.test(t.text))
+    .map((t) => ({ title: t.text.split(/[.!?]/)[0].slice(0, 48), text: t.text, at: t.at, live: true }));
+}
+
 function Stories({ senior, checkins }) {
-  const stories = checkins.flatMap((c) => (c.stories || []).map((s) => ({ ...s, at: c.endedAt })));
+  const settled = useSettled();
+  const live = checkins.find((c) => c.seniorId === senior._id && c.status === 'in-progress');
+  const heard = live ? liveStories(live) : [];
+  const saved = checkins.filter((c) => c.status !== 'in-progress').flatMap((c) => (c.stories || []).map((s) => ({ ...s, at: c.endedAt })));
   return (
     <Section title={`${senior.preferredName}’s stories`}>
       <T v="callout" muted style={{ paddingHorizontal: 4 }}>Saved from her calls, for the whole family.</T>
-      {stories.length === 0 && <Card><T v="callout" muted>Stories she tells on her calls are saved here.</T></Card>}
-      {stories.map((s, i) => (
-        <Card key={i} style={{ gap: 8 }}>
-          <T v="headline">{s.title}</T>
-          <T v="body" style={{ fontStyle: 'italic', color: light.ink2 }}>{s.text}</T>
-          <T v="footnote" muted>{ago(s.at)}</T>
-        </Card>
-      ))}
+      {live && (
+        <Appear on={settled}>
+          <Card tone="lamp" style={{ gap: 8 }} accessibilityLabel={`${senior.preferredName} is on her call now`}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Dot tone="lamp" />
+              <T v="headline" style={{ color: accent.lampText }}>On her call now</T>
+            </View>
+            <T v="callout" muted>
+              {heard.length ? 'New stories show up here as she tells them.' : 'Listening. Any story she tells will show up here.'}
+            </T>
+          </Card>
+        </Appear>
+      )}
+      {heard.map((s, i) => <Appear key={`live-${i}`} on={settled}><StoryCard story={s} /></Appear>)}
+      {!live && saved.length === 0 && <Card><T v="callout" muted>Stories she tells on her calls are saved here.</T></Card>}
+      {saved.map((s, i) => <Appear key={`${s.at}-${i}`} on={settled}><StoryCard story={s} /></Appear>)}
     </Section>
+  );
+}
+
+function StoryCard({ story: s }) {
+  return (
+    <Card style={{ gap: 8 }}>
+      <T v="headline">{s.title}</T>
+      <T v="body" style={{ fontStyle: 'italic', color: light.ink2 }}>{s.text}</T>
+      <T v="footnote" muted>{s.live ? 'Just now, on today’s call' : ago(s.at)}</T>
+    </Card>
   );
 }
 
