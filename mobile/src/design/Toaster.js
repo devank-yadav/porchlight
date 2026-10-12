@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming, use
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { accent, ease, font, project, radius, rubberband, shadow, spring } from './tokens';
+import { accent, ease, font, light, project, rubberband, shadow, spring } from './tokens';
 import { haptic } from './haptics';
 import Icon from './Icon';
 
@@ -47,7 +47,7 @@ export const toast = Object.assign((title, opts) => add('info', title, opts), {
 const ICON = {
   success: ['checkmark.circle.fill', accent.green],
   error: ['exclamationmark.triangle.fill', accent.red],
-  info: ['info.circle.fill', '#3F3F46'],
+  info: ['info.circle.fill', accent.lampDeep],
 };
 const GAP = 8;
 const VISIBLE = 3;
@@ -171,8 +171,8 @@ function ToastItem({ t, senior, index, expanded, offset, paused, onHeight, onPre
 }
 
 const st = StyleSheet.create({
-  toast: { position: 'absolute', left: 12, right: 12, borderRadius: radius.md, backgroundColor: '#fff', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.08)' },
+  toast: { position: 'absolute', left: 16, right: 16, maxWidth: 560, alignSelf: 'center', borderRadius: 20, backgroundColor: light.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: light.lineStrong },
   inner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
-  title: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: '#111', letterSpacing: -0.2 },
-  desc: { fontSize: 14, lineHeight: 19, color: '#52525B' },
+  title: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: light.ink, letterSpacing: -0.2 },
+  desc: { fontSize: 14, lineHeight: 19, color: light.ink2 },
 });
