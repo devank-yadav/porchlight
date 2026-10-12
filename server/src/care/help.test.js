@@ -30,6 +30,7 @@ test('a help press carries location and today’s context, medicines only for th
   assert.equal(sent.length, 2, 'the whole family is alerted at once');
   assert.ok(sent.every((n) => n.urgent && /maps\.apple\.com/.test(n.text)));
 
+  assert.equal((await store.get('escalations', esc._id)).steps[1].again, true, 'the family is called again if no one is on it');
   const taken = await escalation.acknowledge('h1', await store.get('members', 'hm2'));
   assert.equal(taken.ack.name, 'Ben Lee');
   const [notice] = await store.list('notices', { seniorId: 'h1' });

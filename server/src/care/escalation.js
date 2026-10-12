@@ -8,6 +8,8 @@ import { helpText, helpSpoken } from './help.js';
 const dialable = (phone) => (phone && !phone.startsWith('+1555') ? phone : null);
 
 const STEP_MS = Number(process.env.ESCALATION_STEP_MS || 10 * 60000); // 10 minutes between steps (set lower for a demo)
+// A help press moves faster: if no one has said "I'm on it" after 3 minutes, the family is called again.
+const HELP_STEP_MS = Math.min(STEP_MS, 3 * 60000);
 const timers = new Map();
 
 // Quiet hours (B7): no texts 9 PM–8 AM in the member's own time zone for an unresolved
@@ -23,7 +25,8 @@ function ladder(reason, members) {
   const has = (role) => members.some((m) => m.role === role);
   const steps = reason === 'help'
     ? [
-      { target: 'family', label: 'Alert the whole family circle' },
+      { target: 'family', label: 'Call and alert the whole family' },
+      { target: 'family', label: 'Call the family again if no one is on it yet', again: true },
       has('neighbor') && { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
       has('volunteer') && { target: 'volunteer', label: 'Alert the program volunteer to call 911 if no one reaches them' },
     ]
@@ -54,7 +57,7 @@ export async function start(senior, reason, context = null) {
     reason, // 'missed' | 'help'
     context,
     status: 'active',
-    stepMs: STEP_MS,
+    stepMs: reason === 'help' ? HELP_STEP_MS : STEP_MS,
     steps: ladder(reason, members).map((s) => ({ ...s, status: 'pending', at: null })),
   });
   await store.update('seniors', senior._id, { status: reason === 'help' ? 'help' : 'missed' });
@@ -87,11 +90,12 @@ async function runStep(escId, i) {
     await sms(m, text, help ? { title: `${who} needs help`, urgent: true } : {});
     sent.push(m.name);
     // A help alert also rings each person's phone and reads it out (no texting number needed).
-    if (help && twilioEnabled && dialable(m.phone)) {
-      await sayOnCall(m.phone, helpSpoken(senior, esc.context)).catch((e) => console.warn('[escalation] alert call failed:', e.message));
+    if (help && dialable(m.phone)) {
+      if (!twilioEnabled) console.warn(`[escalation] no Twilio: the help call to ${m.name} was not placed`);
+      else await sayOnCall(m.phone, helpSpoken(senior, esc.context)).catch((e) => console.warn('[escalation] alert call failed:', e.message));
     }
   };
-  if (step.target === 'family') for (const m of members.filter((m) => m.role === 'family' && (help || !m.primary))) await send(m, msg(m));
+  if (step.target === 'family') for (const m of members.filter((m) => m.role === 'family' && (help || !m.primary))) await send(m, step.again ? `Still no one has said they're on it.\n${msg(m)}` : msg(m));
   if (step.target === 'primary') for (const m of members.filter((m) => m.primary)) await send(m, msg(m));
   if (step.target === 'neighbor') for (const m of members.filter((m) => m.role === 'neighbor')) await send(m, help ? `${msg(m)}\nCould you knock on ${who}'s door?` : `Could you knock on ${who}'s door? They haven't answered today's call.`);
   if (step.target === 'volunteer') for (const m of volunteers) await send(m, help ? msg(m) : `${who} needs a human. Today's call is unanswered and the family hasn't been reached yet.`);
@@ -100,7 +104,7 @@ async function runStep(escId, i) {
   const status = held.length && !sent.length ? 'held' : 'done';
   const steps = esc.steps.map((s, j) => (j === i ? { ...s, status, at: new Date().toISOString(), sent, held } : s));
   await store.update('escalations', escId, { steps, current: i });
-  timers.set(escId, setTimeout(() => runStep(escId, i + 1), STEP_MS));
+  timers.set(escId, setTimeout(() => runStep(escId, i + 1), esc.stepMs || STEP_MS));
 }
 
 // "I'm on it": one person takes it. The ladder stops widening, the rest of the circle is told,
