@@ -2,7 +2,7 @@
 
 ## README refresh — October 12, 2026
 
-- [ ] R-README — Devank (Claude Code), `claude/project-thread-0ximr2`; claimed. Owner notice: README.md only (A owns it). Rewrite README to match the Porchlight page on devank.me (same sections, wording and screenshots), keeping the run instructions accurate.
+- [x] R-README — Devank (Claude Code), `claude/project-thread-0ximr2`; implemented, merging to main. Owner notice: README.md only (A owns it). Rewrite README to match the Porchlight page on devank.me (same sections, wording and screenshots), keeping the run instructions accurate.
 
 ## App UI v3 ("evening porch") — October 11, 2026
 
