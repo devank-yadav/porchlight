@@ -42,6 +42,17 @@ test('callers are recognised: Peggy, her family, or nobody', async () => {
   assert.equal((await whoIsCalling(undefined)).kind, 'unknown');
 });
 
+test('only verified numbers are trusted: a typed-in family number is not, her typed-in number is once she answers a daily call', async () => {
+  const mark = (await store.list('members')).find((m) => m._id === 'mark');
+  await store.update('members', mark._id, { phone: '+18145550789', accountId: null });
+  assert.equal((await whoIsCalling('+18145550789')).kind, 'unknown');
+
+  const ruth = await store.insert('seniors', { name: 'Ruth Test', preferredName: 'Ruth', phone: '+18145550999', accountId: null, circleId: null });
+  assert.equal((await whoIsCalling('+18145550999')).kind, 'unknown');
+  await store.insert('checkins', { seniorId: ruth._id, channel: 'phone', status: 'completed', transcript: [{ who: 'porchlight', text: 'Hi Ruth' }, { who: 'senior', text: 'Hello' }] });
+  assert.equal((await whoIsCalling('+18145550999')).kind, 'senior');
+});
+
 test('off by default: the number politely says it is not taking calls', async () => {
   delete process.env.INBOUND_CALLS_ENABLED;
   const out = await call('/twilio/incoming', { From: '+18145550123', CallSid: 'CA0' });

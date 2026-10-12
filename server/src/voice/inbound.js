@@ -34,19 +34,28 @@ export function samePhone(a, b) {
 }
 
 // Who is calling? Her own number wins over a family member's (a shared landline is hers).
-// Uses the phone numbers on accounts (seniors.phone, members.phone), which sign-up verifies by call.
+// Only numbers we trust count: a number on an account (accountId set) was verified by the sign-in call.
+// Her number can also be one the family typed in, which counts once she has answered a daily call on it.
+// A family member's typed-in number is never trusted: it would read Peggy's status to whoever owns it.
 export async function whoIsCalling(from) {
   if (!from) return { kind: 'unknown' };
   const seniors = await store.list('seniors');
-  const senior = seniors.find((s) => samePhone(s.phone, from));
-  if (senior) return { kind: 'senior', senior };
+  for (const senior of seniors.filter((s) => samePhone(s.phone, from))) {
+    if (senior.accountId || await answeredDailyCall(senior)) return { kind: 'senior', senior };
+  }
   const members = await store.list('members');
-  const member = members.find((m) => m.circleId && samePhone(m.phone, from));
+  const member = members.find((m) => m.circleId && m.accountId && samePhone(m.phone, from));
   if (member) {
     const theirs = seniors.filter((s) => s.circleId === member.circleId);
     if (theirs.length) return { kind: 'family', member, seniors: theirs };
   }
   return { kind: 'unknown' };
+}
+
+// She has picked up a call Porchlight placed to her number and talked (not a call she made in).
+async function answeredDailyCall(senior) {
+  const calls = await store.list('checkins', { seniorId: senior._id });
+  return calls.some((c) => c.channel === 'phone' && !c.inbound && c.transcript?.some((t) => t.who === 'senior'));
 }
 
 // What a family caller hears: how she is today, in plain words. Never her summary, meds, calendar or
