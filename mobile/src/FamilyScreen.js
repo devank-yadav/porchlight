@@ -113,7 +113,7 @@ function localTime(tz) {
   try { return new Date().toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }); } catch { return ''; }
 }
 function tzShort(tz) {
-  try { return new Date().toLocaleTimeString('en-US', { timeZone: tz, timeZoneName: 'short' }).split(' ').pop(); } catch { return ''; }
+  try { return new Date().toLocaleTimeString('en-US', { timeZone: tz, timeZoneName: 'short' }).split(/\s+/).pop(); } catch { return ''; }
 }
 function isAwake(tz) {
   try {
@@ -728,7 +728,8 @@ function TimelineRow({ a, senior, state }) {
     : TRANSPORT[a.transport] ?? TRANSPORT.unknown;
   const d = new Date(a.startsAt);
   const valid = Number.isFinite(d.getTime());
-  const [hm, ampm] = valid ? timeIn(a.startsAt, tz).split(' ') : ['TBC', ''];
+  // \s, not ' ': iPhone puts a narrow no-break space before AM/PM, so ' ' never split "2:00 PM".
+  const [hm, ampm] = valid ? timeIn(a.startsAt, tz).split(/\s+/) : ['TBC', ''];
   const addToMine = async () => {
     try {
       await Calendar.createEventInCalendarAsync({
@@ -1279,7 +1280,7 @@ const st = StyleSheet.create({
   syncRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 2, marginTop: -4 },
   dayHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 2, marginTop: 4 },
   tlRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 16, paddingLeft: 16, paddingRight: 14 },
-  tlTime: { width: 50, alignItems: 'flex-end', paddingTop: 1 },
+  tlTime: { width: 54, alignItems: 'flex-end', paddingTop: 1 },
   tlClock: { fontSize: 17, lineHeight: 22, fontWeight: '700', color: light.ink, letterSpacing: -0.3, fontVariant: ['tabular-nums'] },
   tlAmPm: { fontSize: 12, lineHeight: 15, fontWeight: '600', color: light.muted },
   tlRail: { width: 3, borderRadius: 2, alignSelf: 'stretch' },
