@@ -1,5 +1,5 @@
 // OWNER: Person A (voice & AI).
-// Check-in API used by the app's Talk screen, the scam check, and Twilio phone webhooks.
+// Phone check-ins (Twilio webhooks), call scheduling, family questions, the scam check and phone help.
 import { Router } from 'express';
 import * as store from '../store.js';
 import { scamCheck, techHelp } from './llm.js';
@@ -10,42 +10,31 @@ import { transcribeRecording } from './stt.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
 import * as escalation from '../care/escalation.js';
 import { wrap } from '../wrap.js';
+import { assertSenior, seniorIdOf } from '../account/access.js';
 
 export const voiceRoutes = Router();
 
-// ---------- Demo: play the scripted call (DEMO.md lines) without a phone ----------
+// Plays a scripted call without a phone. Tests and local demos only (SEED_DEMO=1).
 export const DEMO_LINES = [
   "I'm good. A man called about gift cards, I hung up",
   "I don't have a ride to the heart doctor tomorrow",
   "And I'm out of milk",
   "No, that's all",
 ];
-voiceRoutes.post('/api/demo/call', wrap(async (req, res) => {
-  const { checkin } = await startCheckin(req.body.seniorId || 'peggy', 'app');
-  for (const line of DEMO_LINES) {
-    const { ended } = await addTurn(checkin._id, line);
-    if (ended) break;
-  }
-  res.json(await finishCheckin(checkin._id));
-}));
-
-// ---------- In-app check-in ----------
-voiceRoutes.post('/api/checkins', wrap(async (req, res) => {
-  const { checkin } = await startCheckin(req.body.seniorId, req.body.channel || 'app');
-  res.json(checkin);
-}));
-
-voiceRoutes.post('/api/checkins/:id/message', wrap(async (req, res) => {
-  res.json(await addTurn(req.params.id, String(req.body.text || '').slice(0, 1000)));
-}));
-
-voiceRoutes.post('/api/checkins/:id/finish', wrap(async (req, res) => {
-  res.json(await finishCheckin(req.params.id));
-}));
+if (process.env.SEED_DEMO === '1') {
+  voiceRoutes.post('/api/demo/call', wrap(async (req, res) => {
+    const { checkin } = await startCheckin(seniorIdOf(req), 'app');
+    for (const line of DEMO_LINES) {
+      const { ended } = await addTurn(checkin._id, line);
+      if (ended) break;
+    }
+    res.json(await finishCheckin(checkin._id));
+  }));
+}
 
 // ---------- Tech help: a picture of her screen → what it is + one next step ----------
 voiceRoutes.post('/api/tech-help', wrap(async (req, res) => {
-  const senior = await store.get('seniors', req.body.seniorId);
+  const senior = await store.get('seniors', seniorIdOf(req));
   const image = String(req.body.image || '').replace(/^data:[^,]+,/, '');
   if (!image) return res.status(400).json({ error: 'Take a picture of the screen first.' });
   const result = await techHelp(senior, { image, mime: req.body.mime || 'image/jpeg', question: String(req.body.question || '').slice(0, 500), history: Array.isArray(req.body.history) ? req.body.history : [] });
@@ -58,7 +47,7 @@ voiceRoutes.post('/api/tech-help', wrap(async (req, res) => {
 
 // ---------- Scam check ----------
 voiceRoutes.post('/api/scam-check', wrap(async (req, res) => {
-  const senior = await store.get('seniors', req.body.seniorId);
+  const senior = await store.get('seniors', seniorIdOf(req));
   const description = String(req.body.text || '').slice(0, 2000);
   const result = await scamCheck(description);
   const saved = await store.insert('scamChecks', { seniorId: senior._id, description, ...result });
@@ -86,45 +75,48 @@ const ask = (say, checkinId, silent = 0) => (recordMode() ? listen(say, checkinI
 
 // "Call now" in the app.
 voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
+  assertSenior(req, req.params.id);
   res.json(await callSenior(req.params.id, 'now'));
 }));
 
 // Daily call schedule: { autoCall, checkinTime: "HH:MM", callDays: [0-6] }.
 voiceRoutes.get('/api/seniors/:id/schedule', wrap(async (req, res) => {
+  assertSenior(req, req.params.id);
   res.json(scheduleOf(await store.get('seniors', req.params.id)));
 }));
 // Family questions: "Ask Mom about her first job". Porchlight asks one on a coming call, and her answer
 // is saved as a story under it. { text, memberId } → the senior's open questions.
 voiceRoutes.post('/api/seniors/:id/questions', wrap(async (req, res) => {
+  assertSenior(req, req.params.id);
   const senior = await store.get('seniors', req.params.id);
   const text = String(req.body.text || '').trim().slice(0, 200);
   if (!text) return res.status(400).json({ error: 'Write a question first.' });
-  const q = { _id: `q${Date.now().toString(36)}`, text, askedBy: req.body.memberId || null, askedAt: new Date().toISOString() };
+  const q = { _id: `q${Date.now().toString(36)}`, text, askedBy: req.account.memberId || null, askedAt: new Date().toISOString() };
   const updated = await store.update('seniors', senior._id, { familyQuestions: [...(senior.familyQuestions || []), q] });
   res.json(updated.familyQuestions);
 }));
 voiceRoutes.delete('/api/seniors/:id/questions/:qid', wrap(async (req, res) => {
+  assertSenior(req, req.params.id);
   const senior = await store.get('seniors', req.params.id);
   const updated = await store.update('seniors', senior._id, { familyQuestions: (senior.familyQuestions || []).filter((q) => q._id !== req.params.qid) });
   res.json(updated.familyQuestions);
 }));
 
-// Peggy's phone registers for notifications (Expo push token from the app).
-voiceRoutes.post('/api/seniors/:id/push-token', wrap(async (req, res) => {
-  const token = String(req.body.token || '');
-  if (!/^ExponentPushToken\[.+\]$|^ExpoPushToken\[.+\]$/.test(token)) return res.status(400).json({ error: 'Not an Expo push token.' });
-  await store.update('seniors', req.params.id, { pushToken: token });
-  res.json({ ok: true });
-}));
-
 voiceRoutes.put('/api/seniors/:id/schedule', wrap(async (req, res) => {
+  assertSenior(req, req.params.id);
   res.json(scheduleOf(await setSchedule(req.params.id, req.body || {})));
 }));
 startScheduler();
 
 voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
-  if (relayEnabled()) return res.type('text/xml').send(relayTwiml(checkin)); // natural, streaming conversation
+  if (!checkin) return res.type('text/xml').send(twiml('<Hangup/>'));
+  if (relayEnabled()) { // natural, streaming conversation
+    const senior = await store.get('seniors', checkin.seniorId);
+    const members = senior?.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
+    const names = [senior?.preferredName, ...members.map((m) => m.name.split(' ')[0])].filter(Boolean).map((n) => n.replace(/[^\p{L}' -]/gu, ''));
+    return res.type('text/xml').send(relayTwiml(checkin, names));
+  }
   res.type('text/xml').send(twiml(ask(checkin.transcript[0].text, checkin._id)));
 }));
 
@@ -181,6 +173,7 @@ voiceRoutes.post('/twilio/heard', wrap(async (req, res) => {
 
 voiceRoutes.post('/twilio/status', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
+  if (!checkin) return res.sendStatus(204);
   const answered = checkin.transcript.some((t) => t.who === 'senior');
   if (!answered && ['no-answer', 'busy', 'failed', 'completed'].includes(req.body.CallStatus)) {
     const escalate = async () => escalation.start(await store.get('seniors', checkin.seniorId), 'missed');

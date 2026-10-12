@@ -36,7 +36,7 @@ export async function handleCheckinOutcome(senior, checkin, a) {
     await store.insert('tasks', {
       seniorId: senior._id, title: r.title, type: r.type, due: r.when || 'This week',
       assignee: null, status: 'open', source: 'checkin', checkinId: checkin._id,
-      quote: r.quote || null, requestedBy: 'peggy', suggestedOwner: await suggestOwner(senior, r.type, members),
+      quote: r.quote || null, requestedBy: 'senior', suggestedOwner: await suggestOwner(senior, r.type, members),
       handoff: null, sensitive: false,
     });
   }
@@ -50,7 +50,7 @@ export async function handleCheckinOutcome(senior, checkin, a) {
     await store.insert('tasks', {
       seniorId: senior._id, title: `Check with ${senior.preferredName} about her ${pill}`, type: 'meds', due: 'Today',
       assignee: null, status: 'open', source: 'checkin', checkinId: checkin._id,
-      quote: a.flags.find((f) => f.type === 'meds_unsure')?.text || null, requestedBy: 'peggy',
+      quote: a.flags.find((f) => f.type === 'meds_unsure')?.text || null, requestedBy: 'senior',
       suggestedOwner: primary?._id ?? null, handoff: null, sensitive: true,
     });
   }

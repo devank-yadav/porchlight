@@ -1,4 +1,5 @@
-// Demo data. Every person and organization here is fictional sample data.
+// Test and local-demo fixture, loaded only with SEED_DEMO=1. Every person and place here is fictional.
+// Phone numbers are +1555… so nothing is ever called or texted; sign in with the development code.
 import * as store from '../store.js';
 import { localNow } from './meds.js';
 
@@ -34,9 +35,12 @@ export async function seed() {
     { _id: 'anne', circleId, name: 'Anne Hollis', relation: 'Daughter', role: 'family', phone: '+15550100001', timezone: 'America/Los_Angeles', primary: true, canApprove: true, seesMeds: true },
     { _id: 'mark', circleId, name: 'Mark Hollis', relation: 'Son', role: 'family', phone: '+15550100002', timezone: 'America/New_York', canApprove: false, seesMeds: false },
     { _id: 'dolores', circleId, name: 'Dolores Kim', relation: 'Neighbor, next door', role: 'neighbor', phone: '+15550100003', timezone: 'America/New_York', canApprove: false, seesMeds: false },
-    { _id: 'sam', circleId: null, name: 'Sam Ortiz', relation: 'Volunteer, sample reassurance program', role: 'volunteer', phone: '+15550100004', timezone: 'America/New_York', canApprove: false, seesMeds: false },
   ];
-  for (const m of members) await store.insert('members', m);
+  for (const m of members) await store.insert('members', { ...m, accountId: `acct_${m._id}` });
+  for (const m of members) {
+    await store.insert('accounts', { _id: `acct_${m._id}`, phone: m.phone, role: 'family', name: m.name, timezone: m.timezone, circleId, seniorId: 'peggy', memberId: m._id });
+  }
+  await store.insert('accounts', { _id: 'acct_peggy', phone: '+15550100009', role: 'senior', name: 'Peggy', timezone: 'America/New_York', circleId, seniorId: 'peggy', memberId: null });
 
   const peggy = await store.insert('seniors', {
     _id: 'peggy',
@@ -45,7 +49,9 @@ export async function seed() {
     preferredName: 'Peggy',
     age: 81,
     city: 'State College, PA',
-    phone: process.env.DEMO_SENIOR_PHONE || '+15550100009',
+    phone: '+15550100009',
+    accountId: 'acct_peggy',
+    timezone: 'America/New_York',
     checkinTime: '10:00',
     primaryContactName: 'Anne',
     opener: 'Hi Mom, it’s Anne. This is the helper I told you about.',
@@ -63,21 +69,6 @@ export async function seed() {
     ],
     status: 'waiting',
   });
-
-  const others = [
-    ['frank', 'Frank Delgado', 'Frank', 88, 'ok', 'Talked about the Penn State game. Took his pills.'],
-    ['ruth', 'Ruth Abernathy', 'Ruth', 79, 'needs-human', 'Said she has felt lonely since her friend moved away. Asked if someone could visit.'],
-    ['george', 'George Patel', 'George', 84, 'missed', 'Did not answer two calls this morning.'],
-    ['elaine', 'Elaine Morrow', 'Elaine', 91, 'ok', 'Cheerful. Her daughter is visiting this weekend.'],
-    ['harold', 'Harold Bishop', 'Harold', 76, 'scam', 'Got a call saying his grandson was in jail and needed bail in gift cards.'],
-    ['jean', 'Jean Kowalski', 'Jean', 83, 'waiting', 'Check-in scheduled for 2:00 PM.'],
-  ];
-  for (const [_id, name, preferredName, age, status, note] of others) {
-    await store.insert('seniors', {
-      _id, circleId: null, name, preferredName, age, city: 'State College, PA', status, lastNote: note,
-      about: [], meds: [], primaryContactName: 'family', checkinTime: '10:00',
-    });
-  }
 
   const history = [
     {
@@ -113,7 +104,7 @@ export async function seed() {
   if (minutes >= 8 * 60 + 6) {
     const at = new Date(Date.now() - (minutes - (8 * 60 + 6)) * 60000).toISOString();
     for (const [medId, name] of [['med_bp', 'blood pressure pill'], ['med_vitd', 'vitamin D']]) {
-      await store.insert('doses', { _id: `peggy:${medId}:${date}:08:00`, seniorId: 'peggy', medId, name, date, time: '08:00', status: 'taken', by: 'peggy', at });
+      await store.insert('doses', { _id: `peggy:${medId}:${date}:08:00`, seniorId: 'peggy', medId, name, date, time: '08:00', status: 'taken', by: 'senior', at });
     }
   }
 
@@ -125,7 +116,7 @@ export async function seed() {
 
   const tasks = [
     { title: 'Pick up blood pressure refill at the pharmacy', type: 'refill', due: 'Thursday', assignee: null, status: 'open',
-      quote: 'I only have three pills left.', requestedBy: 'peggy', suggestedOwner: 'anne', handoff: null, sensitive: true },
+      quote: 'I only have three pills left.', requestedBy: 'senior', suggestedOwner: 'anne', handoff: null, sensitive: true },
     { title: 'Fix the loose porch step', type: 'repair', due: 'This weekend', assignee: 'mark', status: 'open',
       quote: null, requestedBy: 'anne', suggestedOwner: 'mark', handoff: null, sensitive: false },
   ];
@@ -145,7 +136,7 @@ export async function seed() {
   await store.insert('notices', {
     _id: 'peggy-porch-repair', seniorId: peggy._id, kind: 'task',
     text: 'Mark will fix your loose porch step this weekend.',
-    at: new Date().toISOString(), simulated: true,
+    at: new Date().toISOString(),
   });
 
   const events = [
@@ -154,7 +145,7 @@ export async function seed() {
     { title: 'Lunch and cards', where: 'Senior center (sample)', when: 'Fridays, noon', tags: ['social', 'lonely'] },
     { title: 'Big band night', where: 'Downtown bandshell (sample)', when: 'Saturday, 6 PM', tags: ['music', 'band'] },
   ];
-  for (const e of events) await store.insert('events', e);
+  for (const e of events) await store.insert('events', { ...e, circleId });
 
   console.log('[seed] Demo data loaded.');
 }

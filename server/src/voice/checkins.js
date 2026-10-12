@@ -37,18 +37,17 @@ async function memoryFor(senior) {
       .sort((a, b) => new Date(b.endedAt || b.startedAt) - new Date(a.endedAt || a.startedAt));
     const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
     const who = (id) => { const m = members.find((x) => x._id === id); return m ? `${m.name.split(' ')[0]}, her ${String(m.relation || 'family').split(',')[0].toLowerCase()}` : 'her family'; };
-    const events = await store.list('events', {}).catch(() => []);
+    const events = senior.circleId ? await store.list('events', { circleId: senior.circleId }).catch(() => []) : [];
     // The activity that best fits what the family told us she loves (garden club for a gardener...).
     const about = (senior.about || []).join(' ').toLowerCase();
     const fit = events.find((e) => (e.tags || []).some((t) => about.includes(t))) || events.find((e) => (e.tags || []).includes('social')) || events[0];
-    const clean = (x) => String(x || '').replace(/\s*\(sample\)/i, '');
     return {
       recent: past.slice(0, 2).map((c) => c.summary),
       stories: past.flatMap((c) => (c.stories || []).map((st) => st.title)).slice(0, 8),
       questions: openQuestions(senior).slice(0, 2).map((q) => ({ text: q.text, from: who(q.askedBy) })),
-      activity: fit ? { title: fit.title, when: fit.when, where: clean(fit.where).toLowerCase() } : null,
-      weather: cachedForecast(senior.timezone || 'America/New_York'),
-      events: events.slice(0, 4).map((e) => `${e.title} (${e.when}, ${clean(e.where)})`),
+      activity: fit ? { title: fit.title, when: fit.when, where: String(fit.where || '').toLowerCase() } : null,
+      weather: cachedForecast(senior.timezone || 'America/New_York', senior.homeLatLng),
+      events: events.slice(0, 4).map((e) => `${e.title} (${e.when}, ${e.where})`),
       medsDue: (await medsDueNow(senior).catch(() => [])).map(doseLine),
     };
   } catch {
@@ -67,9 +66,9 @@ async function newNoticesFor(senior) {
 }
 
 export async function startCheckin(seniorId, channel) {
-  forecast().catch(() => {}); // warm the weather cache so the first question about it is instant
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
+  forecast(senior.timezone, senior.homeLatLng).catch(() => {}); // warm the weather cache so the first question about it is instant
   const text = greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
   const checkin = await store.insert('checkins', {
     seniorId, channel, status: 'in-progress', startedAt: new Date().toISOString(),

@@ -3,7 +3,7 @@
 import * as store from '../store.js';
 import { sms } from '../voice/notify.js';
 
-const STEP_MS = Number(process.env.ESCALATION_STEP_MS || 5000); // demo speed; real life ~15 min
+const STEP_MS = Number(process.env.ESCALATION_STEP_MS || 10 * 60000); // 10 minutes between steps (set lower for a demo)
 const timers = new Map();
 
 // Quiet hours (B7): no texts 9 PM–8 AM in the member's own time zone for an unresolved
@@ -14,31 +14,34 @@ function inQuietHours(member) {
   return hour >= 21 || hour < 8;
 }
 
-function ladder(reason) {
-  if (reason === 'help') {
-    return [
-      { target: 'family', label: 'Text the whole family circle' },
-      { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
-      { target: 'volunteer', label: 'Alert the program volunteer to call 911 if no one reaches her' },
+// Only steps for people this circle actually has (no neighbor, no neighbor step).
+function ladder(reason, members) {
+  const has = (role) => members.some((m) => m.role === role);
+  const steps = reason === 'help'
+    ? [
+      { target: 'family', label: 'Alert the whole family circle' },
+      has('neighbor') && { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
+      has('volunteer') && { target: 'volunteer', label: 'Alert the program volunteer to call 911 if no one reaches her' },
+    ]
+    : [
+      { target: 'primary', label: 'Alert the primary family contact' },
+      { target: 'family', label: 'Alert the rest of the family' },
+      has('neighbor') && { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
+      has('volunteer') && { target: 'volunteer', label: 'Hand off to the program volunteer' },
     ];
-  }
-  return [
-    { target: 'retry', label: 'Call again' },
-    { target: 'primary', label: 'Text the primary family contact' },
-    { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
-    { target: 'volunteer', label: 'Hand off to the program volunteer' },
-  ];
+  return steps.filter(Boolean);
 }
 
 export async function start(senior, reason) {
   const existing = (await store.list('escalations', { seniorId: senior._id, status: 'active' }))[0];
   if (existing) return existing;
+  const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const esc = await store.insert('escalations', {
     seniorId: senior._id,
     reason, // 'missed' | 'help'
     status: 'active',
     stepMs: STEP_MS,
-    steps: ladder(reason).map((s) => ({ ...s, status: 'pending', at: null })),
+    steps: ladder(reason, members).map((s) => ({ ...s, status: 'pending', at: null })),
   });
   await store.update('seniors', senior._id, { status: reason === 'help' ? 'help' : 'missed' });
   runStep(esc._id, 0);
@@ -54,7 +57,7 @@ async function runStep(escId, i) {
   }
   const senior = await store.get('seniors', esc.seniorId);
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
-  const volunteers = await store.list('members', { role: 'volunteer' });
+  const volunteers = members.filter((m) => m.role === 'volunteer');
   const step = esc.steps[i];
   const who = senior.preferredName;
 
@@ -68,10 +71,10 @@ async function runStep(escId, i) {
     if (esc.reason !== 'help' && inQuietHours(m)) held.push(m.name);
     else { await sms(m, text); sent.push(m.name); }
   };
-  if (step.target === 'family') for (const m of members.filter((m) => m.role === 'family')) await send(m, msg);
+  if (step.target === 'family') for (const m of members.filter((m) => m.role === 'family' && (esc.reason === 'help' || !m.primary))) await send(m, msg);
   if (step.target === 'primary') for (const m of members.filter((m) => m.primary)) await send(m, msg);
   if (step.target === 'neighbor') for (const m of members.filter((m) => m.role === 'neighbor')) await send(m, `Could you knock on ${who}'s door? She hasn't answered her check-in. Reply OK when you've seen her.`);
-  if (step.target === 'volunteer') for (const m of volunteers) await send(m, `${who} (${senior.city}) needs a human. ${esc.reason === 'help' ? 'She pressed help.' : 'Check-in unresolved, family not reached yet.'}`);
+  if (step.target === 'volunteer') for (const m of volunteers) await send(m, `${who} needs a human. ${esc.reason === 'help' ? 'She pressed help.' : 'Check-in unresolved, family not reached yet.'}`);
 
   // A step whose texts were all held shows "held for quiet hours" in the app.
   const status = held.length && !sent.length ? 'held' : 'done';

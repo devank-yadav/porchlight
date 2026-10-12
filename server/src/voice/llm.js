@@ -120,10 +120,12 @@ function memoryLines(memory = {}) {
 
 function personaPrompt(senior, appointments, memory) {
   const now = new Date().toLocaleString('en-US', { timeZone: senior.timezone || 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
+  const who = [senior.age ? `age ${senior.age}` : '', senior.city ? `who lives alone in ${senior.city}` : 'who lives alone'].filter(Boolean).join(', ');
+  const about = (senior.about || []).join(' ');
+  return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, ${who}.
 Right now it is ${now} where she lives. If she asks the day, date or time, tell her exactly that.
-What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
-Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
+${about ? `What the family told you about ${senior.preferredName}: ${about}` : `You don't know much about ${senior.preferredName} yet: be curious and kind, and learn about her day.`}
+Medications to gently ask about: ${(senior.meds || []).map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
 ${memory?.medsDue?.length ? `Doses still due today, not yet marked taken (ask gently, once): ${memory.medsDue.join('; ')}. If she says she took them, I mark them for you. Never suggest a dose, a time change, or taking an extra.` : 'All of her doses due so far today are marked taken; no need to ask about pills.'}
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories: ask a follow-up about the people and places in them.
 ${memoryLines(memory)}${appointmentLines(appointments, senior.primaryContactName, senior)}If she isn't sure whether she took a pill, suggest she check her pill box for today's slot, tell her not to take another just in case, and that you'll let ${senior.primaryContactName} know.
@@ -276,7 +278,7 @@ function mockReply(senior, transcript) {
 
   const script = [
     `How did you sleep last night, ${name}?`,
-    `Glad to hear it. Have you had something to eat today, and taken your ${senior.meds[0]?.name ?? 'morning pills'}?`,
+    `Glad to hear it. Have you had something to eat today, and taken your ${senior.meds?.[0]?.name ?? 'morning pills'}?`,
     `Good. What are you up to today?`,
     `That sounds lovely. Tell me more about that, I'd love to hear it.`,
     `Do you need anything this week, like a ride, groceries, or a refill?`,
@@ -322,7 +324,7 @@ export async function analyze(senior, transcript, { appointments = [], questions
 Never diagnose. "change" means different from her usual. If she was unsure whether she took a pill, medStatus is "unsure" and add a "meds_unsure" flag.
 A story is a memory from her life (people, places, how things used to be), not today's news. Only include real memories; [] if she told none.`,
           },
-          { role: 'user', content: `About her: ${senior.about.join(' ')}\n${questions.length ? `Questions her family asked Porchlight to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
+          { role: 'user', content: `About her: ${(senior.about || []).join(' ')}\n${questions.length ? `Questions her family asked Porchlight to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
         ],
         { json: true, maxTokens: 900, model: ANALYSIS_MODEL },
       );

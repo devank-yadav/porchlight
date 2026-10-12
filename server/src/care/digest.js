@@ -29,7 +29,7 @@ export function buildDigest({ senior, checkins, tasks, actions, escalations, vie
   const unowned = open.filter((t) => !t.assignee);
   if (unowned.length) items.push({ tone: 'attention', text: `${unowned.length} task${unowned.length > 1 ? 's' : ''} need${unowned.length > 1 ? '' : 's'} someone`, target: { type: 'task', id: unowned[0]._id } });
   for (const a of actions.filter((x) => x.seniorId === senior._id && x.status === 'CONFIRMED')) {
-    items.push({ tone: 'ok', text: `${a.title}: confirmed (simulated booking)`, target: { type: 'action', id: a._id } });
+    items.push({ tone: 'ok', text: `${a.title}: confirmed`, target: { type: 'action', id: a._id } });
   }
   if (latest && new Date(latest.endedAt).toDateString() === today) items.push({ tone: 'ok', text: latest.summary, target: { type: 'checkin', id: latest._id } });
 

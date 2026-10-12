@@ -24,18 +24,19 @@ function ttsFor(voice) {
   return { ttsProvider: 'Google', voice: 'en-US-Chirp3-HD-Aoede' };
 }
 
-export function relayTwiml(checkin) {
+export function relayTwiml(checkin, names = []) {
   const base = process.env.PUBLIC_URL.replace(/\/$/, '');
   const wss = base.replace(/^http/, 'ws') + '/twilio/relay';
   const { ttsProvider, voice } = ttsFor(RELAY_VOICE);
   return `<?xml version="1.0" encoding="UTF-8"?><Response><Connect action="${base}/twilio/relay-done?checkinId=${checkin._id}">`
-    + `<ConversationRelay url="${wss}" welcomeGreeting="${xml(checkin.transcript[0].text)}" ttsProvider="${ttsProvider}" voice="${voice}" language="en-US" interruptible="true" hints="${HINTS}">`
+    + `<ConversationRelay url="${wss}" welcomeGreeting="${xml(checkin.transcript[0].text)}" ttsProvider="${ttsProvider}" voice="${voice}" language="en-US" interruptible="true" hints="${xml([HINTS, ...names].join(','))}">`
     + `<Parameter name="checkinId" value="${checkin._id}"/>`
     + `</ConversationRelay></Connect></Response>`;
 }
 
 // Words she's likely to say, so the transcriber hears "headache", not "FedEx".
-const HINTS = 'headache,dizzy,pills,blood pressure,vitamin D,doctor,heart doctor,appointment,ride,milk,groceries,pharmacy,refill,scam,gift cards,grandson,Anne,Mark,Maya,Dolores,Peggy,Porchlight';
+// Her circle's first names are added per call.
+const HINTS = 'headache,dizzy,pills,blood pressure,doctor,heart doctor,appointment,ride,milk,groceries,pharmacy,refill,scam,gift cards,grandson,granddaughter,Porchlight';
 
 // Roughly how long Twilio needs to say a line, so "goodbye" isn't cut off before we hang up.
 const speakMs = (text) => 1500 + text.split(/\s+/).length * 380;

@@ -1,15 +1,14 @@
 // OWNER: Person B (backend & workflows).
 // Actions: anything the AI wants to DO that needs a human OK (Phase 1: rides).
 // PENDING_APPROVAL → APPROVED → REQUESTED → CONFIRMED → COMPLETED, or REJECTED / FAILED / CANCELLED.
-// The ride provider is a sandbox: every booking is simulated and labelled that way.
+// Porchlight never books or pays for a ride: it opens Uber with the trip filled in, and the older adult confirms it there.
 // Rides no longer wait for the family (Devank, 2026-10-11): Porchlight books right away and the
 // family gets a heads-up text with an Uber link. A family can turn "Ask me before booking rides" back on (senior.askBeforeRides).
 import * as store from '../store.js';
 import * as audit from './audit.js';
-import { sms, tellSenior, push } from '../voice/notify.js';
+import { sms, push } from '../voice/notify.js';
 import { uberLink, geocode } from './uber.js';
 
-const SANDBOX_STEP_MS = Number(process.env.SANDBOX_STEP_MS || 2000);
 const OPEN = ['PENDING_APPROVAL', 'APPROVED', 'REQUESTED', 'CONFIRMED'];
 const NEXT = {
   PENDING_APPROVAL: ['APPROVED', 'REJECTED', 'CANCELLED'],
@@ -23,13 +22,12 @@ export class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-// Her local time (Peggy is in New York), even when the server runs in UTC.
-const TZ = 'America/New_York';
-const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-const fmtDay = (iso) => {
-  const day = (x) => x.toLocaleDateString('en-US', { timeZone: TZ });
+// Her local time, even when the server runs in UTC.
+const fmtTime = (iso, tz = 'America/New_York') => new Date(iso).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+const fmtDay = (iso, tz = 'America/New_York') => {
+  const day = (x) => x.toLocaleDateString('en-US', { timeZone: tz });
   const tomorrow = new Date(Date.now() + 86400000);
-  return day(new Date(iso)) === day(tomorrow) ? 'tomorrow' : new Date(iso).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long' });
+  return day(new Date(iso)) === day(tomorrow) ? 'tomorrow' : new Date(iso).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long' });
 };
 
 async function move(action, status, actor, evidence) {
@@ -50,47 +48,55 @@ export async function proposeRide(senior, appointment, quote) {
   const approver = members.find((m) => m.canApprove) || members.find((m) => m.primary);
   const ask = senior.askBeforeRides === true;
   const first = ask ? 'PENDING_APPROVAL' : 'APPROVED'; // the app shows "booked" when history has no PENDING_APPROVAL
+  const tz = senior.timezone;
   const pickupAt = new Date(new Date(appointment.startsAt).getTime() - 45 * 60000).toISOString();
   const destination = appointment.where?.trim();
-  // A sample address isn't a real place: leave it to uberLink, which can swap in RIDE_DROPOFF_ADDRESS for the demo.
-  const real = destination && !/\(sample\)/i.test(destination) ? destination : '';
-  const spot = real ? await geocode(real) : null;
-  const rideLink = uberLink({ from: '12 Maple Ln (sample)', to: destination || appointment.title, place: real ? spot?.address || real : undefined, placeLatLng: spot?.latlng });
+  const spot = destination ? await geocode(destination, senior.homeLatLng) : null;
+  const rideLink = await rideHandoff(senior, { to: destination || appointment.title, place: destination ? spot?.address || destination : undefined, placeLatLng: spot?.latlng });
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}`,
     reason: `${senior.preferredName} said: "${quote}"`,
-    details: { pickupAt, from: '12 Maple Ln (sample)', to: destination || appointment.title, needs: 'Uses a cane', uberLink: rideLink },
-    appointmentId: appointment._id, approverId: approver?._id ?? null, simulated: true, status: first,
+    details: { pickupAt, from: senior.home ? 'Home' : 'Her location', to: destination || appointment.title, uberLink: rideLink },
+    appointmentId: appointment._id, approverId: approver?._id ?? null, status: first,
     history: [{ status: first, at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: ask ? `From today's check-in call: "${quote}"` : `Booked from today's check-in call: "${quote}"; family notified` } }],
   });
   await store.update('appointments', appointment._id, { transport: ask ? 'at_risk' : 'requested', actionId: action._id });
   await audit.log('porchlight', 'action.proposed', { seniorId: senior._id, targetId: action._id, detail: action.title });
   if (ask) {
-    if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}. Open Porchlight to approve a ride (simulated booking).`);
+    if (approver) await sms(approver, `${senior.preferredName} doesn't have a ride to her ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt, tz)}. Open Porchlight to OK an Uber for her.`);
     return action;
   }
-  // No approval step: book now. The Uber button goes to her (it's her ride), and the family just hears she's going.
-  const booked = action;
-  const fam = members.filter((m) => m.role === 'family');
-  const where = appointment.where ? ` at ${appointment.where.replace(/\s*\(sample\)/i, '')}` : '';
+  await handOver(senior, action, appointment, members);
+  return action;
+}
+
+// The ride is hers to book: a "Book my Uber" button and a phone notification for her, and a heads-up for the family.
+async function handOver(senior, action, appointment, members) {
+  const tz = senior.timezone;
+  const pickupAt = action.details.pickupAt;
+  const where = appointment?.where ? ` at ${appointment.where}` : '';
+  const what = appointment ? `the ${appointment.title.toLowerCase()}` : action.details.to;
   await store.insert('notices', {
-    seniorId: senior._id, kind: 'uber', actionId: booked._id, uberLink: booked.details.uberLink, simulated: false, at: new Date().toISOString(),
-    text: `Your ride to the ${appointment.title.toLowerCase()} ${fmtDay(appointment.startsAt)}: tap "Book my Uber" and Uber opens with your home and the clinic filled in. Leave by ${fmtTime(pickupAt)}.`,
+    seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: action.details.uberLink, at: new Date().toISOString(),
+    text: `Your ride to ${what} ${appointment ? fmtDay(appointment.startsAt, tz) : ''}: tap "Book my Uber" and Uber opens with your trip filled in. Leave by ${fmtTime(pickupAt, tz)}.`.replace(/\s+:/, ':'),
   });
-  // Her phone gets the Uber notification too: tap it and Uber opens with home and the clinic filled in.
-  await push(senior, { title: `Your Uber to the ${appointment.title.toLowerCase()} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: booked.details.uberLink });
-  for (const m of fam) {
-    await sms(m, `Heads-up: ${senior.preferredName} is going to her ${appointment.title.toLowerCase()}${where} ${fmtDay(appointment.startsAt)} at ${fmtTime(appointment.startsAt)}, pickup ${fmtTime(pickupAt)}. Porchlight set up her Uber ride; she books it from her Porchlight screen.`);
+  await push(senior, { title: `Your Uber to ${what} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: action.details.uberLink });
+  for (const m of members.filter((x) => x.role === 'family')) {
+    await sms(m, `Heads-up: ${senior.preferredName} is going to ${what.replace(/^the /, 'her ')}${where}${appointment ? ` ${fmtDay(appointment.startsAt, tz)} at ${fmtTime(appointment.startsAt, tz)}` : ''}, pickup ${fmtTime(pickupAt, tz)}. Porchlight set up her Uber ride; she books and pays for it in Uber.`);
   }
-  // She books it herself in Uber, so no sample confirmation (and no "your ride is confirmed" call).
-  return booked;
+}
+
+// Pickup at her home address when the family added one, else wherever her phone is.
+export async function rideHandoff(senior, { to, place, placeLatLng, pickupPlace, pickupLatLng } = {}) {
+  const latlng = senior.homeLatLng || (senior.home ? (await geocode(senior.home))?.latlng : null);
+  return uberLink({ from: senior.home || '', fromLatLng: latlng, to, place, placeLatLng, pickupPlace, pickupLatLng });
 }
 
 async function load(id, memberId, { mustApprove = false } = {}) {
   const action = await store.get('actions', id);
   if (!action) throw new HttpError(404, 'Action not found.');
   const member = memberId ? await store.get('members', memberId) : null;
-  if (!member) throw new HttpError(400, 'memberId is required.');
+  if (!member) throw new HttpError(403, 'Only family members can do this.');
   if (mustApprove && !member.canApprove) throw new HttpError(403, `${member.name.split(' ')[0]} can't approve this. Waiting for the primary caregiver.`);
   return { action, member };
 }
@@ -98,8 +104,10 @@ async function load(id, memberId, { mustApprove = false } = {}) {
 export async function approve(id, memberId) {
   const { action, member } = await load(id, memberId, { mustApprove: true });
   if (action.status !== 'PENDING_APPROVAL') return action; // idempotent: approving twice never double-books
-  const approved = await move(action, 'APPROVED', member._id, { source: 'caregiver', note: `Approved by ${member.name}` });
-  runSandbox(approved._id).catch((e) => console.error('[actions] sandbox failed:', e));
+  const approved = await move(action, 'APPROVED', member._id, { source: 'caregiver', note: `OK'd by ${member.name}` });
+  const senior = await store.get('seniors', action.seniorId);
+  const appointment = action.appointmentId ? await store.get('appointments', action.appointmentId) : null;
+  await handOver(senior, approved, appointment, await store.list('members', { circleId: senior.circleId }));
   return approved;
 }
 
@@ -113,24 +121,4 @@ export async function complete(id, memberId) {
   const { action, member } = await load(id, memberId);
   if (action.status === 'COMPLETED') return action;
   return move(action, 'COMPLETED', member._id, { source: 'caregiver', note: `${member.name} marked the ride done` });
-}
-
-// Sample ride service: request after a moment, confirm a moment later. Never a real ride.
-async function runSandbox(id) {
-  await new Promise((r) => setTimeout(r, SANDBOX_STEP_MS));
-  let action = await store.get('actions', id);
-  if (action?.status !== 'APPROVED') return;
-  action = await move(action, 'REQUESTED', 'sandbox', { source: 'sandbox', note: 'Request sent to sample ride service (simulated)' });
-  await new Promise((r) => setTimeout(r, SANDBOX_STEP_MS * 2));
-  action = await store.get('actions', id);
-  if (action?.status !== 'REQUESTED') return;
-  const ref = `SBX-${Math.floor(1000 + Math.random() * 9000)}`;
-  action = await move(action, 'CONFIRMED', 'sandbox', { source: 'sandbox', note: 'Simulated booking, not a real ride', ref });
-
-  const senior = await store.get('seniors', action.seniorId);
-  const text = `Your ride is confirmed: pickup ${fmtDay(action.details.pickupAt)} at ${fmtTime(action.details.pickupAt)}.`;
-  await store.insert('notices', { seniorId: senior._id, kind: 'ride', text, at: new Date().toISOString(), simulated: true, actionId: id });
-  await tellSenior(senior, text);
-  const approver = action.approverId ? await store.get('members', action.approverId) : null;
-  if (approver) await sms(approver, `Ride confirmed for ${senior.preferredName}: pickup ${fmtDay(action.details.pickupAt)} ${fmtTime(action.details.pickupAt)} (simulated booking ${ref}). We told her.`);
 }

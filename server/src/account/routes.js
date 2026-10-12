@@ -16,6 +16,7 @@ import { HttpError } from './errors.js';
 import { sendCode, checkCode, checkLimit, codeChannel } from './otp.js';
 import { createSession, endSession, seniorIdOf } from './access.js';
 import * as audit from '../care/audit.js';
+import { geocode } from '../care/uber.js';
 
 export const accountRoutes = Router();
 
@@ -85,8 +86,9 @@ export async function syncPrimary(circleId) {
 }
 
 async function newSenior({ circleId, preferredName, name, phone, timezone, home, accountId = null, createdBy = null }) {
+  const homeLatLng = home ? (await geocode(home).catch(() => null))?.latlng || null : null;
   return store.insert('seniors', {
-    circleId, name: name || preferredName, preferredName, phone, timezone, home: home || '',
+    circleId, name: name || preferredName, preferredName, phone, timezone, home: home || '', homeLatLng,
     accountId, createdBy, about: [], meds: [], status: 'waiting', checkinTime: '10:00', autoCall: false,
     primaryContactName: 'your family',
   });
@@ -301,7 +303,10 @@ accountRoutes.patch('/api/senior', wrap(async (req, res) => {
   if (!manager) throw new HttpError(403, 'Only the primary contact can change this.');
   const patch = {};
   if (req.body?.preferredName !== undefined) patch.preferredName = text(req.body.preferredName, 40, 'a first name');
-  if (req.body?.home !== undefined) patch.home = text(req.body.home, 200);
+  if (req.body?.home !== undefined) {
+    patch.home = text(req.body.home, 200);
+    patch.homeLatLng = patch.home ? (await geocode(patch.home))?.latlng || null : null;
+  }
   if (req.body?.timezone !== undefined) patch.timezone = validZone(req.body.timezone);
   if (Array.isArray(req.body?.about)) patch.about = req.body.about.map((x) => text(x, 200)).filter(Boolean).slice(0, 20);
   if (req.body?.phone !== undefined && !senior.accountId) patch.phone = normalizePhone(req.body.phone);
