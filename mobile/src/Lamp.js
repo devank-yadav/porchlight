@@ -31,7 +31,8 @@ const METAL = {
 
 // Lit glows steadily (no slow loop to stare at). Amber breathes slowly: "follow up".
 // Help pulses quickly: "urgent". Reduced motion: steady glow for all.
-export default function Lamp({ state = 'dim', size = 120, label, night }) {
+// still: no animation at all (the header mark and the small chat avatars), so many lamps cost almost nothing.
+export default function Lamp({ state = 'dim', size = 120, label, night, still = false }) {
   const { isNight } = useTheme();
   const onNight = night ?? isNight;
   const p = PALETTE[state] ?? PALETTE.dim;
@@ -43,6 +44,7 @@ export default function Lamp({ state = 'dim', size = 120, label, night }) {
 
   useEffect(() => {
     cancelAnimation(glow);
+    if (still) return;
     if (reduced || state === 'lit' || state === 'dim') {
       glow.set(withTiming(p.halo, { duration: 400, easing: ease.out }));
     } else {
@@ -56,15 +58,17 @@ export default function Lamp({ state = 'dim', size = 120, label, night }) {
     // A small "switching on" moment when the light changes state.
     if (!reduced) pop.set(withSequence(withTiming(0.96, { duration: 90, easing: ease.out }), withTiming(1, { duration: 260, easing: ease.out })));
     return () => cancelAnimation(glow);
-  }, [state, reduced, p.halo, glow, pop]);
+  }, [state, reduced, still, p.halo, glow, pop]);
 
   const haloStyle = useAnimatedStyle(() => ({ opacity: glow.get() }));
   const bodyStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.get() }] }));
   const lit = state !== 'dim';
 
+  const Halo = still ? View : Animated.View;
+  const Body = still ? View : Animated.View;
   return (
     <View style={{ width: size, height: size }} accessible={!!label} accessibilityRole="image" accessibilityLabel={label}>
-      <Animated.View style={[{ position: 'absolute', width: size, height: size }, haloStyle]} pointerEvents="none">
+      <Halo style={[{ position: 'absolute', width: size, height: size }, still ? { opacity: p.halo } : haloStyle]} pointerEvents="none">
         <Svg viewBox="0 0 120 120" width={size} height={size}>
           <Defs>
             <RadialGradient id={id + 'h'} cx="50%" cy="54%" r="50%">
@@ -76,8 +80,8 @@ export default function Lamp({ state = 'dim', size = 120, label, night }) {
           </Defs>
           <Circle cx="60" cy="64" r="58" fill={`url(#${id}h)`} />
         </Svg>
-      </Animated.View>
-      <Animated.View style={bodyStyle} pointerEvents="none">
+      </Halo>
+      <Body style={still ? null : bodyStyle} pointerEvents="none">
         <Svg viewBox="0 0 120 120" width={size} height={size}>
           <Defs>
             <LinearGradient id={id + 'm'} x1="0" y1="0" x2="0" y2="1">
@@ -114,7 +118,7 @@ export default function Lamp({ state = 'dim', size = 120, label, night }) {
           <Path d="M45.5 87.5 H74.5" stroke={m.top} strokeWidth="4.6" strokeLinecap="round" />
           <Path d="M53 92.5 H67" stroke={m.bottom} strokeWidth="3" strokeLinecap="round" />
         </Svg>
-      </Animated.View>
+      </Body>
     </View>
   );
 }

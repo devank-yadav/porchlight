@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from './Icon';
 import { haptic } from './haptics';
@@ -20,7 +19,8 @@ export default function AppTabs({ senior = false }) {
     <TabBarContext.Provider value={senior ? 'senior' : 'family'}>
       <Tabs
         tabBar={(props) => <FloatingTabBar {...props} senior={senior} items={items} />}
-        screenOptions={{ headerShown: false, animation: 'none', sceneStyle: { backgroundColor: palette.bg } }}
+        // freezeOnBlur: tabs out of sight don't re-render on every update (native only).
+        screenOptions={{ headerShown: false, animation: 'none', freezeOnBlur: true, sceneStyle: { backgroundColor: palette.bg } }}
       >
         {items.map(([name, title]) => <Tabs.Screen key={name} name={name} options={{ title, tabBarAccessibilityLabel: title }} />)}
       </Tabs>
@@ -36,11 +36,9 @@ function FloatingTabBar({ state, navigation, descriptors, senior, items }) {
   const height = senior ? 80 : 64;
   return (
     <View pointerEvents="box-none" style={[st.wrap, { bottom: Math.max(insets.bottom - 10, 14) }]}>
-      <View style={[st.bar, { height, borderRadius: senior ? 30 : 28 }, shadow.float]}>
-        <View style={[StyleSheet.absoluteFill, st.clip, { borderRadius: senior ? 30 : 28 }]}>
-          <BlurView tint="light" intensity={80} style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(251,248,244,0.62)' : 'rgba(251,248,244,0.88)' }]} />
-        </View>
+      {/* Opaque on purpose: a see-through bar with a shadow (and a live blur inside) makes iPhone redraw it
+          offscreen on every frame of scrolling. A solid bar gets a cheap, precomputed shadow. */}
+      <View style={[st.bar, { height, borderRadius: senior ? 30 : 28, backgroundColor: palette.surface2 }, shadow.float]}>
         <View style={st.row} accessibilityRole="tablist">
           {items.map(([name, title, icon]) => {
             const route = state.routes.find((r) => r.name === name);
@@ -94,8 +92,7 @@ function useKeyboardShown() {
 
 const st = StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16, alignItems: 'center' },
-  bar: { width: '100%', maxWidth: 560, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(30,25,21,0.10)', backgroundColor: 'rgba(251,248,244,0.35)' },
-  clip: { overflow: 'hidden' },
+  bar: { width: '100%', maxWidth: 560, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(30,25,21,0.10)' },
   row: { flex: 1, flexDirection: 'row', alignItems: 'stretch', padding: 6, gap: 2 },
   item: { flex: 1 },
   pill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingHorizontal: 4 },

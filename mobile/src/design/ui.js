@@ -194,7 +194,7 @@ export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', dis
                 <Stop offset="1" stopColor="#F29A15" />
               </LinearGradient>
             </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gid})`} />
+            <Rect x="0" y="0" width="100%" height="100%" rx={radius.lg} ry={radius.lg} fill={`url(#${gid})`} />
           </Svg>
         </View>
       ) : null}
@@ -247,8 +247,8 @@ export function HeroCard({ children, style, glow = true, glowAt = 'left', tone =
                 <Stop offset="1" stopColor="#B4560F" stopOpacity="0" />
               </RadialGradient>
             </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id}e)`} />
-            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
+            <Rect x="0" y="0" width="100%" height="100%" rx={radius.xl} ry={radius.xl} fill={`url(#${id}e)`} />
+            <Rect x="0" y="0" width="100%" height="100%" rx={radius.xl} ry={radius.xl} fill={`url(#${id})`} />
           </Svg>
         </View>
       ) : null}
@@ -532,10 +532,10 @@ export function Segmented({ options, value, onChange, style }) {
 
 // Mounts with a short fade-up only when it arrives after the screen is already showing
 // (a new ride request, a new task), never when a tab is opened.
-export function useSettled(ms = 700) {
-  const [settled, setSettled] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setSettled(true), ms); return () => clearTimeout(t); }, [ms]);
-  return settled;
+// Kept for the screens that pass it to Appear. Always settled now: the old 0.7 s timer re-rendered the
+// whole screen just as Peggy reached for her first tap.
+export function useSettled() {
+  return true;
 }
 // A section wrapper. Entrance animations are off: on some iPhones in Expo Go they never ran and
 // left whole screens invisible. on/index are kept so screens don't change.
@@ -566,8 +566,8 @@ const st = StyleSheet.create({
   hero: { backgroundColor: night.bg, borderRadius: radius.xl, padding: 22, gap: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,247,236,0.08)', shadowColor: '#2A1A0C', shadowOpacity: 0.22, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
   // Spelled out: React Native 0.86 dropped StyleSheet.absoluteFillObject (the web preview still has it),
   // and without it the glow sat in the layout and pushed the card's content out of sight on iPhone.
-  bigFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.lg, overflow: 'hidden' },
-  heroClip: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.xl, overflow: 'hidden' },
+  bigFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  heroClip: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   tileSlot: { flexGrow: 1, flexBasis: '40%', minWidth: 0 },
   tile: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: 14, alignItems: 'flex-start' },
   tileTitle: { fontSize: 16, lineHeight: 21, fontWeight: '600', letterSpacing: -0.2 },

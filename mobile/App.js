@@ -64,9 +64,14 @@ function Header({ senior }) {
   const who = ctx.role;
   const switchPerson = () => openRoleSheet(ctx);
   return <View style={[st.header, { paddingTop: insets.top, backgroundColor: bg }]}>
+    {/* Content softens as it scrolls up under the bar. Drawn first, so the avatar's shadow sits on top of it. */}
+    <Svg pointerEvents="none" style={st.fade} width="100%" height={18}>
+      <Defs><LinearGradient id="headerFade" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={bg} stopOpacity="1" /><Stop offset="1" stopColor={bg} stopOpacity="0" /></LinearGradient></Defs>
+      <Rect x="0" y="0" width="100%" height="18" fill="url(#headerFade)" />
+    </Svg>
     <View style={st.headerRow}>
       <Press onPress={switchPerson} onLongPress={() => openDemoMenu(ctx)} delayLongPress={600} scaleTo={0.98} accessibilityLabel={'Porchlight, sample. Using it as ' + who.title + '. Switch person'} accessibilityHint="Long press for demo controls" style={st.brandButton}>
-        <Lamp state={lampState(peggy)} size={senior ? 36 : 32} />
+        <Lamp state={lampState(peggy)} size={senior ? 36 : 32} still />
         <Text style={[st.brand, senior && st.brandSenior]}>Porchlight</Text>
         <View style={st.sample}><Text style={[st.sampleText, senior && st.sampleSenior]}>Sample</Text></View>
       </Press>
@@ -78,11 +83,6 @@ function Header({ senior }) {
       <View style={st.offlineDot} />
       <Text style={[st.offlineText, senior && { fontFamily: font.readBold, fontWeight: 'normal', fontSize: 20, lineHeight: 26 }]}>Connection lost. Showing the last update.</Text>
     </View> : null}
-    {/* Content softens as it scrolls up under the bar. */}
-    <Svg pointerEvents="none" style={st.fade} width="100%" height={18}>
-      <Defs><LinearGradient id="headerFade" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={bg} stopOpacity="1" /><Stop offset="1" stopColor={bg} stopOpacity="0" /></LinearGradient></Defs>
-      <Rect x="0" y="0" width="100%" height="18" fill="url(#headerFade)" />
-    </Svg>
   </View>;
 }
 

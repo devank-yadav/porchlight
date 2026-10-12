@@ -59,13 +59,15 @@ function whenLabel(iso, tz) {
   return dayLabel(iso, tz);
 }
 
-export default function SeniorScreen({ senior, page = 'today' }) {
-  const { state, refresh, setRole } = useAppContext();
+// Phone-level work for Peggy's side, mounted once (senior/_layout.js) rather than once per open page,
+// so the calendar, push sign-up, pill reminders and Uber notices don't run three or four times in parallel.
+export function SeniorEffects() {
+  const { state, refresh } = useAppContext();
+  const senior = state?.seniors?.find((s) => s._id === 'peggy');
+  return senior ? <PhoneSync senior={senior} state={state} refresh={refresh} /> : null;
+}
+function PhoneSync({ senior, state, refresh }) {
   useCalendarSync(senior, state);
-  const members = state.members.filter((m) => m.circleId === senior.circleId);
-  const primary = members.find((m) => m.primary);
-  const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
-  const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
   // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
   useEffect(() => Platform.OS === 'web' ? undefined : startPush(senior._id), [senior._id]);
   // Daily pill reminders on this phone, with an "I took it" button (meds/reminders.js).
@@ -81,6 +83,15 @@ export default function SeniorScreen({ senior, page = 'today' }) {
       if (Platform.OS !== 'web' && !pushRegistered) notifyLocally({ title: 'Your Uber is ready to book', body: 'Tap to open Uber with your trip filled in, then press Request.', url: n.uberLink });
     }
   }, [state.notices, senior._id]);
+  return null;
+}
+
+export default function SeniorScreen({ senior, page = 'today' }) {
+  const { state, refresh, setRole } = useAppContext();
+  const members = state.members.filter((m) => m.circleId === senior.circleId);
+  const primary = members.find((m) => m.primary);
+  const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
+  const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
 
   const plans = upcomingPlans(state, senior);
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -435,7 +446,7 @@ function Talk({ senior, done }) {
     <View style={{ flex: 1 }}>
       <View style={st.talkHead}>
         <View style={st.talkHeadRow}>
-          <Lamp state="lit" size={52} label="Porch light on" />
+          <Lamp state="lit" size={52} label="Porch light on" still />
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={st.talkStatus} accessibilityLiveRegion="polite">{status}</Text>
             <Text style={st.talkSub}>Porchlight is an AI</Text>
@@ -506,7 +517,7 @@ function Bubble({ line, reduced }) {
   </View>;
 }
 function LampAvatar() {
-  return <View style={st.lampAvatar}><Lamp state="lit" size={40} night /></View>;
+  return <View style={st.lampAvatar}><Lamp state="lit" size={40} night still /></View>;
 }
 function Typing({ reduced }) {
   return <Animated.View style={st.themRow} accessible accessibilityLabel="Porchlight is thinking">
@@ -828,7 +839,7 @@ const st = StyleSheet.create({
   knob: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFFFFF', shadowColor: '#3B2A1A', shadowOpacity: 0.18, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
   transcript: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 20, gap: 14 },
   themRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, maxWidth: '94%' },
-  lampAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: night.bg, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  lampAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: night.bg, alignItems: 'center', justifyContent: 'center' },
   bubble: { paddingHorizontal: 18, paddingVertical: 14, borderRadius: 24 },
   bubbleThem: { flexShrink: 1, backgroundColor: P.surface, borderTopLeftRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: P.line, ...shadow.card },
   bubbleMe: { alignSelf: 'flex-end', maxWidth: '86%', backgroundColor: P.ink, borderBottomRightRadius: 8 },

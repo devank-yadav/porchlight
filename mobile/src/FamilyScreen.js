@@ -950,7 +950,7 @@ function Stories({ senior, checkins, state, me, run }) {
         <Appear on={settled}>
           <Card tone="lamp" style={{ gap: 10 }} accessibilityLabel={`${name} is on her call now. ${heard.length ? 'New stories show up as she tells them.' : 'Listening.'}`}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Lamp state="lit" size={30} />
+              <Lamp state="lit" size={30} still />
               <T v="headline" style={{ flex: 1 }}>On her call now</T>
               <Chip label="Live" icon="waveform" tone="lamp" />
             </View>
