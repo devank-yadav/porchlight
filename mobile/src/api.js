@@ -58,7 +58,9 @@ export const api = {
   // Everything for this account's care circle (the server filters by who is signed in).
   state: () => call('GET', '/api/state'),
   syncCalendar: (seniorId, body) => call('POST', `/api/seniors/${seniorId}/calendar`, body),
-  help: (seniorId) => call('POST', `/api/seniors/${seniorId}/help`),
+  // location: { lat, lng, accuracy, address } when the phone shares it (location.js).
+  help: (seniorId, location) => call('POST', `/api/seniors/${seniorId}/help`, { location }),
+  onIt: (seniorId) => call('POST', `/api/seniors/${seniorId}/help/ack`),
   resolve: (seniorId) => call('POST', `/api/seniors/${seniorId}/resolve`),
   // purpose 'scam': the call asks what happened and says whether it sounds like a scam.
   phoneCall: (seniorId, purpose = 'checkin') => call('POST', `/api/seniors/${seniorId}/call`, { purpose }),

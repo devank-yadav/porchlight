@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from './api';
+import { askForLocation } from './location';
 import { useAppContext } from './AppContext';
 import Lamp from './Lamp';
 import { Appear, BigButton, Button, Card, HeroCard, IconTile, Press, T } from './design/ui';
@@ -142,7 +143,9 @@ function SeniorSetup({ me, account }) {
     if (!name.trim() || busy) return;
     setBusy(true);
     try {
-      account.setMe(await api.setupSenior({ preferredName: name.trim(), home: home.trim(), timezone: zone(), join: join || undefined }));
+      const me = await api.setupSenior({ preferredName: name.trim(), home: home.trim(), timezone: zone(), join: join || undefined });
+      await askForLocation(); // for "I need help" only
+      account.setMe(me);
       finish('senior');
     } catch (e) { toast.error('That didn’t save', { description: e.message }); } finally { setBusy(false); }
   };
@@ -157,6 +160,7 @@ function SeniorSetup({ me, account }) {
     <Label>Your home address (for rides)</Label>
     <Field value={home} onChangeText={setHome} placeholder="12 Main St, Springfield" textContentType="fullStreetAddress" autoComplete="street-address" accessibilityLabel="Your home address, optional" />
     <T v="readSmall" muted>Optional. Uber uses it as your pickup spot.</T>
+    <T v="readSmall" muted>Next, your phone asks to share your location. Porchlight only sends it to your family when you press “I need help”.</T>
     <Button variant="primary" icon="checkmark" label={join ? 'Join my family' : 'Done'} onPress={save} busy={busy} disabled={!name.trim()} />
     <SignOutLink account={account} />
   </View>;

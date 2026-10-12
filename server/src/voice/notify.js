@@ -33,11 +33,11 @@ export async function sayOnCall(to, message) {
 }
 
 // A message for someone in the circle: a phone notification on their Porchlight app (when they have
-// one), and a text when Twilio has a number to send from.
-export async function sms(member, text) {
-  const entry = { at: new Date().toISOString(), to: member.name, toId: member._id, text, delivered: 'logged' };
+// one), and a text when Twilio has a number to send from. urgent: a loud, time-sensitive notification.
+export async function sms(member, text, { title = 'Porchlight', urgent = false } = {}) {
+  const entry = { at: new Date().toISOString(), to: member.name, toId: member._id, text, delivered: 'logged', ...(urgent ? { urgent: true } : {}) };
   feed.push(entry);
-  if (member.pushToken && await expoPush(member.pushToken, { title: 'Porchlight', body: text })) entry.delivered = 'push';
+  if (member.pushToken && await expoPush(member.pushToken, { title, body: text, urgent })) entry.delivered = 'push';
   // Only text real numbers; demo numbers start with +1555.
   if (twilioEnabled && member.phone && !member.phone.startsWith('+1555')) {
     try {
@@ -92,11 +92,14 @@ export async function push(senior, { title, body, url }) {
   return entry;
 }
 
-async function expoPush(to, { title, body, url }) {
+async function expoPush(to, { title, body, url, urgent = false }) {
   try {
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ to, title, body, sound: 'default', data: url ? { url } : {} }),
+      body: JSON.stringify({
+        to, title, body, sound: 'default', data: url ? { url } : {},
+        ...(urgent ? { priority: 'high', interruptionLevel: 'time-sensitive' } : {}),
+      }),
       signal: AbortSignal.timeout(5000),
     });
     const out = await res.json().catch(() => ({}));

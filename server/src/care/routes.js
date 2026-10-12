@@ -10,6 +10,7 @@ import * as audit from './audit.js';
 import { buildDigest } from './digest.js';
 import { syncCalendar } from './calendar.js';
 import * as meds from './meds.js';
+import { helpContext } from './help.js';
 import { wrap } from '../wrap.js';
 import { assertSenior, ownDoc, actingMember, seniorIdOf } from '../account/access.js';
 import { canCall } from '../voice/schedule.js';
@@ -54,6 +55,7 @@ careRoutes.get('/api/state', wrap(async (req, res) => {
     medsToday = [];
     checkins = checkins.map((c) => ({ ...c, transcript: [], medStatus: 'private', medsTaken: null, flags: (c.flags || []).filter((f) => f.type !== 'meds_unsure') }));
     tasks = tasks.map((t) => (t.sensitive ? { ...t, title: `Private task (${primary?.name.split(' ')[0] || 'the primary contact'} can see it)`, quote: null } : t));
+    escalations = escalations.map((e) => (e.context?.meds ? { ...e, context: { ...e.context, meds: null } } : e));
   }
   // Push tokens and the account links are server-side details.
   const strip = ({ pushToken, accountId, ...rest }) => ({ ...rest, hasApp: Boolean(accountId) });
@@ -112,16 +114,28 @@ careRoutes.delete('/api/seniors/:id/doses', wrap(async (req, res) => {
 }));
 
 // ---------- Senior buttons ----------
+// { location?: { lat, lng, accuracy, address } } from the phone, when location is allowed.
 careRoutes.post('/api/seniors/:id/help', wrap(async (req, res) => {
   assertSenior(req, req.params.id);
-  res.json(await escalation.start(await store.get('seniors', req.params.id), 'help'));
+  const senior = await store.get('seniors', req.params.id);
+  const context = await helpContext(senior, req.body?.location);
+  await audit.log(actor(req), 'help.pressed', { seniorId: senior._id, detail: context.location ? 'with location' : 'no location' });
+  res.json(await escalation.start(senior, 'help', context));
+}));
+
+// A family member takes the alert ("I'm on it").
+careRoutes.post('/api/seniors/:id/help/ack', wrap(async (req, res) => {
+  assertSenior(req, req.params.id);
+  const member = await actingMember(req);
+  if (!member) throw new HttpError(403, 'Only family members can take an alert.');
+  res.json(await escalation.acknowledge(req.params.id, member));
 }));
 
 careRoutes.post('/api/seniors/:id/resolve', wrap(async (req, res) => {
   assertSenior(req, req.params.id);
   const member = await actingMember(req);
   const senior = await store.get('seniors', req.params.id);
-  const n = await escalation.resolve(req.params.id, member?.name || `${senior.preferredName} herself`);
+  const n = await escalation.resolve(req.params.id, member?.name || senior.preferredName);
   await store.update('seniors', req.params.id, { status: 'ok' });
   res.json({ resolved: n });
 }));

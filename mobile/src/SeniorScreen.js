@@ -5,6 +5,7 @@ import Animated from 'react-native-reanimated';
 import * as Speech from 'expo-speech';
 import { api } from './api';
 import { useCalendarSync } from './calendar';
+import { askForLocation, hereNow } from './location';
 import { notifyLocally, pushRegistered, startPush } from './push';
 import { useMedReminders } from './meds/reminders';
 import PillsCard from './meds/PillsCard';
@@ -69,6 +70,8 @@ function PhoneSync({ senior, state, refresh }) {
   useCalendarSync(senior, state);
   // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
   useEffect(() => Platform.OS === 'web' ? undefined : startPush(), []);
+  // Location is used only for "I need help" (asked at setup; this covers phones set up before that).
+  useEffect(() => { askForLocation(); }, []);
   // Daily pill reminders on this phone, with an "I took it" button (meds/reminders.js).
   useMedReminders(senior, state, refresh);
   // Fallback when push isn't set up: the app shows the Uber notification itself for rides that arrive while it's open.
@@ -98,7 +101,7 @@ export default function SeniorScreen({ senior, page = 'today' }) {
     {page === 'family' && <Family senior={senior} members={members} account={account} />}
     {page === 'scam' && <ScamCheck senior={senior} state={state} back={home} />}
     {page === 'tech' && <TechHelp senior={senior} back={home} />}
-    {page === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
+    {page === 'help' && <Help senior={senior} state={state} back={home} refresh={refresh} />}
   </KeyboardAvoidingView>;
 }
 
@@ -424,14 +427,14 @@ function Notified() {
 }
 
 // ── I need help ─────────────────────────────────────────────────────────────
-function Help({ senior, back, refresh }) {
+function Help({ senior, state, back, refresh }) {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const send = async () => {
     if (sending) return;
     setSending(true);
     try {
-      await api.help(senior._id);
+      await api.help(senior._id, await hereNow());
       haptic.warn();
       setSent(true);
       refresh();
@@ -441,13 +444,15 @@ function Help({ senior, back, refresh }) {
       setSending(false);
     }
   };
+  const alert = (state?.escalations || []).find((e) => e.seniorId === senior._id && e.status === 'active' && e.reason === 'help');
   if (sent) {
+    const onIt = alert?.ack ? alert.ack.name.split(' ')[0] : null;
     return (
       <Screen contentStyle={st.centerPage}>
         <Animated.View style={st.centerStack}>
           <Lamp state="alert" size={168} label="Help requested" />
           <T v="readTitle" center>Your help request is sent.</T>
-          <T v="read" muted center>Porchlight has asked your family to contact you. A response is not confirmed yet. If you’re hurt, call 911.</T>
+          <T v="read" muted center accessibilityLiveRegion="polite">{onIt ? `${onIt} saw your alert and is on it.` : 'Your family has your alert and where you are. Porchlight is calling them now.'} If you’re hurt, call 911.</T>
         </Animated.View>
         <View style={st.stack}>
           <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
@@ -462,10 +467,10 @@ function Help({ senior, back, refresh }) {
       <View style={st.pageHead}>
         <View style={st.helpHalo}><View style={st.helpDisc}><Icon name="hand.raised.fill" size={46} color="#FFFFFF" /></View></View>
         <T v="readDisplay" center style={st.name}>Do you need help now?</T>
-        <T v="read" muted center>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</T>
+        <T v="read" muted center>Porchlight will alert your family right away and call them, with where you are. If you’re hurt, call 911.</T>
       </View>
       <View style={st.stack}>
-        <Button variant="danger" icon="bell.fill" label="Yes, alert my family" accessibilityHint="Texts your family now, then your neighbor." onPress={send} busy={sending} />
+        <Button variant="danger" icon="bell.fill" label="Yes, alert my family" accessibilityHint="Alerts and calls your family now, with your location." onPress={send} busy={sending} />
         <Button variant="secondary" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
       </View>
     </Screen>

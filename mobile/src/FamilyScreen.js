@@ -211,18 +211,19 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
   ].slice(0, 3);
   const familyPath = (page) => router.push('/family/' + page);
   const memberName = (id) => first(circle.find((m) => m._id === id)?.name) || 'Someone';
-  const needs = (escalation ? 1 : 0) + pending.length + flags.length + tasks.length;
+  const needs = (escalation && escalation.reason !== 'help' ? 1 : 0) + pending.length + flags.length + tasks.length;
   const starters = talkStarters(checkins, latestTalk);
   const date = new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'short', day: 'numeric' });
   const settled = useSettled();
 
   return <>
     <Appear on index={0}><LargeTitle title="Today" subtitle={`${name} · ${date}`} /></Appear>
+    {escalation?.reason === 'help' && <EscalationCard escalation={escalation} senior={senior} me={me} run={run} />}
     <Appear on index={1}><PorchHero senior={senior} state={state} viewer={circle.find((m) => m._id === me)} latest={latest} escalation={escalation} checkedIn={checkedIn} /></Appear>
 
     <Appear on index={2}>
       <Block title="Needs you" right={needs ? <CountPill n={needs} /> : null}>
-        {escalation && <Appear on={settled}><EscalationCard escalation={escalation} senior={senior} me={me} run={run} /></Appear>}
+        {escalation && escalation.reason !== 'help' && <Appear on={settled}><EscalationCard escalation={escalation} senior={senior} me={me} run={run} /></Appear>}
         {pending.map((action) => <Appear key={action._id} on={settled}><ActionCard action={action} state={state} me={circle.find((m) => m._id === me)} run={run} senior={senior} /></Appear>)}
         {flags.length > 0 && <Appear on={settled}><FlagsCard flags={flags} name={name} /></Appear>}
         {tasks.length > 0 && (
@@ -317,30 +318,70 @@ function PorchHero({ senior, state, viewer, latest, escalation, checkedIn }) {
 function EscalationCard({ escalation, senior, me, run }) {
   const name = senior.preferredName;
   const help = escalation.reason === 'help';
+  const ctx = escalation.context || {};
+  const tz = tzOf(senior);
+  const ack = escalation.ack;
+  const where = !help ? null : !ctx.location ? 'Location not shared (it’s off on their phone)'
+    : [ctx.location.address, ctx.nearHome ? 'at home' : null].filter(Boolean).join(' · ') || 'See the map';
+  const facts = help ? [
+    ['clock', 'Pressed', when(ctx.at || escalation.createdAt, tz)],
+    ['location.fill', 'Where', where],
+    ctx.lastCall && ['phone', 'Last call', `${when(ctx.lastCall.at, tz)}: ${ctx.lastCall.summary}`],
+    ctx.scam && ['exclamationmark.shield', 'Scam worry', `${ctx.scam.verdict}: “${ctx.scam.what}”`],
+    ctx.meds && ['pills', 'Pills today', `${ctx.meds.taken} of ${ctx.meds.total} taken${ctx.meds.missed ? `, ${ctx.meds.missed} missed` : ''}`],
+  ].filter(Boolean) : [];
   return (
     <Card tone={help ? 'red' : 'lamp'} style={{ gap: 16 }} accessibilityLiveRegion="polite">
       <View style={st.cardHead}>
         <IconTile icon={help ? 'hand.raised.fill' : 'phone.arrow.up.right'} tone={help ? 'red' : 'lamp'} size={44} />
         <View style={{ flex: 1, gap: 2 }}>
-          <T v="headline">{help ? name + ' needs someone to contact her' : 'Let’s get in touch'}</T>
-          <T v="callout" muted>{help ? `${name} pressed the help button. If there is an emergency, call 911.` : `A missed call doesn’t tell us why. ${name} may be out or asleep.`}</T>
+          <T v="headline">{help ? `${name} pressed “I need help”` : 'Let’s get in touch'}</T>
+          <T v="callout" muted>{help ? 'Call them now. If you can’t reach them and it may be an emergency, call 911.' : `A missed call doesn’t tell us why. ${name} may be out or asleep.`}</T>
         </View>
       </View>
-      <View style={st.ladder}>
-        {escalation.steps.map((s, i) => (
-          <View key={i} style={st.ladderRow}>
-            <View style={st.ladderRail}>
-              <View style={[st.ladderDot, { backgroundColor: s.status === 'done' ? accent.green : s.status === 'held' ? light.faint : accent.lamp }]} />
-              {i < escalation.steps.length - 1 ? <View style={st.ladderLine} /> : null}
+      {facts.length ? (
+        <View style={st.details}>
+          {facts.map(([icon, label, value], i) => (
+            <View key={label}>
+              {i > 0 && <View style={st.detailLine} />}
+              <View style={st.detail} accessible accessibilityLabel={`${label}: ${value}`}>
+                <Icon name={icon} size={15} color={light.muted} />
+                <T v="callout" muted style={{ width: 78 }}>{label}</T>
+                <T v="callout" style={{ flex: 1, fontWeight: '600' }}>{value}</T>
+              </View>
             </View>
-            <View style={{ flex: 1, paddingBottom: i < escalation.steps.length - 1 ? 12 : 0 }}>
-              <T v="callout" style={{ fontWeight: '600' }}>{s.label}</T>
-              <T v="footnote" muted>{s.status === 'done' ? 'Sent ' + ago(s.at) : s.status === 'held' ? 'Held for quiet hours' : 'Next'}</T>
+          ))}
+        </View>
+      ) : null}
+      {help && (
+        <View style={st.btnRow}>
+          {senior.phone ? <Button variant="primary" icon="phone.fill" label={`Call ${name}`} style={{ flex: 1 }} onPress={() => Linking.openURL('tel:' + senior.phone)} /> : null}
+          {ctx.location ? <Button icon="map.fill" label="Open map" style={{ flex: 1 }} onPress={() => Linking.openURL(ctx.location.mapUrl)} /> : null}
+        </View>
+      )}
+      {ack ? (
+        <View style={st.waiting}>
+          <Icon name="person.fill.checkmark" size={14} color={light.muted} />
+          <T v="callout" muted>{ack.memberId === me ? 'You’re on it.' : `${first(ack.name)} is on it.`} {when(ack.at, tz)}</T>
+        </View>
+      ) : (
+        <View style={st.ladder}>
+          {escalation.steps.map((s, i) => (
+            <View key={i} style={st.ladderRow}>
+              <View style={st.ladderRail}>
+                <View style={[st.ladderDot, { backgroundColor: s.status === 'done' ? accent.green : ['held', 'skipped'].includes(s.status) ? light.faint : accent.lamp }]} />
+                {i < escalation.steps.length - 1 ? <View style={st.ladderLine} /> : null}
+              </View>
+              <View style={{ flex: 1, paddingBottom: i < escalation.steps.length - 1 ? 12 : 0 }}>
+                <T v="callout" style={{ fontWeight: '600' }}>{s.label}</T>
+                <T v="footnote" muted>{s.status === 'done' ? 'Sent ' + ago(s.at) : s.status === 'held' ? 'Held for quiet hours' : s.status === 'skipped' ? 'Not needed' : 'Next'}</T>
+              </View>
             </View>
-          </View>
-        ))}
-      </View>
-      <Button variant="primary" icon="checkmark" label={'I reached ' + name + ', all okay'} onPress={run(() => api.resolve(senior._id), 'Thanks. The status is updated.')} />
+          ))}
+        </View>
+      )}
+      {!ack && <Button variant="primary" icon="hand.raised.fill" label="I’m on it" accessibilityHint="Tells the family and Porchlight you’re reaching them now." onPress={run(() => api.onIt(senior._id), ['Thanks', `The family knows you’re reaching ${name}.`])} />}
+      <Button variant={ack ? 'primary' : 'secondary'} icon="checkmark" label={'I reached ' + name + ', all okay'} onPress={run(() => api.resolve(senior._id), 'Thanks. The alert is closed.')} />
     </Card>
   );
 }
