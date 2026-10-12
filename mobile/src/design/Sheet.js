@@ -4,7 +4,7 @@ import Animated, { Extrapolation, interpolate, useAnimatedReaction, useAnimatedS
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ease, project, radius, rubberband, spring } from './tokens';
+import { dark, ease, light, project, radius, rubberband, spring } from './tokens';
 import { ThemeProvider } from './theme';
 import { haptic } from './haptics';
 
@@ -44,7 +44,7 @@ export function SheetBackground({ children, style }) {
   const anim = useAnimatedStyle(() => {
     const p = progress.get();
     return {
-      borderRadius: interpolate(p, [0, 1], [0, 14], Extrapolation.CLAMP),
+      borderRadius: interpolate(p, [0, 1], [0, 18], Extrapolation.CLAMP),
       transform: [
         { translateY: interpolate(p, [0, 1], [0, insets.top * 0.5], Extrapolation.CLAMP) },
         { scale: interpolate(p, [0, 1], [1, 0.94], Extrapolation.CLAMP) },
@@ -127,7 +127,7 @@ function Drawer({ entry }) {
           {/* Fills the gap below when the sheet is rubber-banded upward. */}
           <View style={[st.underfill, entry.theme === 'dark' && st.sheetDark]} />
           <View style={st.handleZone} accessibilityLabel="Drag down to close">
-            <View style={[st.handle, entry.theme === 'dark' && { backgroundColor: 'rgba(255,255,255,0.25)' }]} />
+            <View style={[st.handle, entry.theme === 'dark' && { backgroundColor: 'rgba(255,247,236,0.25)' }]} />
           </View>
           <ThemeProvider value={entry.theme}>{entry.render(close)}</ThemeProvider>
         </Animated.View>
@@ -137,10 +137,10 @@ function Drawer({ entry }) {
 }
 
 const st = StyleSheet.create({
-  backdrop: { backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: 20 },
-  sheetDark: { backgroundColor: '#18181B' },
-  underfill: { position: 'absolute', left: 0, right: 0, top: '100%', height: 400, backgroundColor: '#fff' },
+  backdrop: { backgroundColor: 'rgba(27,22,19,0.42)' },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: light.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: 20, shadowColor: '#3B2A1A', shadowOpacity: 0.16, shadowRadius: 30, shadowOffset: { width: 0, height: -6 } },
+  sheetDark: { backgroundColor: dark.surface },
+  underfill: { position: 'absolute', left: 0, right: 0, bottom: -400, height: 400, backgroundColor: light.surface },
   handleZone: { alignItems: 'center', paddingTop: 10, paddingBottom: 14 },
-  handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.15)' },
+  handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: 'rgba(30,25,21,0.16)' },
 });

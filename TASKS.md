@@ -7,6 +7,13 @@
 ## App UI v3 ("evening porch") — October 11, 2026
 
 - [x] U3 — Devank (Claude Code), `claude/project-thread-cwsvbd`; implemented, merged to main via [PR #84](https://github.com/devank-yadav/porchlight/pull/84). Owner notice: `mobile/*` only, no server, API or route-contract changes. Warm paper palette, night porch-light hero card, floating tab bar, slim header, new ui.js components (HeroCard, Tile, ListGroup/ListRow, Avatar, SectionHeader, LargeTitle, Chip, IconTile, Screen). Every Peggy and family screen rebuilt with all features kept. The volunteer desk is removed from the app at Devank's request (server endpoints untouched). Medications (M1) and the Uber tap fix (N1) mounted in the new layout; the family hero shows today's pills from the reminders. Checked: lint, iOS export, every route loads with no errors at 390x844 on the web preview. Next: phone check in Expo Go (Devank reviewing).
+  - Restored and fixed for iPhone (Devank, Claude Code, `claude/project-thread-cwsvbd`, Oct 12). Stage: merged; not yet validated on Devank's phone. v3 had been reverted for the demo (#91). It is now back on top of main, keeping #95's Uber link, meds, calendar and the Uber flow. Tested in Expo Go on an iPhone 17 simulator (iOS 26.5) through the Laptop terminal thread.
+    - Root cause of the "nothing loads" iPhone failure: React Native 0.86 no longer has `StyleSheet.absoluteFillObject` (the web preview still does). The hero card's glow layer was therefore laid out as content and pushed the card's text, the lamp and the start screen's doors off screen.
+    - Also iPhone-only: React Native measures '100%' on an absolute layer inside a padded view within the padding. This affected Peggy's door gradient, the header fade and the sheet under-fill. iOS also puts a narrow no-break space before AM/PM, which wrapped "2:00 PM" on family Plans.
+    - Talk now shows a long message from its first word.
+    - Smoother: solid tab bar, no rounded clip layers behind gradients, still lamps in the header and chat, hidden tabs frozen, no settle re-render. Peggy's calendar, push and pill-reminder sync runs once (senior/_layout.js), not once per open page.
+    - Not the app: two Metro servers, `--offline`, and the laptop server on an old branch.
+    - Checked: lint, iOS export, 14 routes on web, simulator screenshots of the start screen, both Today screens, plans and talk. Taps weren't testable on the headless simulator.
 
 ## Medications and daily reminders — October 11, 2026
 
