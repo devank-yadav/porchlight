@@ -84,10 +84,10 @@ export async function connect() {
     return 'mongo';
   } catch (e) {
     // Driver messages may contain connection details. Log only the error category/code.
-    console.warn(`[store] MongoDB unavailable (${e.name}${e.code ? `, code ${e.code}` : ''}); using in-memory store instead.`);
     if (candidate) await candidate.close().catch(() => {});
     db = null;
     load();
+    console.warn(`[store] MongoDB unavailable (${e.name}${e.code ? `, code ${e.code}` : ''}); ${file ? `saving to ${path.relative(process.cwd(), file)} instead` : 'using memory only (resets on restart)'}.`);
     return 'memory';
   }
 }

@@ -5,6 +5,7 @@
 import { WebSocketServer } from 'ws';
 import * as store from '../store.js';
 import { addTurn } from './checkins.js';
+import { endInboundCall } from './inbound.js';
 
 export const relayEnabled = () => process.env.VOICE_MODE === 'relay';
 
@@ -113,7 +114,12 @@ function onConnection(ws) {
       console.warn('[relay] Twilio error:', msg.description);
     }
   });
-  ws.on('close', () => console.log(`[relay] closed (check-in ${checkinId})`));
+  ws.on('close', () => {
+    console.log(`[relay] closed (check-in ${checkinId})`);
+    // A call she made in has no daily-call status webhook behind it: save it now (no-op for daily calls).
+    // Waits a moment so a turn still being written lands in the transcript first.
+    setTimeout(() => endInboundCall(checkinId).catch(console.error), busy ? TURN_LIMIT_MS : 500);
+  });
 }
 
 export function attachRelay(server) {

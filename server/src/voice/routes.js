@@ -5,6 +5,7 @@ import * as store from '../store.js';
 import { VOICE } from './notify.js';
 import { callSenior, setSchedule, scheduleOf, startScheduler, scheduleRetry } from './schedule.js';
 import { relayEnabled, relayTwiml } from './relay.js';
+import { inboundRoutes, endInboundCall } from './inbound.js';
 import { transcribeRecording } from './stt.js';
 import { startCheckin, addTurn, finishCheckin } from './checkins.js';
 import * as escalation from '../care/escalation.js';
@@ -85,6 +86,9 @@ voiceRoutes.put('/api/seniors/:id/schedule', wrap(async (req, res) => {
 }));
 startScheduler();
 
+// Call-in number (off unless INBOUND_CALLS_ENABLED=1): voice/inbound.js.
+voiceRoutes.use(inboundRoutes);
+
 voiceRoutes.post('/twilio/voice', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
   if (!checkin) return res.type('text/xml').send(twiml('<Hangup/>'));
@@ -102,6 +106,7 @@ voiceRoutes.post('/twilio/relay-done', (req, res) => {
   if (req.body.ErrorCode || req.body.ErrorMessage) console.warn('[relay] ended with error:', req.body.ErrorCode, req.body.ErrorMessage);
   let transfer = null;
   try { transfer = JSON.parse(req.body.HandoffData || '{}').transfer; } catch {}
+  endInboundCall(req.query.checkinId).catch(console.error); // a call she made in (daily calls finish in /twilio/status)
   res.type('text/xml').send(twiml(transfer ? dialTo(transfer) : '<Hangup/>'));
 });
 
