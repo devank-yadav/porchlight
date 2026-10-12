@@ -17,14 +17,17 @@ npm run dev              # server on :3001 + Expo dev server
 On your iPhone: install **Expo Go** from the App Store, scan the QR code in the terminal with the Camera app.
 The app finds the server on the laptop automatically (same Wi-Fi). If campus Wi-Fi blocks it:
 `ngrok http 3001`, put the https URL in `mobile/.env` as EXPO_PUBLIC_API_URL, and run `npm run app:tunnel`.
-Works with an empty .env (demo mode: rule-based AI, in-memory data, texts logged not sent).
+Works with an empty .env (development mode: rule-based AI, data saved to server/data/porchlight.json, sign-in codes shown in the app instead of called, texts logged not sent).
+Test data: `SEED_DEMO=1` loads the fictional Hollis family (sign in as +1 555 010 0009 for the older adult, +1 555 010 0001 for Anne). Never in production.
 
 ## Layout
 ```
 mobile/App.js               Providers, floating header, toasts, sheet host
-mobile/src/StartScreen.js   "Who is this phone for?" two doors + family picker
-mobile/src/menus.js         Sheets: switch person, demo controls (long-press the name)
-mobile/src/SeniorScreen.js  Peggy: big buttons, talk (speech out + keyboard dictation in), scam check, help
+mobile/src/Onboarding.js    First run: who it's for → phone number → code read out by a call → setup (one role per phone)
+mobile/src/session.js       Sign-in token in the iOS keychain (expo-secure-store)
+mobile/src/CircleSettings.js Family: invites, add people, who sees what, their details, sign out, delete account
+mobile/src/menus.js         Sheet menu rows
+mobile/src/SeniorScreen.js  Older adult: big buttons, Call me now, scam check by call, help, family and account
 mobile/src/FamilyScreen.js  Family: Today / Care (daily call) / Stories / Circle tabs
 mobile/src/DeskScreen.js    Volunteer desk for the nonprofit
 mobile/src/Lamp.js          The porch light (status icon, animated)
@@ -54,6 +57,7 @@ The data contract between A, B and C is in TEAM_PLAN.md. Follow it exactly.
 ## Expo rules
 - Install native packages with versions from `mobile/node_modules/expo/bundledNativeModules.json` (`npx expo install <pkg>` if it can reach the network).
 - Only use modules that work in **Expo Go** (no custom native code), or the team can't run the app on their phones.
+  One exception: the SOS widget (`mobile/targets/sos`, see mobile/WIDGET.md) is native and only appears in a development build; the app itself still runs in Expo Go.
 - Voice input = the iOS keyboard's dictation mic. Speech output = expo-speech. Real phone calls = Twilio on the server.
 
 ## Team and ownership (fill in names) — full task list in TEAM_PLAN.md
@@ -78,7 +82,7 @@ Edit only your area unless you've told the owner. Shared files (index.js, env.js
 - Porchlight says it's an AI, and never asks for money, codes, passwords or ID numbers.
 - No medical advice or diagnoses. Only "different from usual". Urgent → alert family + suggest 911.
 - Anything told to the family is said to the senior first.
-- All demo people and organizations are fictional and labelled "sample".
+- No sample people in the product. Test fixtures (seed.js) load only with SEED_DEMO=1 and use fictional +1555 numbers, which are never called.
 
 ## Working rules for coding agents (Claude Code, Codex, any other)
 - Check TASKS.md; one task at a time; small, commit-sized changes.

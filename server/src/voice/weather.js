@@ -4,18 +4,20 @@
 const WMO = { 0: 'clear', 1: 'mostly clear', 2: 'partly cloudy', 3: 'cloudy', 45: 'foggy', 48: 'foggy', 51: 'light drizzle', 53: 'drizzle', 55: 'heavy drizzle', 61: 'light rain', 63: 'rain', 65: 'heavy rain', 66: 'freezing rain', 67: 'freezing rain', 71: 'light snow', 73: 'snow', 75: 'heavy snow', 77: 'snow grains', 80: 'rain showers', 81: 'rain showers', 82: 'heavy showers', 85: 'snow showers', 86: 'snow showers', 95: 'thunderstorms', 96: 'thunderstorms with hail', 99: 'thunderstorms with hail' };
 const cache = new Map();
 
-// "40.79,-77.85" (RIDE_HOME_LATLNG) or State College by default.
-function home() {
-  const [lat, lng] = String(process.env.RIDE_HOME_LATLNG || '40.7934,-77.8600').split(',').map(Number);
-  return { lat, lng };
+// Her home's "lat,lng" (looked up when the family adds her address). No address, no forecast.
+function home(latlng) {
+  const [lat, lng] = String(latlng || '').split(',').map(Number);
+  return Number.isFinite(lat) && Number.isFinite(lng) && latlng ? { lat, lng } : null;
 }
 
 const hour = (iso) => { const h = Number(iso.slice(11, 13)); return `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`; };
 
 // One or two plain sentences, e.g. "Now 56°F and cloudy. Rest of today: up to 61°F, 70% chance of rain
 // from 3 PM (light rain). Tomorrow: 48–63°F, partly cloudy, 10% chance of rain."
-export async function forecast(tz = 'America/New_York') {
-  const { lat, lng } = home();
+export async function forecast(tz = 'America/New_York', latlng) {
+  const spot = home(latlng);
+  if (!spot) return null;
+  const { lat, lng } = spot;
   const key = `${lat},${lng},${tz}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 15 * 60000) return hit.text;
@@ -41,9 +43,10 @@ export async function forecast(tz = 'America/New_York') {
 
 // For the call prompt: whatever is cached right now, never waiting on the network (a reply must not stall
 // on weather). A fresh fetch starts in the background when the cache is cold or stale.
-export function cachedForecast(tz = 'America/New_York') {
-  const { lat, lng } = home();
-  const hit = cache.get(`${lat},${lng},${tz}`);
-  if (!hit || Date.now() - hit.at > 15 * 60000) forecast(tz).catch(() => {});
+export function cachedForecast(tz = 'America/New_York', latlng) {
+  const spot = home(latlng);
+  if (!spot) return null;
+  const hit = cache.get(`${spot.lat},${spot.lng},${tz}`);
+  if (!hit || Date.now() - hit.at > 15 * 60000) forecast(tz, latlng).catch(() => {});
   return hit?.text || null;
 }

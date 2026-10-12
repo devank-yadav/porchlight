@@ -1,9 +1,15 @@
 // The escalation ladder: when a check-in is missed or help is requested,
 // widen the circle step by step until someone confirms the senior is okay.
 import * as store from '../store.js';
-import { sms } from '../voice/notify.js';
+import { sms, sayOnCall, twilioEnabled } from '../voice/notify.js';
+import { helpText, helpSpoken } from './help.js';
 
-const STEP_MS = Number(process.env.ESCALATION_STEP_MS || 5000); // demo speed; real life ~15 min
+// Real numbers only; fictional +1555 test numbers are never dialed.
+const dialable = (phone) => (phone && !phone.startsWith('+1555') ? phone : null);
+
+const STEP_MS = Number(process.env.ESCALATION_STEP_MS || 10 * 60000); // 10 minutes between steps (set lower for a demo)
+// A help press moves faster: if no one has said "I'm on it" after 3 minutes, the family is called again.
+const HELP_STEP_MS = Math.min(STEP_MS, 3 * 60000);
 const timers = new Map();
 
 // Quiet hours (B7): no texts 9 PM–8 AM in the member's own time zone for an unresolved
@@ -14,31 +20,45 @@ function inQuietHours(member) {
   return hour >= 21 || hour < 8;
 }
 
-function ladder(reason) {
-  if (reason === 'help') {
-    return [
-      { target: 'family', label: 'Text the whole family circle' },
-      { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
-      { target: 'volunteer', label: 'Alert the program volunteer to call 911 if no one reaches her' },
+// Only steps for people this circle actually has (no neighbor, no neighbor step).
+function ladder(reason, members) {
+  const has = (role) => members.some((m) => m.role === role);
+  const steps = reason === 'help'
+    ? [
+      { target: 'family', label: 'Call and alert the whole family' },
+      { target: 'family', label: 'Call the family again if no one is on it yet', again: true },
+      has('neighbor') && { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
+      has('volunteer') && { target: 'volunteer', label: 'Alert the program volunteer to call 911 if no one reaches them' },
+    ]
+    : [
+      { target: 'primary', label: 'Alert the primary family contact' },
+      { target: 'family', label: 'Alert the rest of the family' },
+      has('neighbor') && { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
+      has('volunteer') && { target: 'volunteer', label: 'Hand off to the program volunteer' },
     ];
-  }
-  return [
-    { target: 'retry', label: 'Call again' },
-    { target: 'primary', label: 'Text the primary family contact' },
-    { target: 'neighbor', label: 'Ask the neighbor to knock on the door' },
-    { target: 'volunteer', label: 'Hand off to the program volunteer' },
-  ];
+  return steps.filter(Boolean);
 }
 
-export async function start(senior, reason) {
+// context (help only): where they are and what Porchlight knows (help.js), shown in the family app.
+export async function start(senior, reason, context = null) {
   const existing = (await store.list('escalations', { seniorId: senior._id, status: 'active' }))[0];
-  if (existing) return existing;
+  if (existing && (existing.reason === reason || reason === 'missed')) {
+    // Pressed help again: keep one alert, with the newest location.
+    if (context && reason === 'help') return store.update('escalations', existing._id, { context });
+    return existing;
+  }
+  if (existing) { // help while a missed-call alert runs: help wins
+    clearTimeout(timers.get(existing._id));
+    await store.update('escalations', existing._id, { status: 'resolved', resolvedBy: 'their help alert', resolvedAt: new Date().toISOString() });
+  }
+  const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
   const esc = await store.insert('escalations', {
     seniorId: senior._id,
     reason, // 'missed' | 'help'
+    context,
     status: 'active',
-    stepMs: STEP_MS,
-    steps: ladder(reason).map((s) => ({ ...s, status: 'pending', at: null })),
+    stepMs: reason === 'help' ? HELP_STEP_MS : STEP_MS,
+    steps: ladder(reason, members).map((s) => ({ ...s, status: 'pending', at: null })),
   });
   await store.update('seniors', senior._id, { status: reason === 'help' ? 'help' : 'missed' });
   runStep(esc._id, 0);
@@ -54,30 +74,54 @@ async function runStep(escId, i) {
   }
   const senior = await store.get('seniors', esc.seniorId);
   const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
-  const volunteers = await store.list('members', { role: 'volunteer' });
+  const volunteers = members.filter((m) => m.role === 'volunteer');
   const step = esc.steps[i];
   const who = senior.preferredName;
 
-  const msg = esc.reason === 'help'
-    ? `${who} pressed her help button. Please call her now. Reply OK when someone has reached her.`
-    : `${who}'s check-in is unresolved: she hasn't answered yet. It may be nothing. Can you reach her? Reply OK once you have.`;
+  const help = esc.reason === 'help';
+  const msg = (m) => (help
+    ? helpText(senior, esc.context, m, senior.phone)
+    : `${who} hasn't answered today's Porchlight call. It may be nothing. Can you reach them? Open Porchlight to say you're on it.`);
 
   const sent = [];
   const held = [];
   const send = async (m, text) => {
-    if (esc.reason !== 'help' && inQuietHours(m)) held.push(m.name);
-    else { await sms(m, text); sent.push(m.name); }
+    if (!help && inQuietHours(m)) { held.push(m.name); return; }
+    await sms(m, text, help ? { title: `${who} needs help`, urgent: true } : {});
+    sent.push(m.name);
+    // A help alert also rings each person's phone and reads it out (no texting number needed).
+    if (help && dialable(m.phone)) {
+      if (!twilioEnabled) console.warn(`[escalation] no Twilio: the help call to ${m.name} was not placed`);
+      else await sayOnCall(m.phone, helpSpoken(senior, esc.context)).catch((e) => console.warn('[escalation] alert call failed:', e.message));
+    }
   };
-  if (step.target === 'family') for (const m of members.filter((m) => m.role === 'family')) await send(m, msg);
-  if (step.target === 'primary') for (const m of members.filter((m) => m.primary)) await send(m, msg);
-  if (step.target === 'neighbor') for (const m of members.filter((m) => m.role === 'neighbor')) await send(m, `Could you knock on ${who}'s door? She hasn't answered her check-in. Reply OK when you've seen her.`);
-  if (step.target === 'volunteer') for (const m of volunteers) await send(m, `${who} (${senior.city}) needs a human. ${esc.reason === 'help' ? 'She pressed help.' : 'Check-in unresolved, family not reached yet.'}`);
+  if (step.target === 'family') for (const m of members.filter((m) => m.role === 'family' && (help || !m.primary))) await send(m, step.again ? `Still no one has said they're on it.\n${msg(m)}` : msg(m));
+  if (step.target === 'primary') for (const m of members.filter((m) => m.primary)) await send(m, msg(m));
+  if (step.target === 'neighbor') for (const m of members.filter((m) => m.role === 'neighbor')) await send(m, help ? `${msg(m)}\nCould you knock on ${who}'s door?` : `Could you knock on ${who}'s door? They haven't answered today's call.`);
+  if (step.target === 'volunteer') for (const m of volunteers) await send(m, help ? msg(m) : `${who} needs a human. Today's call is unanswered and the family hasn't been reached yet.`);
 
   // A step whose texts were all held shows "held for quiet hours" in the app.
   const status = held.length && !sent.length ? 'held' : 'done';
   const steps = esc.steps.map((s, j) => (j === i ? { ...s, status, at: new Date().toISOString(), sent, held } : s));
   await store.update('escalations', escId, { steps, current: i });
-  timers.set(escId, setTimeout(() => runStep(escId, i + 1), STEP_MS));
+  timers.set(escId, setTimeout(() => runStep(escId, i + 1), esc.stepMs || STEP_MS));
+}
+
+// "I'm on it": one person takes it. The ladder stops widening, the rest of the circle is told,
+// and the older adult sees who is coming. The alert stays until someone confirms they're okay.
+export async function acknowledge(seniorId, member) {
+  const [esc] = await store.list('escalations', { seniorId, status: 'active' });
+  if (!esc || esc.ack) return esc || null;
+  clearTimeout(timers.get(esc._id));
+  timers.delete(esc._id);
+  const steps = esc.steps.map((s) => (s.status === 'pending' ? { ...s, status: 'skipped' } : s));
+  const updated = await store.update('escalations', esc._id, { ack: { memberId: member._id, name: member.name, at: new Date().toISOString() }, steps });
+  const senior = await store.get('seniors', seniorId);
+  const first = member.name.split(' ')[0];
+  await store.insert('notices', { seniorId, kind: 'help', text: `${first} saw your alert and is on it.`, at: new Date().toISOString() });
+  const others = (await store.list('members', { circleId: senior.circleId })).filter((m) => m._id !== member._id && m.role === 'family');
+  for (const m of others) await sms(m, `${first} is on it: they're reaching ${senior.preferredName} now.`);
+  return updated;
 }
 
 export async function resolve(seniorId, byName) {

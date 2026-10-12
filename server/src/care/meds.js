@@ -105,7 +105,7 @@ export async function medsDueNow(senior, now = new Date()) {
 }
 
 // Record a dose as taken. Same dose twice is a no-op.
-export async function markTaken(seniorId, { medId: id, time, date, by = 'peggy' }) {
+export async function markTaken(seniorId, { medId: id, time, date, by = 'senior' }) {
   const senior = await getSenior(seniorId);
   const med = normalizeMeds(senior.meds).find((m) => m.id === id);
   if (!med || !med.times.includes(time)) throw Object.assign(new Error('No such dose'), { status: 404 });

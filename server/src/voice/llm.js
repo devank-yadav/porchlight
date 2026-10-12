@@ -120,10 +120,12 @@ function memoryLines(memory = {}) {
 
 function personaPrompt(senior, appointments, memory) {
   const now = new Date().toLocaleString('en-US', { timeZone: senior.timezone || 'America/New_York', weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-  return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, age ${senior.age}, who lives alone in ${senior.city}.
+  const who = [senior.age ? `age ${senior.age}` : '', senior.city ? `who lives alone in ${senior.city}` : 'who lives alone'].filter(Boolean).join(', ');
+  const about = (senior.about || []).join(' ');
+  return `You are Porchlight, a friendly daily check-in caller for ${senior.preferredName}, ${who}.
 Right now it is ${now} where she lives. If she asks the day, date or time, tell her exactly that.
-What the family told you about ${senior.preferredName}: ${senior.about.join(' ')}
-Medications to gently ask about: ${senior.meds.map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
+${about ? `What the family told you about ${senior.preferredName}: ${about}` : `You don't know much about ${senior.preferredName} yet: be curious and kind, and learn about her day.`}
+Medications to gently ask about: ${(senior.meds || []).map((m) => `${m.name} (${m.when})`).join(', ') || 'none'}.
 ${memory?.medsDue?.length ? `Doses still due today, not yet marked taken (ask gently, once): ${memory.medsDue.join('; ')}. If she says she took them, I mark them for you. Never suggest a dose, a time change, or taking an extra.` : 'All of her doses due so far today are marked taken; no need to ask about pills.'}
 Over the call, naturally cover: how she slept and feels, whether she has eaten and taken her pills, what she is up to, and whether she needs anything this week (rides, groceries, refills). Show real interest in her stories: ask a follow-up about the people and places in them.
 ${memoryLines(memory)}${appointmentLines(appointments, senior.primaryContactName, senior)}If she isn't sure whether she took a pill, suggest she check her pill box for today's slot, tell her not to take another just in case, and that you'll let ${senior.primaryContactName} know.
@@ -276,7 +278,7 @@ function mockReply(senior, transcript) {
 
   const script = [
     `How did you sleep last night, ${name}?`,
-    `Glad to hear it. Have you had something to eat today, and taken your ${senior.meds[0]?.name ?? 'morning pills'}?`,
+    `Glad to hear it. Have you had something to eat today, and taken your ${senior.meds?.[0]?.name ?? 'morning pills'}?`,
     `Good. What are you up to today?`,
     `That sounds lovely. Tell me more about that, I'd love to hear it.`,
     `Do you need anything this week, like a ride, groceries, or a refill?`,
@@ -322,7 +324,7 @@ export async function analyze(senior, transcript, { appointments = [], questions
 Never diagnose. "change" means different from her usual. If she was unsure whether she took a pill, medStatus is "unsure" and add a "meds_unsure" flag.
 A story is a memory from her life (people, places, how things used to be), not today's news. Only include real memories; [] if she told none.`,
           },
-          { role: 'user', content: `About her: ${senior.about.join(' ')}\n${questions.length ? `Questions her family asked Porchlight to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
+          { role: 'user', content: `About her: ${(senior.about || []).join(' ')}\n${questions.length ? `Questions her family asked Porchlight to ask her: ${questions.map((q) => `"${q.text}"`).join('; ')}\n` : ''}\nCall transcript:\n${text}` },
         ],
         { json: true, maxTokens: 900, model: ANALYSIS_MODEL },
       );
@@ -470,32 +472,37 @@ export async function scamCheck(description) {
   return { verdict, redFlags, advice };
 }
 
-// ---------- Tech help from a picture of her screen ----------
-// She takes a photo or screenshot in the app and asks "what do I do?". Claude looks at it and answers
-// with what the screen is and ONE next step, in plain words, and calls out scams.
-export async function techHelp(senior, { image, mime = 'image/jpeg', question = '', history = [] }) {
+// ---------- Tech help on a phone call ----------
+// She tapped "Help with my phone" and Porchlight rang her. She says what she sees on the screen; each
+// reply is what that screen is and ONE next step, then "what do you see now?". Fake warnings are called out.
+// Returns { say, scam, done }.
+const FAKE_SCREEN = /\bvirus|infected|hacked|call (this|the) (number|toll)|microsoft|apple support|tech support|remote access|gift ?card|pay (now|to unlock)|your (computer|phone|device) (is|has been) (locked|blocked)/i;
+export async function techTalk(senior, transcript) {
   const name = senior.preferredName;
-  const fallback = { says: "I can't look at pictures right now.", step: `Try asking ${senior.primaryContactName} on the phone, or tell me in words what the screen says.`, scam: false };
-  if (!llmEnabled) return fallback;
-  const system = `You help ${name}, ${senior.age}, with her phone, tablet, TV or computer. She sent a picture of a screen.
-Reply ONLY with JSON: {"says": "one short sentence: what this screen is, in plain words", "step": "the ONE next thing to do, one or two short sentences, saying exactly what to tap and where it is on the screen (e.g. 'the blue Update Now button at the bottom')", "scam": true|false, "done": true|false}
-Rules: plain words, no jargon, no lists. Never ask her to tell you a password, code, PIN or card number. Typing her own phone passcode on her phone's own lock screen or Settings (e.g. to finish an iPhone update) is fine: say "type your phone's passcode", never "say" it. Typing a password, code or card number into a website, a message or for a caller is not: treat that as a likely scam. If it's a pop-up or message saying her device is infected, telling her to call a number, asking for payment, gift cards or remote access, set scam true and the step is to close it (or not answer) and not call or pay anyone. If the picture is unreadable, say so and ask her to take it again closer. "done" is true only when nothing more needs doing.`;
-  const prior = history.slice(-6).map((h) => ({ role: h.who === 'porchlight' ? 'assistant' : 'user', content: h.text }));
-  const messages = [
-    { role: 'system', content: system },
-    ...prior,
-    { role: 'user', content: [
-      { type: 'image_url', image_url: { url: `data:${mime};base64,${image}` } },
-      { type: 'text', text: question ? `${name} asks: ${question}` : `${name} asks: What is this, and what should I do?` },
-    ] },
-  ];
-  try {
-    const out = parseJson(await chat(messages, { json: true, maxTokens: 300 }));
-    const said = guardReply(senior, `${out.says || ''} ${out.step || ''}`);
-    if (!said) return fallback;
-    return { says: String(out.says || ''), step: String(out.step || ''), scam: Boolean(out.scam), done: Boolean(out.done) };
-  } catch (e) {
-    console.warn('[llm] tech help failed:', e.message);
-    return fallback;
+  const said = transcript.filter((t) => t.who === 'senior').map((t) => t.text).join(' ');
+  if (llmEnabled) {
+    const system = `You are Porchlight, an AI helper, on a phone call with ${name}, an older adult who asked for help with a phone, tablet, TV or computer. You can't see the screen; ${name} reads it to you.
+Reply ONLY with JSON: {"say": "what you say next, spoken aloud: at most 3 short sentences", "scam": true|false, "done": true|false}
+How to help: first find out which device and what the screen says (the biggest words, any buttons). Then give ONE next step at a time, saying exactly what to tap and where it is ("the blue button at the bottom that says Update Now"), and end by asking what the screen shows now. If ${name} is on this same phone, suggest tapping the speaker button so the screen can be seen while talking.
+Rules: plain spoken words, no lists, no jargon. Never ask ${name} to say a password, code, PIN, card or account number out loud. Typing the phone's own passcode on its lock screen or in Settings is fine ("type your phone's passcode"). A pop-up or message saying the device is infected or locked, asking to call a number, pay, buy gift cards or allow remote access is a scam: set scam true, tell ${name} not to call or pay anyone and how to close it (swipe up from the bottom, or close the browser tab). If stuck after a few tries, suggest asking ${senior.primaryContactName || 'family'} to help in person. "done" is true only when the problem is solved and nothing more needs doing.`;
+    const messages = [
+      { role: 'system', content: system },
+      ...transcript.map((t) => ({ role: t.who === 'porchlight' ? 'assistant' : 'user', content: t.text })),
+    ];
+    try {
+      const out = parseJson(await chat(messages, { json: true, maxTokens: 220 }));
+      const say = guardReply(senior, out.say);
+      if (say) return { say, scam: Boolean(out.scam) || FAKE_SCREEN.test(said), done: Boolean(out.done) };
+    } catch (e) {
+      console.warn('[llm] tech help failed, using rules:', e.message);
+    }
   }
+  if (FAKE_SCREEN.test(said)) {
+    return { say: 'That sounds like a fake warning. Don’t call any number on it and don’t pay anything. Close it by swiping up from the bottom of the screen, then tell me what you see.', scam: true, done: false };
+  }
+  const turns = transcript.filter((t) => t.who === 'senior').length;
+  const say = turns <= 1 ? 'Okay, let’s go one step at a time. What are the biggest words at the top of the screen?'
+    : turns <= 3 ? 'Thank you. Is there a button on the screen? Tell me what it says, and where it is.'
+      : `This one is tricky to do over the phone. ${senior.primaryContactName || 'Your family'} could help you with it in person.`;
+  return { say, scam: false, done: turns > 3 };
 }

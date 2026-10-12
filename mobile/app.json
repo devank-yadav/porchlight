@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#F7F7F5",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.porchlight.app",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -35,7 +35,14 @@
         {
           "calendarPermission": "Porchlight reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you."
         }
-      ]
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Porchlight shares where you are with your family only when you press “I need help”."
+        }
+      ],
+      "@bacons/apple-targets"
     ],
     "scheme": "porchlight",
     "extra": {

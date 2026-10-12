@@ -1,24 +1,24 @@
-import { Children, useEffect, useRef, useState } from 'react';
-import { Keyboard, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Share, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated from 'react-native-reanimated';
 import * as Speech from 'expo-speech';
 import { api } from './api';
 import { useCalendarSync } from './calendar';
+import { askForLocation, hereNow } from './location';
 import { notifyLocally, pushRegistered, startPush } from './push';
 import { useMedReminders } from './meds/reminders';
 import PillsCard from './meds/PillsCard';
 import MedsList from './meds/MedsList';
 import { useAppContext } from './AppContext';
+import { pretty } from './Onboarding';
 import Lamp, { lampState } from './Lamp';
-import { Appear, Avatar, BigButton, Button, Card, HeroCard, IconTile, ListGroup, Press, Screen, Section, T, Tile, useSettled } from './design/ui';
+import { Appear, Avatar, BigButton, Button, Card, HeroCard, IconTile, ListGroup, Press, Screen, Section, T, useSettled } from './design/ui';
 import PlanRow, { upcomingPlans, isToday, dayLabel } from './design/PlanRow';
 import Icon from './design/Icon';
 import { haptic } from './design/haptics';
 import { toast } from './design/Toaster';
-import { accent, night, seniorPalette as P, ease, font, radius, shadow } from './design/tokens';
+import { accent, night, seniorPalette as P, font, radius, shadow } from './design/tokens';
 
 // Peggy's side. Atkinson Hyperlegible, never under 20pt; buttons 104pt or taller; every control labelled.
 
@@ -63,13 +63,15 @@ function whenLabel(iso, tz) {
 // so the calendar, push sign-up, pill reminders and Uber notices don't run three or four times in parallel.
 export function SeniorEffects() {
   const { state, refresh } = useAppContext();
-  const senior = state?.seniors?.find((s) => s._id === 'peggy');
+  const senior = state?.seniors?.[0];
   return senior ? <PhoneSync senior={senior} state={state} refresh={refresh} /> : null;
 }
 function PhoneSync({ senior, state, refresh }) {
   useCalendarSync(senior, state);
   // Phone notifications: register this phone for Uber pushes, and tapping one opens Uber.
-  useEffect(() => Platform.OS === 'web' ? undefined : startPush(senior._id), [senior._id]);
+  useEffect(() => Platform.OS === 'web' ? undefined : startPush(), []);
+  // Location is used only for "I need help" (asked at setup; this covers phones set up before that).
+  useEffect(() => { askForLocation(); }, []);
   // Daily pill reminders on this phone, with an "I took it" button (meds/reminders.js).
   useMedReminders(senior, state, refresh);
   // Fallback when push isn't set up: the app shows the Uber notification itself for rides that arrive while it's open.
@@ -87,63 +89,52 @@ function PhoneSync({ senior, state, refresh }) {
 }
 
 export default function SeniorScreen({ senior, page = 'today' }) {
-  const { state, refresh, setRole } = useAppContext();
+  const { state, refresh, account } = useAppContext();
   const members = state.members.filter((m) => m.circleId === senior.circleId);
-  const primary = members.find((m) => m.primary);
   const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
   const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
 
   const plans = upcomingPlans(state, senior);
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    {page === 'today' && <Home senior={senior} primary={primary} plans={plans} state={state} refresh={refresh} notices={notices} />}
+    {page === 'today' && <Home senior={senior} plans={plans} state={state} refresh={refresh} notices={notices} />}
     {page === 'plans' && <Plans senior={senior} plans={plans} state={state} refresh={refresh} ride={ride} notices={notices} />}
-    {page === 'family' && <Family members={members} setRole={setRole} />}
-    {page === 'talk' && <Talk senior={senior} done={() => { router.replace('/senior/thanks'); refresh(); }} />}
-    {page === 'scam' && <ScamCheck senior={senior} back={home} />}
+    {page === 'family' && <Family senior={senior} members={members} account={account} />}
+    {page === 'scam' && <ScamCheck senior={senior} state={state} back={home} />}
     {page === 'tech' && <TechHelp senior={senior} back={home} />}
-    {page === 'help' && <Help senior={senior} back={home} refresh={refresh} />}
-    {page === 'thanks' && <Thanks senior={senior} back={home} />}
+    {page === 'help' && <Help senior={senior} state={state} back={home} refresh={refresh} />}
+    {page === 'sos' && <Help sos senior={senior} state={state} back={home} refresh={refresh} />}
   </KeyboardAvoidingView>;
 }
 
 // ── Today ───────────────────────────────────────────────────────────────────
-function Home({ senior, primary, plans, state, refresh, notices }) {
-  const [busy, setBusy] = useState(false);
+function Home({ senior, plans, state, refresh, notices }) {
   const [calling, setCalling] = useState(false);
   const callReset = useRef(null);
   useEffect(() => () => clearTimeout(callReset.current), []);
   const settled = useSettled();
-  const { width, fontScale } = useWindowDimensions();
-  const compact = width < 360 || fontScale > 1.2;
   const tz = zone(senior);
   const help = senior.status === 'help';
-  const checkedIn = !['help', 'missed'].includes(senior.status) && isToday(senior.lastCheckinAt, senior.timezone);
-  const imOkay = async () => {
-    if (busy) return;
-    setBusy(true);
-    try { await api.ok(senior._id); await refresh(); router.push('/senior/thanks'); }
-    catch (e) { onError(e); } finally { setBusy(false); }
-  };
+  const talked = !['help', 'missed'].includes(senior.status) && isToday(senior.lastCheckinAt, senior.timezone);
   const callMe = async () => {
     if (calling) return;
     setCalling(true);
     try {
       await api.phoneCall(senior._id);
       haptic.success();
-      toast.success('Your call is requested', { description: 'Pick up when your phone rings. Porchlight is an AI and will talk first.' });
+      toast.success('Your phone will ring', { description: 'Pick up and Porchlight will talk first. It’s an AI.' });
       callReset.current = setTimeout(() => setCalling(false), 20000);
-    } catch (_e) {
+    } catch (e) {
       haptic.warn();
-      toast.info('The phone call didn’t go through', { description: 'Tap “Talk with Porchlight” to chat here, or try the call again.' });
+      toast.info('The call didn’t go through', { description: e.message });
       setCalling(false);
     }
   };
 
-  const status = help ? 'You asked for help' : checkedIn ? 'You checked in today' : 'Waiting for today’s check-in';
+  const status = help ? 'You asked for help' : talked ? 'We talked today' : senior.status === 'talking' ? 'On a call now' : 'Your call is coming';
   const detail = help ? 'Your family has been asked to contact you.'
-    : checkedIn ? 'Your family can see it.'
-      : senior.status === 'missed' ? 'Tap “I’m okay today” when you can.'
-        : senior.autoCall ? 'Porchlight will call at ' + clock12(senior.checkinTime) + '.' : 'Check in when you’re ready.';
+    : talked ? 'Your family can see how you’re doing.'
+      : senior.status === 'missed' ? 'We missed you today. Tap “Call me now” when you can.'
+        : senior.autoCall ? 'Porchlight will call at ' + clock12(senior.checkinTime) + '.' : 'Tap “Call me now” any time.';
   const next = plans[0];
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz });
 
@@ -182,35 +173,18 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     <PillsCard senior={senior} state={state} refresh={refresh} />
 
     <Appear on index={2}>
-      <BigButton tone="lamp" icon="bubble.left.and.bubble.right.fill" title="Talk with Porchlight" sub="Your AI helper" chevron onPress={() => go('talk')} />
+      <BigButton tone="lamp" icon="phone.arrow.down.left" title={calling ? 'Your phone will ring' : 'Call me now'} sub="Talk with Porchlight, your AI helper" hint="Rings your phone. Porchlight is an AI and will talk first." onPress={callMe} disabled={calling} />
     </Appear>
 
     <Appear on index={3} style={st.grid}>
-      <ActionGrid compact={compact}>
-        <Action compact={compact} icon="checkmark.circle.fill" title={busy ? 'Checking in…' : checkedIn ? 'Check in again' : 'I’m okay today'} sub="Tell my family" onPress={imOkay} disabled={busy} />
-        <Action compact={compact} icon="phone.arrow.down.left" title={calling ? 'Call requested' : 'Call me now'} sub="Rings my phone" hint="Requests a phone call. Porchlight is an AI and will talk first." onPress={callMe} disabled={calling} />
-        {primary ? <Action compact={compact} icon="phone.fill" title={'Call ' + firstName(primary.name)} sub={primary.relation} onPress={() => openLink('tel:' + primary.phone)} disabled={!primary.phone} /> : null}
-        <Action compact={compact} icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check first" onPress={() => go('scam')} />
-      </ActionGrid>
-      <BigButton icon="iphone" title="Help with my phone" sub="Show me the screen" hint="Take a picture of a screen and Porchlight explains what to do next." chevron onPress={() => go('tech')} />
+      <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Porchlight calls you to check" chevron onPress={() => go('scam')} />
+      <BigButton icon="iphone" title="Help with my phone" sub="Porchlight calls you to help" hint="Porchlight calls you and walks you through your screen, one step at a time." chevron onPress={() => go('tech')} />
     </Appear>
 
     <Notices notices={notices} settled={settled} />
     <HelpButton />
     <AiPromise />
   </Screen>;
-}
-
-// Two-up tiles; one big button per row when the screen is narrow or the text is large.
-function ActionGrid({ compact, children }) {
-  const items = Children.toArray(children).filter(Boolean);
-  if (compact) return items;
-  const rows = [];
-  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
-  return rows.map((row, i) => <View key={i} style={st.gridRow}>{row}</View>);
-}
-function Action({ compact, ...props }) {
-  return compact ? <BigButton {...props} /> : <Tile {...props} />;
 }
 
 function HelpButton() {
@@ -232,7 +206,6 @@ function Notices({ notices, settled }) {
   </Section>;
 }
 function Notice({ n }) {
-  const demo = n.simulated ? (n.kind === 'ride' ? 'Demo update · not a real booking' : 'Sample update') : null;
   if (n.uberLink) {
     return <Card tone="lamp" style={st.warm}>
       <View style={st.warmHead}>
@@ -241,7 +214,6 @@ function Notice({ n }) {
       </View>
       <T v="read">{n.text}</T>
       <BigButton tone="lamp" icon="car.fill" title="Book my Uber" sub="Confirm your ride in Uber" hint="Opens Uber. You confirm the booking and price there." onPress={() => openLink(n.uberLink)} />
-      {demo && <T v="readSmall" muted>{demo}</T>}
     </Card>;
   }
   const icon = n.kind === 'ride' ? 'car.fill' : n.kind === 'task' ? 'checkmark.circle.fill' : 'bell.fill';
@@ -249,7 +221,6 @@ function Notice({ n }) {
     <IconTile icon={icon} tone="lamp" size={52} iconSize={26} style={{ borderRadius: 16 }} />
     <View style={{ flex: 1, gap: 6 }}>
       <T v="read">{n.text}</T>
-      {demo && <T v="readSmall" muted>{demo}</T>}
     </View>
   </Card>;
 }
@@ -268,7 +239,7 @@ function RideCard({ ride }) {
       <T v="readSmall" muted style={{ flex: 1 }}>Pick up {dayLabel(ride.details.pickupAt)}</T>
     </View>}
     <BigButton tone="lamp" icon="car.fill" title="Book with Uber" sub="Your trip is filled in" hint="Opens Uber. You confirm the booking and price there." onPress={() => openLink(ride.details.uberLink)} />
-    <T v="readSmall" muted>{ride.simulated ? 'Porchlight’s booking is a demo. Confirm a real ride and its price in Uber.' : 'Confirm the ride and its price in Uber.'}</T>
+    <T v="readSmall" muted>You confirm the ride and its price in Uber. Porchlight never pays for you.</T>
   </Card>;
 }
 
@@ -289,43 +260,52 @@ function Plans({ senior, plans, state, refresh, ride, notices }) {
     {ride && <RideCard ride={ride} />}
     <MedsList senior={senior} state={state} refresh={refresh} />
     <Notices notices={rest} settled={settled} />
-    <BigButton icon="bubble.left.and.bubble.right.fill" title="Ask about my plans" sub="Talk with your AI helper" chevron onPress={() => go('talk')} />
     <HelpButton />
   </Screen>;
 }
 
 // ── My family ───────────────────────────────────────────────────────────────
-function Family({ members, setRole }) {
+function Family({ senior, members, account }) {
+  const [code, setCode] = useState(null);
+  const invite = async () => {
+    try {
+      const r = code && new Date(code.expiresAt) > new Date() ? code : await api.invite();
+      setCode(r);
+      await Share.share({ message: `Join me on Porchlight. Install the app, choose “I’m family”, and enter this code: ${r.code}` });
+    } catch (e) { onError(e); }
+  };
+  const confirmDelete = () => Alert.alert('Delete your account?', 'This removes your calls, stories, medicines and plans from Porchlight, and your family loses access. It can’t be undone.', [
+    { text: 'Keep my account', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: () => account.deleteAccount().catch(onError) },
+  ]);
   return <Screen>
-    <PageTitle title="My family" sub="A familiar voice is a tap away." />
-    <ListGroup>{members.map((m) => <CallRow key={m._id} member={m} dividerInset={18 + 60 + 16} />)}</ListGroup>
+    <PageTitle title="My family" sub="The people Porchlight keeps in the loop. Ask it on a call to connect you." />
+    {members.length ? <ListGroup>{members.map((m) => <PersonRow key={m._id} member={m} />)}</ListGroup>
+      : <Card style={st.empty}><T v="readHeadline" center>No family here yet</T><T v="readSmall" muted center>Invite them with a code below.</T></Card>}
+    <BigButton tone={members.length ? 'plain' : 'lamp'} icon="person.badge.plus" title="Invite my family" sub={code ? `Your code: ${code.code}` : 'Share a code with them'} hint="Opens the share sheet with an invite code." onPress={invite} />
     <Section title="Stay safe" style={{ gap: 14 }}>
-      <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check a call, letter or message" chevron onPress={() => go('scam')} />
+      <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Porchlight calls you to check" chevron onPress={() => go('scam')} />
       <HelpButton />
     </Section>
-    <BigButton icon="person.crop.circle" title="Switch person" sub="Choose a different sample profile" onPress={() => setRole(null)} />
-    <AiPromise>{'Sample people. ' + AI_PROMISE}</AiPromise>
+    <Section title="My account" style={{ gap: 14 }}>
+      <T v="readSmall" muted>Signed in as {senior.preferredName}{account.me?.phone ? ` · ${pretty(account.me.phone)}` : ''}</T>
+      <Button label="Sign out" icon="rectangle.portrait.and.arrow.right" onPress={account.signOut} />
+      <Button variant="ghost" label="Delete my account" onPress={confirmDelete} />
+    </Section>
+    <AiPromise />
   </Screen>;
 }
 
-function CallRow({ member: m }) {
-  const name = firstName(m.name);
+// Who's in the circle. No call buttons: Porchlight connects her on a call ("connect me to Anne").
+function PersonRow({ member: m }) {
   const sub = m.relation + (m.primary ? ' · First contact' : '');
-  return <Pressable
-    disabled={!m.phone}
-    onPress={() => { haptic.tap(); openLink('tel:' + m.phone); }}
-    accessibilityRole="button"
-    accessibilityLabel={`Call ${name}. ${sub}`}
-    accessibilityState={{ disabled: !m.phone }}
-    style={({ pressed }) => [st.callRow, pressed && { backgroundColor: P.sunken }, !m.phone && { opacity: 0.45 }]}
-  >
-    <Avatar name={name} size={60} />
+  return <View style={st.callRow} accessible accessibilityLabel={`${m.name}. ${sub}`}>
+    <Avatar name={firstName(m.name)} size={60} />
     <View style={{ flex: 1, gap: 2 }}>
-      <T v="readHeadline" style={{ fontSize: 24, lineHeight: 30 }}>{'Call ' + name}</T>
+      <T v="readHeadline" style={{ fontSize: 24, lineHeight: 30 }}>{m.name}</T>
       <T v="readSmall" muted>{sub}</T>
     </View>
-    <View style={st.callDisc}><Icon name="phone.fill" size={24} color={accent.lampInk} /></View>
-  </Pressable>;
+  </View>;
 }
 
 function PageTitle({ title, sub }) {
@@ -344,302 +324,31 @@ function PageHead({ icon, tone = 'lamp', title, sub }) {
   </View>;
 }
 
-function MicHint({ children }) {
-  return <View style={st.inline}>
-    <Icon name="mic.fill" size={22} color={P.muted} />
-    <T v="readSmall" muted style={{ flex: 1 }}>{children}</T>
-  </View>;
-}
-
-// The tab bar and the "done" button step aside while the keyboard is up.
-function useKeyboardShown() {
-  const [shown, setShown] = useState(false);
-  useEffect(() => {
-    const a = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setShown(true));
-    const b = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setShown(false));
-    return () => { a.remove(); b.remove(); };
-  }, []);
-  return shown;
-}
-
-// ── Talk with Porchlight ────────────────────────────────────────────────────
-function Talk({ senior, done }) {
-  const reduced = useReducedMotion();
-  const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardShown();
-  const [checkin, setCheckin] = useState(null);
-  const [lines, setLines] = useState([]);
-  const [draft, setDraft] = useState('');
-  const [phase, setPhase] = useState('starting'); // starting | speaking | ready | thinking | ending
-  const [voiceOn, setVoiceOn] = useState(true);
-  const voiceRef = useRef(true);
-  const scroller = useRef(null);
-  const started = useRef(false);
-  // Follow the conversation, but show a long new message from its first word, not its last line.
-  const room = useRef({ view: 0, content: 0, lastTop: 0 });
-  const follow = () => {
-    const { view, content, lastTop } = room.current;
-    const y = Math.max(0, Math.min(lastTop - 12, content - view));
-    scroller.current?.scrollTo({ y, animated: !reduced });
-  };
-
-  useEffect(() => { voiceRef.current = voiceOn; if (!voiceOn) Speech.stop(); }, [voiceOn]);
-
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    (async () => {
-      try {
-        const c = await api.startCheckin(senior._id);
-        setCheckin(c);
-        setLines(c.transcript);
-        setPhase('speaking');
-        if (voiceRef.current) await say(c.transcript[0].text);
-        setPhase('ready');
-      } catch (e) {
-        onError(e);
-        setPhase('ready');
-      }
-    })();
-    return () => { Speech.stop(); };
-  }, [senior._id]);
-
-  const finish = async (c = checkin) => {
-    if (!c) return;
-    setPhase('ending');
-    Speech.stop();
-    try {
-      await api.finish(c._id);
-      done();
-    } catch (e) {
-      onError(e);
-      setPhase('ready');
-    }
-  };
-
-  const send = async () => {
-    const text = draft.trim();
-    if (!text || !checkin || !['ready', 'speaking'].includes(phase)) return;
-    haptic.tap();
-    setDraft('');
-    Speech.stop();
-    setLines((l) => [...l, { who: 'senior', text }]);
-    setPhase('thinking');
-    try {
-      const r = await api.say(checkin._id, text);
-      setLines((l) => [...l, { who: 'porchlight', text: r.reply }]);
-      setPhase('speaking');
-      if (voiceRef.current) await say(r.reply);
-      if (r.ended) return finish(checkin);
-      setPhase('ready');
-    } catch (e) {
-      onError(e);
-      setPhase('ready');
-    }
-  };
-
-  const status = { starting: 'Starting…', speaking: 'Porchlight is talking', ready: 'Your turn', thinking: 'Thinking…', ending: 'Saying goodbye…' }[phase];
-  const waiting = phase === 'thinking' || phase === 'starting';
-  const canSend = !!draft.trim() && !!checkin && ['ready', 'speaking'].includes(phase);
-
-  return (
-    <View style={{ flex: 1 }}>
-      <View style={st.talkHead}>
-        <View style={st.talkHeadRow}>
-          <Lamp state="lit" size={52} label="Porch light on" still />
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={st.talkStatus} accessibilityLiveRegion="polite">{status}</Text>
-            <Text style={st.talkSub}>Porchlight is an AI</Text>
-          </View>
-        </View>
-        <VoiceToggle on={voiceOn} onChange={(v) => { haptic.select(); setVoiceOn(v); }} />
-      </View>
-
-      <ScrollView
-        ref={scroller}
-        style={{ flex: 1 }}
-        contentContainerStyle={st.transcript}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        onLayout={(e) => { room.current.view = e.nativeEvent.layout.height; }}
-        onContentSizeChange={(w, h) => { room.current.content = h; follow(); }}
-      >
-        {lines.map((l, i) => <View key={i} onLayout={i === lines.length - 1 ? (e) => { room.current.lastTop = e.nativeEvent.layout.y; follow(); } : undefined}>
-          <Bubble line={l} reduced={reduced} />
-        </View>)}
-        {waiting && <Typing reduced={reduced} />}
-      </ScrollView>
-
-      <View style={[st.composer, { paddingBottom: keyboard ? 12 : insets.bottom + 12 }]}>
-        <MicHint>Tap the keyboard mic to speak.</MicHint>
-        <View style={st.typeRow}>
-          <TextInput
-            style={st.input}
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Your answer"
-            placeholderTextColor={P.muted}
-            multiline
-            {...(Platform.OS === 'web' ? { rows: 1 } : null)}
-            blurOnSubmit
-            returnKeyType="send"
-            onSubmitEditing={send}
-            editable={phase !== 'ending'}
-            accessibilityLabel="Your answer"
-          />
-          <Press onPress={send} disabled={!canSend} hitSlop={18} accessibilityLabel="Send" style={st.send} feedback={null}>
-            <Icon name="arrow.up" size={32} color={accent.lampInk} weight="bold" />
-          </Press>
-        </View>
-        {!keyboard && <Button
-          label={checkin ? 'I’m done talking' : 'Back to Today'}
-          icon={checkin ? 'checkmark' : 'chevron.left'}
-          variant="secondary"
-          onPress={() => (checkin ? finish() : home())}
-          disabled={phase === 'ending'}
-        />}
-      </View>
-    </View>
-  );
-}
-
-// Porchlight speaks from the left, next to a small lamp; Peggy's words sit on the right in ink.
-function Bubble({ line, reduced }) {
-  const me = line.who === 'senior';
-  if (me) {
-    return <View style={[st.bubble, st.bubbleMe]} accessible accessibilityLabel={'You said: ' + line.text}>
-      <Text style={[st.bubbleText, { color: night.ink }]}>{line.text}</Text>
-    </View>;
-  }
-  return <View style={st.themRow} accessible accessibilityLabel={'Porchlight said: ' + line.text}>
-    <LampAvatar />
-    <View style={[st.bubble, st.bubbleThem]}><Text style={st.bubbleText}>{line.text}</Text></View>
-  </View>;
-}
-function LampAvatar() {
-  return <View style={st.lampAvatar}><Lamp state="lit" size={40} night still /></View>;
-}
-function Typing({ reduced }) {
-  return <Animated.View style={st.themRow} accessible accessibilityLabel="Porchlight is thinking">
-    <LampAvatar />
-    <View style={[st.bubble, st.bubbleThem, st.typing]}><Dots /></View>
-  </Animated.View>;
-}
-
-// A clear on/off chip for reading replies aloud.
-function VoiceToggle({ on, onChange }) {
-  const reduced = useReducedMotion();
-  const x = useSharedValue(on ? 18 : 0);
-  useEffect(() => { x.set(reduced ? (on ? 18 : 0) : withTiming(on ? 18 : 0, { duration: 180, easing: ease.out })); }, [on, reduced, x]);
-  const knob = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
-  return (
-    <Press
-      onPress={() => onChange(!on)}
-      feedback={null}
-      hitSlop={16}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel="Read replies aloud"
-      style={[st.toggle, on ? st.toggleOn : st.toggleOff]}
-    >
-      <Icon name={on ? 'speaker.wave.2.fill' : 'speaker.slash.fill'} size={22} color={on ? accent.lampText : P.muted} />
-      <Text style={[st.toggleText, { color: on ? accent.lampText : P.ink2 }]}>{on ? 'Read aloud is on' : 'Read aloud is off'}</Text>
-      <View style={[st.track, { backgroundColor: on ? accent.lamp : P.lineStrong }]}>
-        <Animated.View style={[st.knob, knob]} />
-      </View>
-    </Press>
-  );
-}
-
-// Three dots while Porchlight thinks. Runs only while waiting.
-function Dots() {
-  return (
-    <View style={{ flexDirection: 'row', gap: 6 }} accessible={false}>
-      {[0, 1, 2].map((i) => <Dot key={i} i={i} />)}
-    </View>
-  );
-}
-function Dot({ i }) {
-  const reduced = useReducedMotion();
-  const o = useSharedValue(0.3);
-  useEffect(() => {
-    if (reduced) { o.set(0.8); return; }
-    o.set(withDelay(i * 150, withRepeat(withSequence(withTiming(1, { duration: 400 }), withTiming(0.3, { duration: 400 })), -1)));
-  }, [i, o, reduced]);
-  const style = useAnimatedStyle(() => ({ opacity: o.get() }));
-  return <Animated.View style={[{ width: 10, height: 10, borderRadius: 5, backgroundColor: P.muted }, style]} />;
-}
-
 // ── Help with my phone ──────────────────────────────────────────────────────
-// A picture of the screen (camera or screenshot) → what it is + ONE next step, read aloud.
-// "I did it" asks for the next step; a new picture shows where she is now. Scams are called out.
+// A phone call: Porchlight rings, asks what the screen says, and goes one step at a time.
 function TechHelp({ senior, back }) {
-  const [shot, setShot] = useState(null); // { base64, uri }
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [asked, setAsked] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const ask = async (img, q) => {
+  const call = async () => {
+    if (busy) return;
     setBusy(true);
     try {
-      const r = await api.techHelp(senior._id, img.base64, q, history);
-      setAnswer(r);
-      setHistory((h) => [...h, { who: 'senior', text: q || 'What is this, and what should I do?' }, { who: 'porchlight', text: `${r.says} ${r.step}` }]);
-      if (r.scam) haptic.warn(); else haptic.success();
-      say(`${r.says} ${r.step}`);
-    } catch (e) {
-      onError(e);
-    } finally {
-      setBusy(false);
-    }
+      await api.phoneCall(senior._id, 'tech');
+      haptic.success();
+      setAsked(true);
+      say('Your phone will ring. Tell Porchlight what the screen says.');
+    } catch (e) { onError(e); } finally { setBusy(false); }
   };
-
-  const pick = async (camera) => {
-    try {
-      const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return toast.info('Porchlight needs permission', { description: camera ? 'Allow the camera in Settings to take a picture of the screen.' : 'Allow Photos in Settings to choose a screenshot.' });
-      const opts = { base64: true, quality: 0.4, mediaTypes: ['images'] };
-      const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      if (res.canceled || !res.assets?.[0]?.base64) return;
-      const img = { base64: res.assets[0].base64, uri: res.assets[0].uri };
-      setShot(img);
-      setAnswer(null);
-      await ask(img, question.trim());
-    } catch (e) {
-      onError(e);
-    }
-  };
-
-  const V = answer?.scam ? VERDICT.danger : answer?.done ? VERDICT.safe : VERDICT.step;
   return (
     <Screen>
       <BackLink onPress={back} />
-      <PageHead icon="iphone" title="Help with my phone" sub={answer ? null : 'Show me the screen. I’ll tell you what to do, one step at a time.'} />
-      <TextInput
-        style={st.textarea}
-        multiline
-        value={question}
-        onChangeText={setQuestion}
-        placeholder="What would you like to do? (optional)"
-        placeholderTextColor={P.muted}
-        accessibilityLabel="Your question, optional"
-      />
-      {answer && (
-        <Animated.View style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
-          <View style={[st.verdictIcon, { backgroundColor: V.solid }]}><Icon name={answer.scam ? V.icon : answer.done ? V.icon : 'lightbulb.fill'} size={40} color={V.on} /></View>
-          <Text style={[st.verdictWord, { color: V.fg }]}>{answer.scam ? 'This looks like a scam.' : answer.done ? 'All done.' : 'Next step'}</Text>
-          <Text style={[st.verdictText, { textAlign: 'center' }]}>{answer.says}</Text>
-          <View style={st.verdictPanel}><Text style={[st.verdictText, { fontFamily: font.readBold }]}>{answer.step}</Text></View>
-          {answer.scam && <Notified />}
-        </Animated.View>
-      )}
-      <View style={st.stack}>
-        {answer && !answer.done && !answer.scam && <BigButton tone="lamp" icon="checkmark.circle.fill" title={busy ? 'Looking…' : 'I did it. What’s next?'} sub="Take a new picture if the screen changed" onPress={() => ask(shot, 'I did that. What do I do next?')} disabled={busy} />}
-        <BigButton tone={answer ? 'plain' : 'lamp'} icon="camera.fill" title={busy ? 'Looking…' : answer ? 'Take a new picture' : 'Take a picture of the screen'} sub="Use this phone’s camera" onPress={() => pick(true)} disabled={busy} />
-        <BigButton icon="photo" title="Choose a screenshot" sub="From your photos" onPress={() => pick(false)} disabled={busy} />
-        {answer && <Button variant="primary" icon="house.fill" label="Back to start" onPress={back} />}
-      </View>
+      <PageHead icon="iphone" title="Help with my phone" sub={asked ? 'Your phone will ring. Tell Porchlight what the screen says.' : 'Porchlight will call you. Tell it what you see on the screen, and it will walk you through, one step at a time.'} />
+      {asked
+        ? <Card style={st.notice} accessibilityLiveRegion="polite"><Lamp state="lit" size={52} still /><T v="read" style={{ flex: 1 }}>Calling you now.</T></Card>
+        : <BigButton tone="lamp" icon="phone.arrow.down.left" title={busy ? 'Calling…' : 'Call me about it'} sub="Your phone will ring" onPress={call} disabled={busy} />}
+      <T v="readSmall" muted>If you need help with this phone, tap the speaker button when you answer, so you can see the screen while you talk.</T>
+      <T v="readSmall" muted>Porchlight will never ask you to say a password or code.</T>
+      {asked && <Button variant="secondary" icon="house.fill" label="Back to start" onPress={back} />}
     </Screen>
   );
 }
@@ -652,47 +361,30 @@ const VERDICT = {
   step: { bg: accent.lampSoft, border: 'rgba(224,138,18,0.30)', fg: accent.lampText, solid: accent.lamp, on: accent.lampInk, icon: 'lightbulb.fill' },
 };
 
-function ScamCheck({ senior, back }) {
-  const [text, setText] = useState('');
-  const [result, setResult] = useState(null);
+// "Is this a scam?" is a phone call: Porchlight rings, asks what happened, and says what to do.
+// The verdict from that call shows here too.
+function ScamCheck({ senior, state, back }) {
+  const [asked, setAsked] = useState(null); // when she tapped
   const [busy, setBusy] = useState(false);
-
-  const check = async () => {
-    if (!text.trim()) return;
+  const [opened] = useState(() => Date.now()); // only show a verdict from the last two hours
+  const call = async () => {
+    if (busy) return;
     setBusy(true);
     try {
-      const r = await api.scamCheck(senior._id, text);
-      setResult(r);
-      if (r.verdict === 'likely scam') haptic.warn();
-      say(`${r.verdict === 'likely scam' ? 'This looks like a scam.' : r.verdict === 'be careful' ? 'Be careful with this one.' : 'This looks okay.'} ${r.advice}`);
-    } catch (e) {
-      onError(e);
-    } finally {
-      setBusy(false);
-    }
+      await api.phoneCall(senior._id, 'scam');
+      haptic.success();
+      setAsked(Date.now());
+      say('Your phone will ring. Tell Porchlight what happened.');
+    } catch (e) { onError(e); } finally { setBusy(false); }
   };
-
+  const latest = (state.scamChecks || []).find((c) => c.channel === 'call' && opened - new Date(c.createdAt).getTime() < 2 * 3600000);
+  const result = latest && (!asked || new Date(latest.createdAt).getTime() > asked - 60000) ? latest : null;
   const V = VERDICT[result?.verdict === 'likely scam' ? 'danger' : result?.verdict === 'be careful' ? 'warn' : 'safe'];
 
   return (
     <Screen>
       <BackLink onPress={back} />
-      {!result ? (
-        <>
-          <PageHead icon="shield.lefthalf.filled" title="Is this a scam?" sub="Tell me who contacted you and what they asked for." />
-          <TextInput
-            style={st.textarea}
-            multiline
-            value={text}
-            onChangeText={setText}
-            placeholder="A man called and said my grandson is in jail…"
-            placeholderTextColor={P.muted}
-            accessibilityLabel="Describe the call or message"
-          />
-          <MicHint>Tap the microphone on the keyboard to say it out loud.</MicHint>
-          <BigButton tone="lamp" icon="magnifyingglass" title={busy ? 'Checking…' : 'Check it'} sub="Porchlight looks for warning signs" onPress={check} disabled={busy || !text.trim()} />
-        </>
-      ) : (
+      {result ? (
         <>
           <Animated.View style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
             <View style={[st.verdictIcon, { backgroundColor: V.solid }]}><Icon name={V.icon} size={40} color={V.on} /></View>
@@ -712,8 +404,16 @@ function ScamCheck({ senior, back }) {
           </Animated.View>
           <View style={st.stack}>
             <Button variant="primary" icon="house.fill" label="Back to start" onPress={back} />
-            <Button variant="secondary" label="Check something else" onPress={() => { setResult(null); setText(''); }} />
+            <Button variant="secondary" icon="phone.fill" label="Check something else" onPress={call} busy={busy} />
           </View>
+        </>
+      ) : (
+        <>
+          <PageHead icon="shield.lefthalf.filled" title="Is this a scam?" sub={asked ? 'Your phone will ring. Tell Porchlight who contacted you and what they wanted.' : 'Porchlight will call you. Tell it who contacted you and what they asked for, and it will tell you what to do.'} />
+          {asked
+            ? <Card style={st.notice} accessibilityLiveRegion="polite"><Lamp state="lit" size={52} still /><T v="read" style={{ flex: 1 }}>Calling you now. The answer shows here after the call too.</T></Card>
+            : <BigButton tone="lamp" icon="phone.arrow.down.left" title={busy ? 'Calling…' : 'Call me about it'} sub="Your phone will ring" onPress={call} disabled={busy} />}
+          <T v="readSmall" muted>Don’t send money, gift cards or codes to anyone while you wait.</T>
         </>
       )}
     </Screen>
@@ -728,14 +428,15 @@ function Notified() {
 }
 
 // ── I need help ─────────────────────────────────────────────────────────────
-function Help({ senior, back, refresh }) {
+// sos: opened from the SOS widget on the home or lock screen (porchlight://sos). One big button sends it.
+function Help({ senior, state, back, refresh, sos = false }) {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const send = async () => {
     if (sending) return;
     setSending(true);
     try {
-      await api.help(senior._id);
+      await api.help(senior._id, await hereNow());
       haptic.warn();
       setSent(true);
       refresh();
@@ -745,17 +446,38 @@ function Help({ senior, back, refresh }) {
       setSending(false);
     }
   };
+  const alert = (state?.escalations || []).find((e) => e.seniorId === senior._id && e.status === 'active' && e.reason === 'help');
   if (sent) {
+    const onIt = alert?.ack ? alert.ack.name.split(' ')[0] : null;
     return (
       <Screen contentStyle={st.centerPage}>
         <Animated.View style={st.centerStack}>
           <Lamp state="alert" size={168} label="Help requested" />
           <T v="readTitle" center>Your help request is sent.</T>
-          <T v="read" muted center>Porchlight has asked your family to contact you. A response is not confirmed yet. If you’re hurt, call 911.</T>
+          <T v="read" muted center accessibilityLiveRegion="polite">{onIt ? `${onIt} saw your alert and is on it.` : 'Your family has your alert and where you are. Porchlight is calling them now.'} If you’re hurt, call 911.</T>
         </Animated.View>
         <View style={st.stack}>
           <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
           <Button variant="secondary" icon="house.fill" label="Back to start" onPress={back} />
+        </View>
+      </Screen>
+    );
+  }
+  if (sos) {
+    return (
+      <Screen contentStyle={st.centerPage}>
+        <View style={st.centerStack}>
+          <Press onPress={send} disabled={sending} scaleTo={0.96} accessibilityRole="button" accessibilityLabel="Send SOS" accessibilityHint="Alerts and calls your family now, with your location." style={st.sosHalo}>
+            <View style={st.sosDisc}>
+              <Text style={st.sosWord}>{sending ? '…' : 'SOS'}</Text>
+            </View>
+          </Press>
+          <T v="readTitle" center>Tap SOS to get help</T>
+          <T v="read" muted center>Porchlight alerts and calls your family right away, with where you are.</T>
+        </View>
+        <View style={st.stack}>
+          <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
+          <Button variant="secondary" label="I’m okay, go back" onPress={back} />
         </View>
       </Screen>
     );
@@ -766,31 +488,12 @@ function Help({ senior, back, refresh }) {
       <View style={st.pageHead}>
         <View style={st.helpHalo}><View style={st.helpDisc}><Icon name="hand.raised.fill" size={46} color="#FFFFFF" /></View></View>
         <T v="readDisplay" center style={st.name}>Do you need help now?</T>
-        <T v="read" muted center>I’ll text your family right away, then your neighbor. If you’re hurt, call 911.</T>
+        <T v="read" muted center>Porchlight will alert your family right away and call them, with where you are. If you’re hurt, call 911.</T>
       </View>
       <View style={st.stack}>
-        <Button variant="danger" icon="bell.fill" label="Yes, alert my family" accessibilityHint="Texts your family now, then your neighbor." onPress={send} busy={sending} />
+        <Button variant="danger" icon="bell.fill" label="Yes, alert my family" accessibilityHint="Alerts and calls your family now, with your location." onPress={send} busy={sending} />
         <Button variant="secondary" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
       </View>
-    </Screen>
-  );
-}
-
-// ── Thank you: the light switching on, the one celebration in the app ────────
-function Thanks({ senior, back }) {
-  const [lit, setLit] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => { setLit(true); haptic.success(); }, 250);
-    return () => clearTimeout(t);
-  }, []);
-  return (
-    <Screen contentStyle={st.centerPage}>
-      <HeroCard glowAt="center" style={st.thanksHero}>
-        <Lamp state={lit ? 'lit' : 'dim'} size={168} label="Porch light on" />
-        <T v="readDisplay" center style={st.name}>Thank you, {senior.preferredName}.</T>
-        <T v="read" muted center>Your check-in is saved. Your family can see your update.</T>
-      </HeroCard>
-      <Button variant="primary" icon="house.fill" label="Back to start" onPress={back} />
     </Screen>
   );
 }
@@ -813,7 +516,6 @@ const st = StyleSheet.create({
   heroNext: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 20, backgroundColor: 'rgba(255,247,236,0.07)', borderWidth: StyleSheet.hairlineWidth, borderColor: night.line },
   heroNextTitle: { fontSize: 22, lineHeight: 28 },
   grid: { gap: 12 },
-  gridRow: { flexDirection: 'row', gap: 12 },
   promise: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 4, paddingTop: 4 },
   warm: { gap: 16 },
   warmHead: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -822,7 +524,6 @@ const st = StyleSheet.create({
   empty: { alignItems: 'center', gap: 10, paddingVertical: 28 },
   stack: { gap: 14 },
   callRow: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 108, paddingHorizontal: 18, paddingVertical: 16 },
-  callDisc: { width: 56, height: 56, borderRadius: 28, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center' },
   pageHead: { alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   centerPage: { flexGrow: 1, justifyContent: 'center' },
   centerStack: { alignItems: 'center', gap: 16 },
@@ -862,6 +563,9 @@ const st = StyleSheet.create({
   // Help, thanks
   helpHalo: { width: 132, height: 132, borderRadius: 66, backgroundColor: accent.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   helpDisc: { width: 96, height: 96, borderRadius: 48, backgroundColor: accent.red, alignItems: 'center', justifyContent: 'center' },
+  sosHalo: { width: 248, height: 248, borderRadius: 124, backgroundColor: accent.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  sosDisc: { width: 196, height: 196, borderRadius: 98, backgroundColor: accent.red, alignItems: 'center', justifyContent: 'center' },
+  sosWord: { fontFamily: font.readBold, fontSize: 56, lineHeight: 64, color: '#FFFFFF', letterSpacing: 2 },
   thanksHero: { alignItems: 'center', gap: 14, paddingTop: 30, paddingBottom: 34, paddingHorizontal: 24 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, alignSelf: 'flex-start', paddingRight: 12 },
   backDisc: { width: 48, height: 48, borderRadius: 24, backgroundColor: P.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: P.line, alignItems: 'center', justifyContent: 'center', ...shadow.card },

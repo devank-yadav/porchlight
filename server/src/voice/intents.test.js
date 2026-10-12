@@ -29,11 +29,9 @@ test('ordinary chat is not an intent', () => {
   }
 });
 
-test('only real numbers are dialed; DEMO_FAMILY_PHONE stands in for the primary caregiver', () => {
+test('only real numbers are dialed, never the fictional +1555 ones', () => {
   assert.equal(dialableNumber(members[1]), null);
-  process.env.DEMO_FAMILY_PHONE = '+18145550000';
-  assert.equal(dialableNumber(members[0]), '+18145550000');
-  delete process.env.DEMO_FAMILY_PHONE;
+  assert.equal(dialableNumber({ ...members[0], phone: '+18145550000' }), '+18145550000');
 });
 
 test('misheard names still find the right person ("Annie", "Marc", "Delores")', () => {

@@ -1,7 +1,7 @@
 // Peggy's own phone calendar (iCloud, Google or Outlook accounts on her iPhone) → Porchlight appointments.
 // Her phone reads the next two weeks with expo-calendar and posts them here. We keep them in the same
 // `appointments` collection as everything else, so calls, "what do I have this week?" and ride prompts
-// use her real events. Sample/seed appointments are never touched.
+// use her real events. Appointments that didn't come from her calendar are never touched.
 import * as store from '../store.js';
 import * as audit from './audit.js';
 

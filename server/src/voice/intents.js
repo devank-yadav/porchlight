@@ -12,8 +12,8 @@ import * as store from '../store.js';
 import * as audit from '../care/audit.js';
 import { sms, push } from './notify.js';
 import { parseWhen, sayTime } from './when.js';
-import { proposeRide } from '../care/actions.js';
-import { uberLink, geocode } from '../care/uber.js';
+import { proposeRide, rideHandoff } from '../care/actions.js';
+import { geocode } from '../care/uber.js';
 import { markDueTaken } from '../care/meds.js';
 
 const RELATIONS = { daughter: /daughter/i, son: /\bson\b/i, neighbor: /neighbou?r/i, neighbour: /neighbou?r/i, volunteer: /volunteer/i };
@@ -63,9 +63,9 @@ export function detectIntent(text, members) {
   return null;
 }
 
-// Demo phones are +1555…; DEMO_FAMILY_PHONE gives the primary caregiver a real number to ring.
+// +1555… numbers are fictional (tests); never dial them.
 export function dialableNumber(member) {
-  const phone = member.primary && process.env.DEMO_FAMILY_PHONE ? process.env.DEMO_FAMILY_PHONE : member.phone;
+  const phone = member.phone;
   return phone && !phone.startsWith('+1555') ? phone : null;
 }
 
@@ -138,7 +138,7 @@ export function weekSummary(appointments, tz = 'America/New_York', now = new Dat
   const lines = soon.slice(0, 3).map((a) => {
     const ride = a.transport === 'confirmed' ? ' Your ride is confirmed.'
       : ['at_risk', 'requested'].includes(a.transport) ? ` Your family is sorting out the ride, and I'll tell you once it's confirmed.` : '';
-    return `Your ${a.title.replace(/\s*\(sample\)/i, '').toLowerCase()} is ${sayTime(new Date(a.startsAt), tz, now)}${a.where ? ` at ${a.where.replace(/\s*\(sample\)/i, '')}` : ''}.${ride}`;
+    return `Your ${a.title.toLowerCase()} is ${sayTime(new Date(a.startsAt), tz, now)}${a.where ? ` at ${a.where}` : ''}.${ride}`;
   });
   return `${lines.join(' ')} Anything else?`;
 }
@@ -234,7 +234,7 @@ async function rideNow(senior, text, checkin = {}) {
       return { reply: 'I found your appointment, but its address is missing. What address should I enter for your Uber?' };
     }
     await proposeRide(senior, a, text); // one open ride per appointment, so saying it twice never double-books
-    const what = a.title.replace(/\s*\(sample\)/i, '').toLowerCase();
+    const what = a.title.toLowerCase();
     return { reply: `Okay, a ride for your ${what} ${sayTime(new Date(a.startsAt), tz)}. ${STEPS} I'll let ${family} know you're going.` };
   }
   // Already set up on this call: don't make a second booking, just point her back to the button.
@@ -251,25 +251,25 @@ async function rideNow(senior, text, checkin = {}) {
   const leavingNow = !when || when - new Date() < 15 * 60000;
   const where = place.replace(/^my /i, 'your ');
   const bare = place.replace(/^(the|my|a|an) /i, '');
-  const query = senior.city ? `${bare}, ${senior.city}` : bare;
+  const query = bare;
   // Real pin for Uber: near her town first ("Walmart, State College"), then anywhere ("Pittsburgh airport").
   const fromHome = !checkin.rideFrom || checkin.rideFrom === 'home';
   // Looked up together so she isn't kept waiting on the line.
   const [near, anywhere, fromSpot] = await Promise.all([
-    geocode(query), query !== bare ? geocode(bare) : null,
-    fromHome ? null : geocode(senior.city ? `${checkin.rideFrom.replace(/^(the|my|a|an) /i, '')}, ${senior.city}` : checkin.rideFrom),
+    geocode(query, senior.homeLatLng), null,
+    fromHome ? null : geocode(checkin.rideFrom.replace(/^(the|my|a|an) /i, ''), senior.homeLatLng),
   ]);
   const spot = near || anywhere;
-  const details = { pickupAt, from: fromHome ? 'Home' : checkin.rideFrom, to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng, ...(fromHome ? {} : { pickupPlace: fromSpot?.address || checkin.rideFrom, pickupLatLng: fromSpot?.latlng }) }) };
+  const details = { pickupAt, from: fromHome ? 'Home' : checkin.rideFrom, to: where, uberLink: await rideHandoff(senior, { place: spot?.address || query, placeLatLng: spot?.latlng, ...(fromHome ? {} : { pickupPlace: fromSpot?.address || checkin.rideFrom, pickupLatLng: fromSpot?.latlng }) }) };
   // Shows whether Uber gets a drop-off pin (dropoff[latitude]); without one Uber leaves the field empty.
   console.log(`[ride] ${where}: drop-off ${spot ? 'pinned' : 'NOT pinned (no coordinates found)'} ${details.uberLink}`);
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
-    details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
+    details, appointmentId: null, approverId: null, status: 'APPROVED',
     history: [{ status: 'APPROVED', at: new Date().toISOString(), actor: 'porchlight', evidence: { source: 'system', note: `She asked on her call: "${text}"; family notified` } }],
   });
   if (checkin._id) await store.update('checkins', checkin._id, { rideTo: bare, rideAsked: false });
-  await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, simulated: false, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber. Uber opens with your home and ${where} filled in. Check the price, then press Request. Your driver's name, car and plate will show in Uber.` });
+  await store.insert('notices', { seniorId: senior._id, kind: 'uber', actionId: action._id, uberLink: details.uberLink, at: new Date().toISOString(), text: `Your Uber to ${where}: tap Book my Uber. Uber opens with your trip to ${where} filled in. Check the price, then press Request. Your driver's name, car and plate will show in Uber.` });
   await audit.log('porchlight', 'voice.ride', { seniorId: senior._id, targetId: action._id, detail: `${where} ${leavingNow ? 'now' : pickupAt}` });
   // The notification on her phone: tap it and Uber opens with both addresses filled in.
   await push(senior, { title: `Your Uber to ${where.replace(/^your /, '')} is ready`, body: 'Tap to open Uber with your trip filled in, then press Request.', url: details.uberLink });

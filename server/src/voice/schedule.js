@@ -17,14 +17,14 @@ export function canCall() {
 export const RETRY_MS = Number(process.env.CALL_RETRY_MS || 120000);
 export const MAX_ATTEMPTS = Number(process.env.CALL_ATTEMPTS || 2);
 
-export async function callSenior(seniorId, reason = 'now', attempt = 1) {
+export async function callSenior(seniorId, reason = 'now', attempt = 1, { purpose = 'checkin' } = {}) {
   if (!canCall()) {
-    const err = new Error('Phone calls need TWILIO_* and PUBLIC_URL in .env. Use "Talk" in the app instead.');
+    const err = new Error('Phone calls need TWILIO_* and PUBLIC_URL in .env. Phone calls aren’t set up on this server yet.');
     err.status = 400;
     throw err;
   }
   const senior = await store.get('seniors', seniorId);
-  const { checkin } = await startCheckin(senior._id, 'phone');
+  const { checkin } = await startCheckin(senior._id, 'phone', { purpose });
   await store.update('checkins', checkin._id, { trigger: reason, attempt });
   const base = process.env.PUBLIC_URL.replace(/\/$/, '');
   await placeCall(senior.phone, `${base}/twilio/voice?checkinId=${checkin._id}`, `${base}/twilio/status?checkinId=${checkin._id}`);

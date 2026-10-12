@@ -62,7 +62,7 @@ export default function MedsList({ senior, state, viewer, refresh }) {
   }
   const meds = senior.meds || [];
   const today = (state.medsToday || []).filter((d) => d.seniorId === senior._id);
-  const open = (med) => openMedEditor({ senior, med, memberId: viewer?._id, refresh, theme: isSenior ? 'senior' : 'light' });
+  const open = (med) => openMedEditor({ senior, med, refresh, theme: isSenior ? 'senior' : 'light' });
 
   const rows = meds.map((m) => {
     const doses = today.filter((d) => d.medId === m.id);
@@ -91,11 +91,11 @@ export default function MedsList({ senior, state, viewer, refresh }) {
   </Section>;
 }
 
-export function openMedEditor({ senior, med, memberId, refresh, theme = 'light' }) {
-  sheet.open((close) => <MedEditor senior={senior} med={med} memberId={memberId} refresh={refresh} close={close} />, { theme });
+export function openMedEditor({ senior, med, refresh, theme = 'light' }) {
+  sheet.open((close) => <MedEditor senior={senior} med={med} refresh={refresh} close={close} />, { theme });
 }
 
-function MedEditor({ senior, med, memberId, refresh, close }) {
+function MedEditor({ senior, med, refresh, close }) {
   const { c, isSenior } = useTheme();
   const [nameText, setName] = useState(med?.name || '');
   const [dose, setDose] = useState(med?.dose || '');
@@ -110,8 +110,8 @@ function MedEditor({ senior, med, memberId, refresh, close }) {
     setBusy(true);
     try {
       const body = { name: nameText.trim(), dose: dose.trim(), times: [...new Set(times)].sort() };
-      if (med) await api.editMed(senior._id, med.id, body, memberId);
-      else await api.addMed(senior._id, body, memberId);
+      if (med) await api.editMed(senior._id, med.id, body);
+      else await api.addMed(senior._id, body);
       haptic.success();
       toast.success(med ? 'Medicine updated' : 'Medicine added', { description: `${senior.preferredName}’s phone will remind her at ${body.times.map(clock).join(' and ')}.` });
       close();

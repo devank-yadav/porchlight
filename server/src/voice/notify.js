@@ -26,14 +26,23 @@ async function twilio(pathname, params) {
   return res.json();
 }
 
-export async function sms(member, text) {
-  const entry = { at: new Date().toISOString(), to: member.name, toId: member._id, text, delivered: 'logged' };
+// A short spoken call: Twilio rings the number and reads the message (sign-in codes, confirmed news).
+export async function sayOnCall(to, message) {
+  const say = String(message).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+  return twilio('Calls.json', { To: to, From: FROM, Twiml: `<Response><Pause length="1"/><Say voice="${VOICE}">${say}</Say></Response>` });
+}
+
+// A message for someone in the circle: a phone notification on their Porchlight app (when they have
+// one), and a text when Twilio has a number to send from. urgent: a loud, time-sensitive notification.
+export async function sms(member, text, { title = 'Porchlight', urgent = false } = {}) {
+  const entry = { at: new Date().toISOString(), to: member.name, toId: member._id, text, delivered: 'logged', ...(urgent ? { urgent: true } : {}) };
   feed.push(entry);
+  if (member.pushToken && await expoPush(member.pushToken, { title, body: text, urgent })) entry.delivered = 'push';
   // Only text real numbers; demo numbers start with +1555.
   if (twilioEnabled && member.phone && !member.phone.startsWith('+1555')) {
     try {
       await twilio('Messages.json', { To: member.phone, From: FROM, Body: `Porchlight: ${text}` });
-      entry.delivered = 'sms';
+      entry.delivered = entry.delivered === 'push' ? 'push+sms' : 'sms';
     } catch (e) {
       console.warn('[notify] SMS failed:', e.message);
       entry.delivered = 'failed';
@@ -61,12 +70,8 @@ export async function tellSenior(senior, text) {
   const onCall = (await import('../store.js')).list('checkins', { seniorId: senior._id, channel: 'phone', status: 'in-progress' })
     .then((rows) => rows.some((c) => Date.now() - new Date(c.startedAt).getTime() < 20 * 60000));
   if (twilioEnabled && senior.phone && !senior.phone.startsWith('+1555') && !(await onCall)) {
-    const say = String(text).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
     try {
-      await twilio('Calls.json', {
-        To: senior.phone, From: FROM, // no Timeout: Twilio trial accounts reject it
-        Twiml: `<Response><Say voice="${VOICE}">Hi ${senior.preferredName}, it's Porchlight. ${say} Have a good day.</Say></Response>`,
-      });
+      await sayOnCall(senior.phone, `Hi ${senior.preferredName}, it's Porchlight. ${text} Have a good day.`);
       entry.delivered = 'call';
     } catch (e) {
       console.warn('[notify] tellSenior failed:', e.message);
@@ -82,21 +87,26 @@ export async function tellSenior(senior, text) {
 export async function push(senior, { title, body, url }) {
   const entry = { at: new Date().toISOString(), to: senior.preferredName, toId: senior._id, text: `${title}: ${body}`, delivered: 'logged' };
   feed.push(entry);
-  if (senior.pushToken) {
-    try {
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ to: senior.pushToken, title, body, sound: 'default', data: { url } }),
-        signal: AbortSignal.timeout(5000),
-      });
-      const out = await res.json().catch(() => ({}));
-      entry.delivered = out?.data?.status === 'ok' ? 'push' : 'failed';
-      if (entry.delivered === 'failed') console.warn('[notify] push failed:', JSON.stringify(out).slice(0, 200));
-    } catch (e) {
-      console.warn('[notify] push failed:', e.message);
-      entry.delivered = 'failed';
-    }
-  }
+  if (senior.pushToken) entry.delivered = (await expoPush(senior.pushToken, { title, body, url })) ? 'push' : 'failed';
   console.log(`[notify] -> ${senior.preferredName} (push): ${title}`);
   return entry;
+}
+
+async function expoPush(to, { title, body, url, urgent = false }) {
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        to, title, body, sound: 'default', data: url ? { url } : {},
+        ...(urgent ? { priority: 'high', interruptionLevel: 'time-sensitive' } : {}),
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (out?.data?.status === 'ok') return true;
+    console.warn('[notify] push failed:', JSON.stringify(out).slice(0, 200));
+  } catch (e) {
+    console.warn('[notify] push failed:', e.message);
+  }
+  return false;
 }

@@ -41,8 +41,7 @@ export async function whoIsCalling(from) {
   const senior = seniors.find((s) => samePhone(s.phone, from));
   if (senior) return { kind: 'senior', senior };
   const members = await store.list('members');
-  // DEMO_FAMILY_PHONE plays the primary caregiver (the seeded number is fictional).
-  const member = members.find((m) => m.circleId && (samePhone(m.phone, from) || (m.primary && samePhone(process.env.DEMO_FAMILY_PHONE, from))));
+  const member = members.find((m) => m.circleId && samePhone(m.phone, from));
   if (member) {
     const theirs = seniors.filter((s) => s.circleId === member.circleId);
     if (theirs.length) return { kind: 'family', member, seniors: theirs };

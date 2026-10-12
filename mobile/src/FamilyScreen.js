@@ -4,7 +4,6 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { router } from 'expo-router';
 import * as Calendar from 'expo-calendar/legacy';
 import PlanRow, { upcomingPlans, isToday } from './design/PlanRow';
-import { openRoleSheet, openDemoMenu } from './menus';
 import { toast } from './design/Toaster';
 import { api } from './api';
 import { useAppContext } from './AppContext';
@@ -14,6 +13,8 @@ import { ago } from './useAppState';
 import { Appear, Avatar, Button, Card, Chip, Divider, HeroCard, IconTile, LargeTitle, ListGroup, ListRow, Press, Screen, SectionHeader, Segmented, T, useSettled } from './design/ui';
 import Icon from './design/Icon';
 import { haptic } from './design/haptics';
+import { AccountGroup, CircleActions, openMember, openSeniorEditor } from './CircleSettings';
+import { startPush } from './push';
 import { accent, ease, light, radius, shadow } from './design/tokens';
 
 const MOOD = { good: 'Cheerful', okay: 'Steady', low: 'A bit down' };
@@ -63,7 +64,7 @@ function nextCallLabel(senior) {
 // Ring her phone now (the call happens on her phone, not this one).
 const callNow = (senior, run) => run(
   () => api.phoneCall(senior._id),
-  [`Calling ${senior.preferredName}`, 'The call was requested. Her update will appear when the call ends.'],
+  [`Calling ${senior.preferredName}`, 'Their phone will ring. The update shows here when the call ends.'],
 );
 
 // Ride steps shown on the approval card.
@@ -78,7 +79,7 @@ const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 
 const AUTO_STEPS = [
   ['REQUESTED', 'Requested'],
   ['CONFIRMED', 'Booked'],
-  ['COMPLETED', 'She got there'],
+  ['COMPLETED', 'Arrived'],
 ];
 const AUTO_INDEX = { APPROVED: 0, REQUESTED: 0, CONFIRMED: 1, COMPLETED: 2 };
 const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
@@ -135,6 +136,12 @@ function useNow(ms = 60000) {
 
 // Her quotes read like a journal: Apple's system serif (New York) on iOS.
 const SERIF = Platform.select({ ios: 'ui-serif', web: 'ui-serif, "New York", "Iowan Old Style", Georgia, serif', default: 'serif' });
+
+// Family phones get push alerts (help, missed calls, rides) once the person allows notifications.
+export function FamilyEffects() {
+  useEffect(() => (Platform.OS === 'web' ? undefined : startPush()), []);
+  return null;
+}
 
 export default function FamilyScreen({ senior, me, page = 'today' }) {
   const app = useAppContext();
@@ -202,20 +209,21 @@ function Today({ senior, state, me, run, checkins, latestTalk, circle }) {
     ...(latestTalk?.flags || []).map((f) => ({ ...f, from: 'call', at: latestTalk.endedAt })),
     ...state.scamChecks.filter((s) => s.seniorId === senior._id && s.verdict !== 'probably fine').map((s) => ({ type: 'scam', text: s.description, from: 'check' })),
   ].slice(0, 3);
-  const familyPath = (page) => router.push('/family/' + me + '/' + page);
+  const familyPath = (page) => router.push('/family/' + page);
   const memberName = (id) => first(circle.find((m) => m._id === id)?.name) || 'Someone';
-  const needs = (escalation ? 1 : 0) + pending.length + flags.length + tasks.length;
+  const needs = (escalation && escalation.reason !== 'help' ? 1 : 0) + pending.length + flags.length + tasks.length;
   const starters = talkStarters(checkins, latestTalk);
   const date = new Date().toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'short', day: 'numeric' });
   const settled = useSettled();
 
   return <>
     <Appear on index={0}><LargeTitle title="Today" subtitle={`${name} · ${date}`} /></Appear>
+    {escalation?.reason === 'help' && <EscalationCard escalation={escalation} senior={senior} me={me} run={run} />}
     <Appear on index={1}><PorchHero senior={senior} state={state} viewer={circle.find((m) => m._id === me)} latest={latest} escalation={escalation} checkedIn={checkedIn} /></Appear>
 
     <Appear on index={2}>
       <Block title="Needs you" right={needs ? <CountPill n={needs} /> : null}>
-        {escalation && <Appear on={settled}><EscalationCard escalation={escalation} senior={senior} me={me} run={run} /></Appear>}
+        {escalation && escalation.reason !== 'help' && <Appear on={settled}><EscalationCard escalation={escalation} senior={senior} me={me} run={run} /></Appear>}
         {pending.map((action) => <Appear key={action._id} on={settled}><ActionCard action={action} state={state} me={circle.find((m) => m._id === me)} run={run} senior={senior} /></Appear>)}
         {flags.length > 0 && <Appear on={settled}><FlagsCard flags={flags} name={name} /></Appear>}
         {tasks.length > 0 && (
@@ -271,13 +279,13 @@ function PorchHero({ senior, state, viewer, latest, escalation, checkedIn }) {
   const name = senior.preferredName;
   const help = escalation?.reason === 'help';
   const [label, tone, icon] = help ? ['Asked for help', 'red', 'hand.raised.fill']
-    : escalation ? ['Check-in unresolved', 'lamp', 'exclamationmark.circle.fill']
+    : escalation ? ['Not heard from yet', 'lamp', 'exclamationmark.circle.fill']
     : senior.status === 'talking' ? ['On a call now', 'lamp', 'phone.fill']
     : checkedIn ? [`Checked in · ${timeIn(senior.lastCheckinAt, tz)}`, 'green', 'checkmark']
-    : ['Waiting for a check-in', 'night', 'clock'];
-  const summary = help ? `${name} pressed her help button. Please reach her now.`
-    : escalation ? 'We haven’t heard from her yet today. She may be out or asleep.'
-    : latest?.summary || 'Her next check-in will appear here.';
+    : ['Waiting for today’s call', 'night', 'clock'];
+  const summary = help ? `${name} pressed the help button. Please reach them now.`
+    : escalation ? `We haven’t heard from ${name} yet today. They may be out or asleep.`
+    : latest?.summary || (senior.autoCall ? 'How today’s call went will show here.' : 'Turn on the daily call in Settings, or tap Call to start one now.');
   const med = viewer?.seesMeds === false ? 'Private' : medLabel(latest);
   const pills = pillsLabel(state, senior);
   const call = () => Linking.openURL('tel:' + senior.phone).catch((e) => toast.error('Couldn’t open the phone', { description: e.message }));
@@ -310,30 +318,70 @@ function PorchHero({ senior, state, viewer, latest, escalation, checkedIn }) {
 function EscalationCard({ escalation, senior, me, run }) {
   const name = senior.preferredName;
   const help = escalation.reason === 'help';
+  const ctx = escalation.context || {};
+  const tz = tzOf(senior);
+  const ack = escalation.ack;
+  const where = !help ? null : !ctx.location ? 'Location not shared (it’s off on their phone)'
+    : [ctx.location.address, ctx.nearHome ? 'at home' : null].filter(Boolean).join(' · ') || 'See the map';
+  const facts = help ? [
+    ['clock', 'Pressed', when(ctx.at || escalation.createdAt, tz)],
+    ['location.fill', 'Where', where],
+    ctx.lastCall && ['phone', 'Last call', `${when(ctx.lastCall.at, tz)}: ${ctx.lastCall.summary}`],
+    ctx.scam && ['exclamationmark.shield', 'Scam worry', `${ctx.scam.verdict}: “${ctx.scam.what}”`],
+    ctx.meds && ['pills', 'Pills today', `${ctx.meds.taken} of ${ctx.meds.total} taken${ctx.meds.missed ? `, ${ctx.meds.missed} missed` : ''}`],
+  ].filter(Boolean) : [];
   return (
     <Card tone={help ? 'red' : 'lamp'} style={{ gap: 16 }} accessibilityLiveRegion="polite">
       <View style={st.cardHead}>
         <IconTile icon={help ? 'hand.raised.fill' : 'phone.arrow.up.right'} tone={help ? 'red' : 'lamp'} size={44} />
         <View style={{ flex: 1, gap: 2 }}>
-          <T v="headline">{help ? name + ' needs someone to contact her' : 'Let’s get in touch'}</T>
-          <T v="callout" muted>{help ? 'She pressed her help button. If there is an emergency, call 911.' : 'A missed call doesn’t tell us why. She may be out or asleep.'}</T>
+          <T v="headline">{help ? `${name} pressed “I need help”` : 'Let’s get in touch'}</T>
+          <T v="callout" muted>{help ? 'Call them now. If you can’t reach them and it may be an emergency, call 911.' : `A missed call doesn’t tell us why. ${name} may be out or asleep.`}</T>
         </View>
       </View>
-      <View style={st.ladder}>
-        {escalation.steps.map((s, i) => (
-          <View key={i} style={st.ladderRow}>
-            <View style={st.ladderRail}>
-              <View style={[st.ladderDot, { backgroundColor: s.status === 'done' ? accent.green : s.status === 'held' ? light.faint : accent.lamp }]} />
-              {i < escalation.steps.length - 1 ? <View style={st.ladderLine} /> : null}
+      {facts.length ? (
+        <View style={st.details}>
+          {facts.map(([icon, label, value], i) => (
+            <View key={label}>
+              {i > 0 && <View style={st.detailLine} />}
+              <View style={st.detail} accessible accessibilityLabel={`${label}: ${value}`}>
+                <Icon name={icon} size={15} color={light.muted} />
+                <T v="callout" muted style={{ width: 78 }}>{label}</T>
+                <T v="callout" style={{ flex: 1, fontWeight: '600' }}>{value}</T>
+              </View>
             </View>
-            <View style={{ flex: 1, paddingBottom: i < escalation.steps.length - 1 ? 12 : 0 }}>
-              <T v="callout" style={{ fontWeight: '600' }}>{s.label}</T>
-              <T v="footnote" muted>{s.status === 'done' ? 'Sent ' + ago(s.at) : s.status === 'held' ? 'Held for quiet hours' : 'Next'}</T>
+          ))}
+        </View>
+      ) : null}
+      {help && (
+        <View style={st.btnRow}>
+          {senior.phone ? <Button variant="primary" icon="phone.fill" label={`Call ${name}`} style={{ flex: 1 }} onPress={() => Linking.openURL('tel:' + senior.phone)} /> : null}
+          {ctx.location ? <Button icon="map.fill" label="Open map" style={{ flex: 1 }} onPress={() => Linking.openURL(ctx.location.mapUrl)} /> : null}
+        </View>
+      )}
+      {ack ? (
+        <View style={st.waiting}>
+          <Icon name="person.fill.checkmark" size={14} color={light.muted} />
+          <T v="callout" muted>{ack.memberId === me ? 'You’re on it.' : `${first(ack.name)} is on it.`} {when(ack.at, tz)}</T>
+        </View>
+      ) : (
+        <View style={st.ladder}>
+          {escalation.steps.map((s, i) => (
+            <View key={i} style={st.ladderRow}>
+              <View style={st.ladderRail}>
+                <View style={[st.ladderDot, { backgroundColor: s.status === 'done' ? accent.green : ['held', 'skipped'].includes(s.status) ? light.faint : accent.lamp }]} />
+                {i < escalation.steps.length - 1 ? <View style={st.ladderLine} /> : null}
+              </View>
+              <View style={{ flex: 1, paddingBottom: i < escalation.steps.length - 1 ? 12 : 0 }}>
+                <T v="callout" style={{ fontWeight: '600' }}>{s.label}</T>
+                <T v="footnote" muted>{s.status === 'done' ? 'Sent ' + ago(s.at) : s.status === 'held' ? 'Held for quiet hours' : s.status === 'skipped' ? 'Not needed' : 'Next'}</T>
+              </View>
             </View>
-          </View>
-        ))}
-      </View>
-      <Button variant="primary" icon="checkmark" label={'I reached ' + name + ', she’s okay'} onPress={run(() => api.resolve(senior._id, me), 'Thanks. Her status is updated.')} />
+          ))}
+        </View>
+      )}
+      {!ack && <Button variant="primary" icon="hand.raised.fill" label="I’m on it" accessibilityHint="Tells the family and Porchlight you’re reaching them now." onPress={run(() => api.onIt(senior._id), ['Thanks', `The family knows you’re reaching ${name}.`])} />}
+      <Button variant={ack ? 'primary' : 'secondary'} icon="checkmark" label={'I reached ' + name + ', all okay'} onPress={run(() => api.resolve(senior._id), 'Thanks. The alert is closed.')} />
     </Card>
   );
 }
@@ -506,11 +554,11 @@ function ActionCard({ action, state, me, run, senior }) {
       <View style={st.cardHead}>
         <IconTile icon="car.fill" tone={pending ? 'amber' : booked ? 'green' : 'lamp'} size={44} />
         <View style={{ flex: 1, gap: 6 }}>
-          <T v="headline">{auto && booked ? (action.simulated ? 'Demo ride arranged' : `${senior.preferredName}’s ride is booked`) : action.title}</T>
-          <Chip label={ended ?? (pending ? 'Needs your OK' : action.simulated ? 'Demo · ' + stepLabel : stepLabel)} icon={booked ? 'checkmark' : pending ? 'hand.raised.fill' : undefined} tone={ended || pending ? 'lamp' : booked ? 'green' : 'neutral'} />
+          <T v="headline">{auto && booked ? `${senior.preferredName}’s ride is booked` : action.title}</T>
+          <Chip label={ended ?? (pending ? 'Needs your OK' : stepLabel)} icon={booked ? 'checkmark' : pending ? 'hand.raised.fill' : undefined} tone={ended || pending ? 'lamp' : booked ? 'green' : 'neutral'} />
         </View>
       </View>
-      {auto && !ended && !action.simulated ? <T v="callout" muted>{booked ? `${senior.preferredName}’s ride is confirmed.` : 'The ride request is being processed.'}</T> : null}
+      {auto && !ended ? <T v="callout" muted>{booked ? `${senior.preferredName}’s ride is confirmed.` : 'The ride request is being processed.'}</T> : null}
       {action.reason ? <Quote>{action.reason}</Quote> : null}
 
       {details.length ? (
@@ -530,24 +578,18 @@ function ActionCard({ action, state, me, run, senior }) {
 
       {!ended && <Progress idx={idx} label={stepLabel} steps={steps} />}
 
-      {action.simulated && (
-        <View style={st.simulated} accessibilityLabel="Simulated booking, not a real ride">
-          <Icon name="flask" size={13} color={light.muted} />
-          <T v="footnote" muted style={{ flex: 1 }}>Simulated booking, not a real ride{last?.evidence?.ref ? ` · ref ${last.evidence.ref}` : ''}</T>
-        </View>
-      )}
-      {last?.evidence?.note && last.evidence.note !== 'Simulated booking, not a real ride' && !action.reason ? <T v="footnote" muted>{last.evidence.note}</T> : null}
+      {last?.evidence?.note && !action.reason ? <T v="footnote" muted>{last.evidence.note}</T> : null}
       {d.uberLink && !ended && action.status !== 'COMPLETED' ? (
         <View style={st.uberNote}>
           <Icon name="iphone" size={15} color={accent.lampText} />
-          <T v="footnote" style={{ flex: 1, color: accent.lampText }}>{senior.preferredName} can book a real Uber from her own screen. Nothing for you to do.</T>
+          <T v="footnote" style={{ flex: 1, color: accent.lampText }}>{senior.preferredName} can book the Uber from the Porchlight app. Nothing for you to do.</T>
         </View>
       ) : null}
 
       {pending && (canApprove ? (
         <View style={st.btnRow}>
-          <Button variant="primary" icon="checkmark" label="Approve ride" style={{ flex: 1.4 }} onPress={run(() => api.approve(action._id, me._id), ['Ride approved', 'Booking it now. This is a simulated booking, not a real ride.'])} />
-          <Button label="Not now" style={{ flex: 1 }} onPress={run(() => api.reject(action._id, me._id), 'Ride not approved')} />
+          <Button variant="primary" icon="checkmark" label="Approve ride" style={{ flex: 1.4 }} onPress={run(() => api.approve(action._id), ['Ride approved', `${senior.preferredName} gets a button to book it in Uber.`])} />
+          <Button label="Not now" style={{ flex: 1 }} onPress={run(() => api.reject(action._id), 'Ride not approved')} />
         </View>
       ) : (
         <View style={st.waiting}>
@@ -556,7 +598,7 @@ function ActionCard({ action, state, me, run, senior }) {
         </View>
       ))}
       {action.status === 'CONFIRMED' && canApprove && (
-        <Button icon="flag.checkered" label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id, me._id), 'Marked as done')} />
+        <Button icon="flag.checkered" label={`${senior.preferredName} got there`} onPress={run(() => api.complete(action._id), 'Marked as done')} />
       )}
     </Card>
   );
@@ -674,7 +716,7 @@ const TRANSPORT = {
   confirmed: ['Ride confirmed', 'green'],
 };
 
-// What's coming up, grouped by day: Peggy's iPhone calendar (as synced by her app) plus sample appointments.
+// What's coming up, grouped by day: their iPhone calendar (as synced by their app) plus appointments from calls.
 function Timeline({ senior, state }) {
   useNow();
   const tz = tzOf(senior);
@@ -722,9 +764,7 @@ function Timeline({ senior, state }) {
 function TimelineRow({ a, senior, state }) {
   const tz = tzOf(senior);
   const name = senior.preferredName;
-  const action = (state.actions || []).find((x) => x._id === a.actionId);
   const [label, tone] = a.needsRide === false ? ['No ride needed', 'neutral']
-    : a.transport === 'confirmed' && action?.simulated ? ['Demo ride confirmed', 'green']
     : TRANSPORT[a.transport] ?? TRANSPORT.unknown;
   const d = new Date(a.startsAt);
   const valid = Number.isFinite(d.getTime());
@@ -733,7 +773,7 @@ function TimelineRow({ a, senior, state }) {
   const addToMine = async () => {
     try {
       await Calendar.createEventInCalendarAsync({
-        title: `${name}: ${a.title.replace(/\s*\(sample\)/i, '')}`,
+        title: `${name}: ${a.title}`,
         startDate: new Date(a.startsAt), endDate: new Date(a.endsAt || new Date(a.startsAt).getTime() + 3600000),
         location: a.where || undefined, notes: `From ${name}’s Porchlight.`,
       });
@@ -755,7 +795,7 @@ function TimelineRow({ a, senior, state }) {
         </View>
         <View style={[st.chips, { marginTop: 6 }]}>
           <Chip label={label} icon={tone === 'green' ? 'checkmark' : 'car'} tone={tone} />
-          <Chip label={a.source === 'calendar' ? `Her calendar${a.calendar ? `: ${a.calendar}` : ''}` : 'Sample'} icon={a.source === 'calendar' ? 'calendar' : undefined} />
+          {a.source === 'calendar' ? <Chip label={`${name}’s calendar${a.calendar ? `: ${a.calendar}` : ''}`} icon="calendar" /> : null}
         </View>
       </View>
       <Press onPress={addToMine} accessibilityLabel={`Add ${a.title} to my calendar`} style={[st.roundBtn, st.tlAdd]} scaleTo={0.94}>
@@ -768,15 +808,15 @@ function TimelineRow({ a, senior, state }) {
 const TASK_ICON = { refill: 'pills.fill', ride: 'car.fill', groceries: 'cart.fill', repair: 'hammer.fill', errand: 'bag.fill', visit: 'house.fill', call: 'phone.fill', meal: 'fork.knife' };
 function TaskRow({ t, me, run, name, senior }) {
   const ho = t.handoff?.status === 'pending' ? t.handoff : null;
-  const who = t.requestedBy === 'peggy' || t.source === 'checkin' ? senior.preferredName : t.requestedBy ? name(t.requestedBy) : null;
+  const who = t.requestedBy === 'senior' || t.source === 'checkin' ? senior.preferredName : t.requestedBy ? name(t.requestedBy) : null;
   const suggested = !t.assignee && t.suggestedOwner ? t.suggestedOwner : null;
 
   let buttons;
   if (ho && ho.to === me) {
     buttons = (
       <View style={st.btnRow}>
-        <Button size="sm" variant="primary" label="Accept" onPress={run(() => api.accept(t._id, me), `You’ve got it. ${senior.preferredName} will hear who’s helping`)} />
-        <Button size="sm" label="Decline" onPress={run(() => api.decline(t._id, me), 'Declined')} />
+        <Button size="sm" variant="primary" label="Accept" onPress={run(() => api.accept(t._id), `You’ve got it. ${senior.preferredName} will hear who’s helping`)} />
+        <Button size="sm" label="Decline" onPress={run(() => api.decline(t._id), 'Declined')} />
       </View>
     );
   } else if (ho) {
@@ -786,9 +826,9 @@ function TaskRow({ t, me, run, name, senior }) {
   } else {
     buttons = (
       <View style={st.btnRow}>
-        <Button size="sm" variant="primary" label="I’ll do it" onPress={run(() => api.claim(t._id, me), [`You’ve got it`, `${senior.preferredName} will hear who’s helping.`])} />
+        <Button size="sm" variant="primary" label="I’ll do it" onPress={run(() => api.claim(t._id), [`You’ve got it`, `${senior.preferredName} will hear who’s helping.`])} />
         {suggested && suggested !== me && (
-          <Button size="sm" label={`Ask ${name(suggested)}`} onPress={run(() => api.handoff(t._id, me, suggested), `Asked ${name(suggested)}`)} />
+          <Button size="sm" label={`Ask ${name(suggested)}`} onPress={run(() => api.handoff(t._id, suggested), `Asked ${name(suggested)}`)} />
         )}
       </View>
     );
@@ -826,11 +866,12 @@ function FamilyDetails(ctx) {
   </>;
 }
 
-function Circle({ state, circle, me }) {
+function Circle({ senior, state, circle, me, app }) {
   const texts = state.notifications.filter((n) => circle.some((m) => m._id === n.toId)).slice(0, 8);
+  const manager = Boolean(circle.find((m) => m._id === me)?.primary);
   return (
     <>
-      <Block title="Your people">
+      <Block title="Your people" sub={manager ? 'Tap someone to choose what they can see.' : null}>
         <ListGroup>
           {circle.map((m) => {
             const awake = isAwake(m.timezone);
@@ -842,6 +883,7 @@ function Circle({ state, circle, me }) {
                 title={m._id === me ? `${m.name} (you)` : m.name}
                 sub={sub}
                 accessibilityLabel={`${m.name}${m._id === me ? ', you' : ''}. ${sub}. ${localTime(m.timezone)} their time${awake ? '' : ', quiet hours'}.`}
+                onPress={manager && m._id !== me ? () => openMember({ member: m, senior, refresh: app.refresh }) : undefined}
                 right={
                   <View style={{ alignItems: 'flex-end', gap: 1 }}>
                     <Text style={[st.localTime, !awake && { color: light.muted }]}>{localTime(m.timezone)}</Text>
@@ -855,9 +897,10 @@ function Circle({ state, circle, me }) {
             );
           })}
         </ListGroup>
+        <CircleActions senior={senior} manager={manager} refresh={app.refresh} />
       </Block>
-      <Block title="Texts sent by Porchlight">
-        {texts.length === 0 ? <EmptyNote icon="message" text="When Porchlight needs the circle, the texts it sends show up here." /> : (
+      <Block title="Messages sent by Porchlight">
+        {texts.length === 0 ? <EmptyNote icon="message" text="When Porchlight needs the circle, the messages it sends show up here." /> : (
           <Card style={{ gap: 18 }}>
             {texts.map((n, i) => (
               <View key={i} style={{ gap: 6 }}>
@@ -1000,7 +1043,7 @@ function FamilyQuestions({ senior, state, me, run }) {
   const send = () => {
     const t = text.trim();
     if (!t) return;
-    run(async () => { await api.addQuestion(senior._id, t, typeof me === 'string' ? me : me?._id); setText(''); }, [`Porchlight will ask ${name}`, 'On her next call. Her answer is saved here.'])();
+    run(async () => { await api.addQuestion(senior._id, t); setText(''); }, [`Porchlight will ask ${name}`, 'On her next call. Her answer is saved here.'])();
   };
   return (
     <Card style={{ gap: 14 }}>
@@ -1127,24 +1170,25 @@ function Group({ header, footer, children }) {
 
 function Settings({ senior, run, circle, me, app }) {
   const mine = circle.find((m) => m._id === me);
+  const about = [senior.home ? 'Home address saved' : 'No home address', senior.about?.length ? `${senior.about.length} things to talk about` : null].filter(Boolean).join(' · ');
   return <>
-    <LargeTitle title="Settings" subtitle="Make the daily check-in work for you." />
+    <LargeTitle title="Settings" subtitle="Make the daily call work for you." />
     <Group header="Daily call"><DailyCall senior={senior} run={run} /></Group>
-    <Group header="Your sample profile" footer={mine?.seesMeds ? 'Your profile can see medicine details.' : 'Medicine details and call transcripts are private to the primary contact.'}>
+    <Group header={`About ${senior.preferredName}`} footer={mine?.primary ? 'Porchlight uses these on calls and for rides.' : 'Only the primary contact can change these.'}>
       <ListGroup>
-        <ListRow avatar={mine?.name} title={mine?.name} sub={mine?.relation} />
+        <ListRow avatar={senior.preferredName} title={senior.preferredName} sub={about} onPress={mine?.primary ? () => openSeniorEditor({ senior, refresh: app.refresh }) : undefined} />
+      </ListGroup>
+    </Group>
+    <Group header="Your access" footer={mine?.seesMeds ? 'You can see medicine details and call transcripts.' : 'Medicine details and call transcripts are private. The primary contact can share them with you.'}>
+      <ListGroup>
         <ListRow icon={mine?.seesMeds ? 'eye.fill' : 'lock.fill'} iconTone={mine?.seesMeds ? 'green' : 'plain'} title="Medicine details" right={mine?.seesMeds ? 'Visible' : 'Private'} />
-        <ListRow icon="person.crop.circle" title="Switch person" onPress={() => openRoleSheet(app)} />
+        <ListRow icon="car.fill" title="Ride approvals" right={mine?.canApprove ? 'You approve' : 'Notified only'} />
       </ListGroup>
     </Group>
-    <Group header="About Porchlight" footer="All people and organizations in this experience are sample. A simulated booking is not a real ride.">
+    <Group header="Your account"><AccountGroup account={app.account} /></Group>
+    <Group header="About Porchlight">
       <ListGroup>
-        <ListRow icon="sparkles" iconTone="lamp" title="An AI helper, with family in the loop" sub="Porchlight shares check-in updates and helps coordinate everyday needs. It does not provide medical advice." />
-      </ListGroup>
-    </Group>
-    <Group header="Presenting">
-      <ListGroup>
-        <ListRow icon="slider.horizontal.3" title="Demo controls" onPress={() => openDemoMenu(app)} />
+        <ListRow icon="sparkles" iconTone="lamp" title="An AI helper, with family in the loop" sub="Porchlight shares how the daily call went and helps coordinate everyday needs. It does not give medical advice." />
       </ListGroup>
     </Group>
   </>;
@@ -1263,7 +1307,6 @@ const st = StyleSheet.create({
   tick: { position: 'absolute', top: 0, bottom: 0, width: 2, marginLeft: -1, backgroundColor: light.surface },
   stepLabels: { flexDirection: 'row' },
   stepLabel: { flex: 1, fontSize: 12, color: light.muted },
-  simulated: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: light.sunken, borderRadius: radius.xs, paddingHorizontal: 10, paddingVertical: 7 },
   uberNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: accent.lampSoft, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 10 },
   waiting: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
