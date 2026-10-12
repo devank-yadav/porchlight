@@ -1,5 +1,5 @@
-import { Children, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, Share, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import Animated from 'react-native-reanimated';
@@ -13,7 +13,7 @@ import MedsList from './meds/MedsList';
 import { useAppContext } from './AppContext';
 import { pretty } from './Onboarding';
 import Lamp, { lampState } from './Lamp';
-import { Appear, Avatar, BigButton, Button, Card, HeroCard, IconTile, ListGroup, Press, Screen, Section, T, Tile, useSettled } from './design/ui';
+import { Appear, Avatar, BigButton, Button, Card, HeroCard, IconTile, ListGroup, Press, Screen, Section, T, useSettled } from './design/ui';
 import PlanRow, { upcomingPlans, isToday, dayLabel } from './design/PlanRow';
 import Icon from './design/Icon';
 import { haptic } from './design/haptics';
@@ -89,13 +89,12 @@ function PhoneSync({ senior, state, refresh }) {
 export default function SeniorScreen({ senior, page = 'today' }) {
   const { state, refresh, account } = useAppContext();
   const members = state.members.filter((m) => m.circleId === senior.circleId);
-  const primary = members.find((m) => m.primary);
   const ride = (state.actions || []).find((a) => a.seniorId === senior._id && a.details?.uberLink && !['COMPLETED', 'REJECTED', 'FAILED', 'CANCELLED'].includes(a.status));
   const notices = (state.notices || []).filter((n) => n.seniorId === senior._id).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
 
   const plans = upcomingPlans(state, senior);
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    {page === 'today' && <Home senior={senior} primary={primary} plans={plans} state={state} refresh={refresh} notices={notices} />}
+    {page === 'today' && <Home senior={senior} plans={plans} state={state} refresh={refresh} notices={notices} />}
     {page === 'plans' && <Plans senior={senior} plans={plans} state={state} refresh={refresh} ride={ride} notices={notices} />}
     {page === 'family' && <Family senior={senior} members={members} account={account} />}
     {page === 'scam' && <ScamCheck senior={senior} state={state} back={home} />}
@@ -105,13 +104,11 @@ export default function SeniorScreen({ senior, page = 'today' }) {
 }
 
 // ── Today ───────────────────────────────────────────────────────────────────
-function Home({ senior, primary, plans, state, refresh, notices }) {
+function Home({ senior, plans, state, refresh, notices }) {
   const [calling, setCalling] = useState(false);
   const callReset = useRef(null);
   useEffect(() => () => clearTimeout(callReset.current), []);
   const settled = useSettled();
-  const { width, fontScale } = useWindowDimensions();
-  const compact = width < 360 || fontScale > 1.2;
   const tz = zone(senior);
   const help = senior.status === 'help';
   const talked = !['help', 'missed'].includes(senior.status) && isToday(senior.lastCheckinAt, senior.timezone);
@@ -177,10 +174,7 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     </Appear>
 
     <Appear on index={3} style={st.grid}>
-      <ActionGrid compact={compact}>
-        {primary ? <Action compact={compact} icon="phone.fill" title={'Call ' + firstName(primary.name)} sub={primary.relation} onPress={() => openLink('tel:' + primary.phone)} disabled={!primary.phone} /> : null}
-        <Action compact={compact} icon="shield.lefthalf.filled" title="Is this a scam?" sub="Check first" onPress={() => go('scam')} />
-      </ActionGrid>
+      <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Porchlight calls you to check" chevron onPress={() => go('scam')} />
       <BigButton icon="iphone" title="Help with my phone" sub="Show me the screen" hint="Take a picture of a screen and Porchlight explains what to do next." chevron onPress={() => go('tech')} />
     </Appear>
 
@@ -188,18 +182,6 @@ function Home({ senior, primary, plans, state, refresh, notices }) {
     <HelpButton />
     <AiPromise />
   </Screen>;
-}
-
-// Two-up tiles; one big button per row when the screen is narrow or the text is large.
-function ActionGrid({ compact, children }) {
-  const items = Children.toArray(children).filter(Boolean);
-  if (compact) return items;
-  const rows = [];
-  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
-  return rows.map((row, i) => <View key={i} style={st.gridRow}>{row}</View>);
-}
-function Action({ compact, ...props }) {
-  return compact ? <BigButton {...props} /> : <Tile {...props} />;
 }
 
 function HelpButton() {
@@ -294,8 +276,8 @@ function Family({ senior, members, account }) {
     { text: 'Delete', style: 'destructive', onPress: () => account.deleteAccount().catch(onError) },
   ]);
   return <Screen>
-    <PageTitle title="My family" sub="A familiar voice is a tap away." />
-    {members.length ? <ListGroup>{members.map((m) => <CallRow key={m._id} member={m} dividerInset={18 + 60 + 16} />)}</ListGroup>
+    <PageTitle title="My family" sub="The people Porchlight keeps in the loop. Ask it on a call to connect you." />
+    {members.length ? <ListGroup>{members.map((m) => <PersonRow key={m._id} member={m} />)}</ListGroup>
       : <Card style={st.empty}><T v="readHeadline" center>No family here yet</T><T v="readSmall" muted center>Invite them with a code below.</T></Card>}
     <BigButton tone={members.length ? 'plain' : 'lamp'} icon="person.badge.plus" title="Invite my family" sub={code ? `Your code: ${code.code}` : 'Share a code with them'} hint="Opens the share sheet with an invite code." onPress={invite} />
     <Section title="Stay safe" style={{ gap: 14 }}>
@@ -311,24 +293,16 @@ function Family({ senior, members, account }) {
   </Screen>;
 }
 
-function CallRow({ member: m }) {
-  const name = firstName(m.name);
+// Who's in the circle. No call buttons: Porchlight connects her on a call ("connect me to Anne").
+function PersonRow({ member: m }) {
   const sub = m.relation + (m.primary ? ' · First contact' : '');
-  return <Pressable
-    disabled={!m.phone}
-    onPress={() => { haptic.tap(); openLink('tel:' + m.phone); }}
-    accessibilityRole="button"
-    accessibilityLabel={`Call ${name}. ${sub}`}
-    accessibilityState={{ disabled: !m.phone }}
-    style={({ pressed }) => [st.callRow, pressed && { backgroundColor: P.sunken }, !m.phone && { opacity: 0.45 }]}
-  >
-    <Avatar name={name} size={60} />
+  return <View style={st.callRow} accessible accessibilityLabel={`${m.name}. ${sub}`}>
+    <Avatar name={firstName(m.name)} size={60} />
     <View style={{ flex: 1, gap: 2 }}>
-      <T v="readHeadline" style={{ fontSize: 24, lineHeight: 30 }}>{'Call ' + name}</T>
+      <T v="readHeadline" style={{ fontSize: 24, lineHeight: 30 }}>{m.name}</T>
       <T v="readSmall" muted>{sub}</T>
     </View>
-    <View style={st.callDisc}><Icon name="phone.fill" size={24} color={accent.lampInk} /></View>
-  </Pressable>;
+  </View>;
 }
 
 function PageTitle({ title, sub }) {
@@ -562,7 +536,6 @@ const st = StyleSheet.create({
   heroNext: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 20, backgroundColor: 'rgba(255,247,236,0.07)', borderWidth: StyleSheet.hairlineWidth, borderColor: night.line },
   heroNextTitle: { fontSize: 22, lineHeight: 28 },
   grid: { gap: 12 },
-  gridRow: { flexDirection: 'row', gap: 12 },
   promise: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 4, paddingTop: 4 },
   warm: { gap: 16 },
   warmHead: { flexDirection: 'row', alignItems: 'center', gap: 14 },
@@ -571,7 +544,6 @@ const st = StyleSheet.create({
   empty: { alignItems: 'center', gap: 10, paddingVertical: 28 },
   stack: { gap: 14 },
   callRow: { flexDirection: 'row', alignItems: 'center', gap: 16, minHeight: 108, paddingHorizontal: 18, paddingVertical: 16 },
-  callDisc: { width: 56, height: 56, borderRadius: 28, backgroundColor: accent.lamp, alignItems: 'center', justifyContent: 'center' },
   pageHead: { alignItems: 'center', gap: 12, paddingHorizontal: 4 },
   centerPage: { flexGrow: 1, justifyContent: 'center' },
   centerStack: { alignItems: 'center', gap: 16 },
