@@ -45,16 +45,15 @@ function FloatingTabBar({ state, navigation, descriptors, senior, items }) {
             if (!route) return null;
             const focused = state.routes[state.index]?.key === route.key;
             const label = descriptors[route.key]?.options?.tabBarAccessibilityLabel ?? title;
+            // No onLongPress: with one, a press held over 500 ms (common for older hands) never switches tabs.
             const onPress = () => {
               const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
               if (!focused && !event.defaultPrevented) { haptic.select(); navigation.navigate(route.name, route.params); }
             };
-            const onLongPress = () => navigation.emit({ type: 'tabLongPress', target: route.key });
             return (
               <Pressable
                 key={name}
                 onPress={onPress}
-                onLongPress={onLongPress}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: focused }}
                 accessibilityLabel={label}

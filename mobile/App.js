@@ -139,18 +139,21 @@ function Header({ senior }) {
 // Signed-in pages only: the right role, setup finished, and the circle's data loaded.
 export function DataGate({ role: want, children }) {
   const { state, error, refresh, account } = useAppContext();
+  const [trying, setTrying] = useState(false);
   if (!account.session || !account.me?.setupDone || account.session.role !== want) return <Redirect href="/" />;
   const senior = state?.seniors?.[0];
   if (senior) return children(senior);
   const isSenior = want === 'senior';
   const Retry = isSenior ? BigButton : Button;
+  const retry = async () => { setTrying(true); await refresh(); setTrying(false); };
   return <View style={st.loading}>
     <Lamp state={error ? 'dim' : 'lit'} size={104} />
     <View style={{ gap: 8, alignItems: 'center', maxWidth: 340 }}>
       <T v={isSenior ? 'readHeadline' : 'title'} center>{error ? 'Let’s reconnect' : 'Opening your day…'}</T>
-      {error ? <T v={isSenior ? 'readSmall' : 'callout'} muted center>We can’t reach Porchlight. Check your connection and try again.</T> : null}
+      {/* The real reason (no internet, or the app pointed at the wrong server), not a generic line. */}
+      {error ? <T v={isSenior ? 'readSmall' : 'callout'} muted center>{error}</T> : null}
     </View>
-    {error ? <Retry title="Try again" label="Try again" variant="primary" icon="arrow.clockwise" onPress={refresh} style={{ alignSelf: 'stretch', maxWidth: 340, width: '100%' }} /> : <ActivityIndicator color={light.muted} />}
+    {error ? <Retry title={trying ? 'Trying again…' : 'Try again'} label="Try again" variant="primary" icon="arrow.clockwise" busy={trying} disabled={trying} onPress={retry} style={{ alignSelf: 'stretch', maxWidth: 340, width: '100%' }} /> : <ActivityIndicator color={light.muted} />}
   </View>;
 }
 

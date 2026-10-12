@@ -87,7 +87,7 @@ function Drawer({ entry }) {
   useEffect(() => () => { progress.set(withTiming(0, { duration: 200, easing: ease.out })); }, [progress]);
 
   const pan = useMemo(() => Gesture.Pan()
-    .activeOffsetY([-8, 8])
+    .activeOffsetY([-14, 14]) // a shaky tap on a row stays a tap
     .onStart(() => { start.set(y.get()); })
     .onUpdate((e) => {
       const next = start.get() + e.translationY;

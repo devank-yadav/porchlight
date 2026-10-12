@@ -48,14 +48,25 @@ function clock(hhmm) {
   const h = Math.floor(min / 60);
   return `${h % 12 || 12}:${String(min % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
+// Weekday (Sunday = 0) and minutes after midnight in a time zone. formatToParts, because Hermes can't
+// parse new Date(date.toLocaleString(...)) the way a browser can.
+function localNow(tz) {
+  try {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+      .formatToParts(new Date()).map((p) => [p.type, p.value]));
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.weekday);
+    const minutes = (Number(parts.hour) % 24) * 60 + Number(parts.minute);
+    if (weekday >= 0 && Number.isFinite(minutes)) return { weekday, minutes };
+  } catch { /* fall back to the phone's own clock */ }
+  const d = new Date();
+  return { weekday: d.getDay(), minutes: d.getHours() * 60 + d.getMinutes() };
+}
 function nextCallLabel(senior) {
   if (!senior.autoCall) return 'Not scheduled';
   const days = senior.callDays || ALL_DAYS;
-  const tz = senior.timezone || 'America/New_York';
-  const local = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
-  const nowMin = local.getHours() * 60 + local.getMinutes();
+  const { weekday, minutes: nowMin } = localNow(senior.timezone || 'America/New_York');
   for (let i = 0; i < 8; i++) {
-    const d = (local.getDay() + i) % 7;
+    const d = (weekday + i) % 7;
     if (!days.includes(d) || (i === 0 && toMin(senior.checkinTime) <= nowMin)) continue;
     return `${i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : DAY_NAMES[d]} ${clock(senior.checkinTime)}`;
   }
@@ -85,8 +96,17 @@ const AUTO_INDEX = { APPROVED: 0, REQUESTED: 0, CONFIRMED: 1, COMPLETED: 2 };
 const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
 
 const tzOf = (senior) => senior?.timezone || 'America/New_York';
-const dayKey = (t, tz) => new Date(t).toLocaleDateString('en-US', { timeZone: tz });
-const timeIn = (iso, tz) => new Date(iso).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+// On iPhone every toLocale*() call builds a new date formatter, so the busy ones share cached formatters.
+const formatters = new Map();
+function fmt(t, options) {
+  const k = JSON.stringify(options);
+  let f = formatters.get(k);
+  if (!f) { f = new Intl.DateTimeFormat('en-US', options); formatters.set(k, f); }
+  const d = new Date(t);
+  return Number.isFinite(d.getTime()) ? f.format(d) : '';
+}
+const dayKey = (t, tz) => fmt(t, { timeZone: tz });
+const timeIn = (iso, tz) => fmt(iso, { timeZone: tz, hour: 'numeric', minute: '2-digit' });
 function when(iso, tz) {
   if (!iso) return '';
   const day = relDay(iso, tz);
@@ -418,15 +438,16 @@ function FlagsCard({ flags, name }) {
 function Week({ checkins, tz }) {
   const now = useNow();
   const days = [];
+  const ended = checkins.filter((c) => c.endedAt).map((c) => [dayKey(c.endedAt, tz), c]);
   for (let i = 6; i >= 0; i--) {
     const t = now - i * 86400000;
     const key = dayKey(t, tz);
-    const items = checkins.filter((c) => c.endedAt && dayKey(c.endedAt, tz) === key);
+    const items = ended.filter(([k]) => k === key).map(([, c]) => c);
     days.push({
       key, today: i === 0, items,
-      letter: new Date(t).toLocaleDateString('en-US', { timeZone: tz, weekday: 'narrow' }),
-      num: new Date(t).toLocaleDateString('en-US', { timeZone: tz, day: 'numeric' }),
-      long: new Date(t).toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'short', day: 'numeric' }),
+      letter: fmt(t, { timeZone: tz, weekday: 'narrow' }),
+      num: fmt(t, { timeZone: tz, day: 'numeric' }),
+      long: fmt(t, { timeZone: tz, weekday: 'long', month: 'short', day: 'numeric' }),
     });
   }
   const count = days.filter((d) => d.items.length).length;
@@ -436,7 +457,6 @@ function Week({ checkins, tz }) {
         <View style={st.week}>{days.map((d) => <WeekDay key={d.key} d={d} />)}</View>
         <View style={st.legend}>
           <Legend color={accent.lamp} label="Talked" />
-          <Legend color={accent.lampSoft} label="Button" ring />
           <Legend color={light.sunken} label="No check-in" />
         </View>
       </Card>
@@ -1217,12 +1237,12 @@ function DailyCall({ senior, run }) {
       </View>
 
       <View style={[st.timePanel, !autoCall && { opacity: 0.55 }]} pointerEvents={autoCall ? 'auto' : 'none'}>
-        <Press onPress={() => step(-15)} feedback={null} accessibilityLabel="Fifteen minutes earlier" style={st.stepBtn} scaleTo={0.92}><Icon name="minus" size={18} color={light.ink} weight="bold" /></Press>
+        <Press onPress={() => step(-15)} feedback={null} accessibilityLabel="Fifteen minutes earlier" accessibilityState={{ disabled: !autoCall }} style={st.stepBtn} scaleTo={0.92}><Icon name="minus" size={18} color={light.ink} weight="bold" /></Press>
         <View style={{ alignItems: 'center', gap: 2 }}>
           <Text style={st.time} accessibilityLabel={`Call time ${clock(toHHMM(min))}`}>{clock(toHHMM(min)).split(' ')[0]}<Text style={st.ampm}> {clock(toHHMM(min)).split(' ')[1]}</Text></Text>
           <T v="footnote" muted>Her time{zone ? ` · ${zone}` : ''}</T>
         </View>
-        <Press onPress={() => step(15)} feedback={null} accessibilityLabel="Fifteen minutes later" style={st.stepBtn} scaleTo={0.92}><Icon name="plus" size={18} color={light.ink} weight="bold" /></Press>
+        <Press onPress={() => step(15)} feedback={null} accessibilityLabel="Fifteen minutes later" accessibilityState={{ disabled: !autoCall }} style={st.stepBtn} scaleTo={0.92}><Icon name="plus" size={18} color={light.ink} weight="bold" /></Press>
       </View>
 
       <View style={[st.days, !autoCall && { opacity: 0.55 }]} pointerEvents={autoCall ? 'auto' : 'none'}>
@@ -1340,7 +1360,8 @@ const st = StyleSheet.create({
   story: { backgroundColor: light.surface, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: light.line, padding: 20, gap: 16 },
   storyTitle: { fontSize: 21, lineHeight: 26 },
   storyQuote: { paddingTop: 2 },
-  quoteMark: { fontFamily: SERIF, fontSize: 60, lineHeight: 60, height: 30, color: accent.lamp, fontWeight: '700', marginLeft: -2 },
+  // A full 60pt line pulled up by half (a 30pt-tall frame would cut the mark off on iOS).
+  quoteMark: { fontFamily: SERIF, fontSize: 60, lineHeight: 60, marginBottom: -30, color: accent.lamp, fontWeight: '700', marginLeft: -2 },
   storyText: { fontFamily: SERIF, fontSize: 22, lineHeight: 31, color: light.ink, fontStyle: 'italic', letterSpacing: -0.2 },
   answering: { flexDirection: 'row', gap: 8, backgroundColor: accent.lampSoft, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 9 },
   askNext: { flexDirection: 'row', gap: 10, backgroundColor: light.surface2, borderWidth: StyleSheet.hairlineWidth, borderColor: light.line, borderRadius: radius.md, padding: 14 },

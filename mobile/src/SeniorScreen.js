@@ -31,7 +31,9 @@ function say(text) {
 const onError = (e) => toast.error('Please try again', { description: e.message });
 const openLink = (url) => Linking.openURL(url).catch(onError);
 const go = (page) => router.push('/senior/' + page);
-const home = () => router.replace('/senior/today');
+// Back pops the page (replace would stack another copy of the tabs on every visit). Opened straight from
+// the SOS widget, there's nothing to go back to, so it goes to the home page.
+const home = () => (router.canGoBack() ? router.back() : router.replace('/senior/today'));
 const firstName = (name = '') => name.split(' ')[0];
 const zone = (senior) => senior.timezone || 'America/New_York';
 const AI_PROMISE = 'Porchlight is an AI helper. It never asks for money, codes, passwords or ID numbers.';

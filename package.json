@@ -4,7 +4,7 @@
   "description": "Daily check-ins for older adults living alone, with family, neighbors and volunteers in the loop. iOS app (Expo) + Node server.",
   "scripts": {
     "setup": "git config core.hooksPath .githooks && npm install && npm install --prefix server && npm install --prefix mobile",
-    "dev": "concurrently -n api,app -c yellow,blue \"npm run dev --prefix server\" \"npm start --prefix mobile\"",
+    "dev": "node scripts/dev.mjs",
     "server": "npm run dev --prefix server",
     "app": "npm start --prefix mobile",
     "app:tunnel": "cd mobile && npx expo start --tunnel"

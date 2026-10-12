@@ -37,4 +37,11 @@ if (process.env.SEED_DEMO === '1') await seed();
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`[porchlight] API on http://localhost:${PORT}  (LLM: ${llmEnabled ? 'on' : 'mock'}, Twilio: ${twilioEnabled ? 'on' : 'off'}${process.env.SEED_DEMO === '1' ? ', demo data' : ''})`);
 });
+server.on('error', (e) => {
+  // Another Porchlight (or anything else) already has the port. Say so plainly: otherwise the phone keeps
+  // talking to the old server and the new code seems to do nothing.
+  if (e.code === 'EADDRINUSE') console.error(`[porchlight] Port ${PORT} is already in use, probably by another Porchlight server that's still running. Stop that one (Ctrl+C in its terminal) and start again, or set PORT.`);
+  else console.error('[porchlight] Server error:', e.message);
+  process.exit(1);
+});
 attachRelay(server); // WebSocket for natural phone calls (voice/relay.js)
