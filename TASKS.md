@@ -1,5 +1,9 @@
 # TASKS
 
+## Call-in number (inbound calls) — October 12, 2026
+
+- [x] I1 — Devank (Claude Code), `claude/inbound-call-number-2kwkwi`; implemented, merging to main; OFF until Devank buys the number. Owner notice: new `server/src/voice/inbound.js` (+ inbound.test.js) and small hook-ins in voice/routes.js, relay.js, checkins.js, intents.js; shared `.env.example` gains `INBOUND_CALLS_ENABLED=0` and the setup steps. No mobile/ changes, nothing in the app mentions the number. Peggy calling → the same live call as the daily check-in, with her full context; a family member → a short spoken status (no summary, meds or plans, since caller ID can be faked); unknown numbers → how to sign up. On a call in, a ride or a message to family rings her back on her own number to do it ("connect me to Anne" still works). Webhooks check the Twilio signature. Lookup uses `seniors.phone` / `members.phone`. Turning on: buy a number, set it as TWILIO_FROM_NUMBER (it becomes the caller ID too), point its voice + status webhooks at /twilio/incoming and /twilio/incoming/status, set INBOUND_CALLS_ENABLED=1. Checked: inbound tests 7/7, all voice/care tests, contract smoke, server starts with an empty .env and the number answers "not taking calls yet". Not yet tried on a real call (no number).
+
 ## README refresh — October 12, 2026
 
 - [x] R-README — Devank (Claude Code), `claude/project-thread-0ximr2`; implemented, merging to main. Owner notice: README.md only (A owns it). Rewrite README to match the Porchlight page on devank.me (same sections, wording and screenshots), keeping the run instructions accurate.

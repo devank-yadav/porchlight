@@ -212,5 +212,8 @@ export async function finishCheckin(checkinId) {
     ...analysis, status: 'completed', endedAt: new Date().toISOString(),
   });
   await handleCheckinOutcome(senior, updated, analysis);
+  // On a call she made in, she asked for something that reaches other people (a ride, a message):
+  // ring her own number back to do it (voice/inbound.js explains why). The scheduler places the call.
+  if (checkin.ringBack) await store.update('seniors', senior._id, { callbackAt: new Date(Date.now() + 30000).toISOString(), callbackReason: 'ring-back' });
   return updated;
 }
