@@ -1,5 +1,9 @@
 # TASKS
 
+## Shippable product — October 12, 2026
+
+- [ ] S1 — Devank (Claude Code), `claude/project-thread-720kiu`; in progress. Owner notice: this thread owns the change across `mobile/*` and `server/*` (UI redesign and Build threads hold overlapping edits). Scope: remove the in-app chat (Talk), remove every Sample label and seeded demo person (seed only behind `SEED_DEMO=1` for tests), phone sign-in with a one-time code read out by a phone call (Twilio Verify call channel, or a Twilio call reading our own code), one role per device (older adult or family, fixed at setup), circles shared by invite code or phone number from either side, per-account authorization on every API route, plus the shipping-gap audit in `SHIPPING.md`.
+
 ## README refresh — October 12, 2026
 
 - [x] R-README — Devank (Claude Code), `claude/project-thread-0ximr2`; implemented, merging to main. Owner notice: README.md only (A owns it). Rewrite README to match the Porchlight page on devank.me (same sections, wording and screenshots), keeping the run instructions accurate.
