@@ -560,7 +560,9 @@ const st = StyleSheet.create({
   lampLift: { shadowColor: '#C46E00', shadowOpacity: 0.28, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
   card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: 20, gap: 12 },
   hero: { backgroundColor: night.bg, borderRadius: radius.xl, padding: 22, gap: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,247,236,0.08)', shadowColor: '#2A1A0C', shadowOpacity: 0.22, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-  heroClip: { ...StyleSheet.absoluteFillObject, borderRadius: radius.xl, overflow: 'hidden' },
+  // Spelled out: React Native 0.86 dropped StyleSheet.absoluteFillObject (the web preview still has it),
+  // and without it the glow sat in the layout and pushed the card's content out of sight on iPhone.
+  heroClip: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.xl, overflow: 'hidden' },
   tileSlot: { flexGrow: 1, flexBasis: '40%', minWidth: 0 },
   tile: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: 14, alignItems: 'flex-start' },
   tileTitle: { fontSize: 16, lineHeight: 21, fontWeight: '600', letterSpacing: -0.2 },
