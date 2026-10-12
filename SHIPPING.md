@@ -29,6 +29,7 @@ Kept up to date by whoever closes an item.
 - "Is this a scam?" is a phone call: Porchlight asks what happened, gives a verdict and what to do, and tells the family if it sounds risky. The verdict also shows in the app.
 - "Help with my phone" is a phone call too: Porchlight asks what the screen says and walks through it one step at a time, flagging fake warnings. The photo form, its camera and photo permissions, and expo-image-picker are gone.
 - "I need help" is a safety alert: every family member gets an automated phone call that reads the alert out, plus an urgent push, at once; if no one taps "I'm on it" within 3 minutes they are called again, with where the phone is (map link and street, or "at home"), the time, the last call, any scam worry today, and today's pills (only for people allowed to see medicines). It stays pinned at the top of the family app until someone taps "I'm on it" (the ladder stops, the rest of the family and the older adult are told) and then "all okay". Location is asked for at setup, used only for this, and the alert goes out without it.
+- SOS widget for the home screen and lock screen (plus an iOS 18 lock-screen / Control Center button). It opens a full-screen SOS button that sends the help alert. The widget needs a development build (mobile/WIDGET.md); the SOS screen works in Expo Go via porchlight://sos.
 - Removed the "Call Anne" button and the per-person call buttons; "connect me to Anne" on a call still works.
 - Removed every Sample label, sample note, simulated ride booking and the demo controls. Rides are always a real Uber hand-off the older adult confirms.
 - Seeded people load only with `SEED_DEMO=1` (tests). A fresh server starts empty.
@@ -45,7 +46,7 @@ Kept up to date by whoever closes an item.
 - [ ] **MongoDB Atlas Network Access** must allow the server's IP (or 0.0.0.0/0). Until then data lives in the JSON file on one machine.
 - [ ] **A production server** with HTTPS (Render, Fly, Railway…). Set `PUBLIC_URL`, `NODE_ENV=production`, and the app's `EXPO_PUBLIC_API_URL` to it.
 - [ ] **Twilio**: create a Verify service and set `TWILIO_VERIFY_SERVICE_SID` (best deliverability for codes). Buy a Twilio number for `TWILIO_FROM_NUMBER`; calls currently go out from a verified cell, and texts need a real number.
-- [ ] **Apple**: developer account, EAS build (`eas build -p ios`), TestFlight. The app can't ship through Expo Go.
+- [ ] **Apple**: developer account and team ID (`ios.appleTeamId`), EAS build (`eas build -p ios`), TestFlight. The app can't ship through Expo Go, and the SOS widget only exists in a real build.
 - [ ] **Privacy policy and terms** URLs (required by the App Store), and a support email. Link them from sign-in and Settings.
 
 ### Code

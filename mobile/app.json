@@ -41,7 +41,8 @@
         {
           "locationWhenInUsePermission": "Porchlight shares where you are with your family only when you press “I need help”."
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "scheme": "porchlight",
     "extra": {

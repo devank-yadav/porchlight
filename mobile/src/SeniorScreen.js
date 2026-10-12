@@ -102,6 +102,7 @@ export default function SeniorScreen({ senior, page = 'today' }) {
     {page === 'scam' && <ScamCheck senior={senior} state={state} back={home} />}
     {page === 'tech' && <TechHelp senior={senior} back={home} />}
     {page === 'help' && <Help senior={senior} state={state} back={home} refresh={refresh} />}
+    {page === 'sos' && <Help sos senior={senior} state={state} back={home} refresh={refresh} />}
   </KeyboardAvoidingView>;
 }
 
@@ -427,7 +428,8 @@ function Notified() {
 }
 
 // ── I need help ─────────────────────────────────────────────────────────────
-function Help({ senior, state, back, refresh }) {
+// sos: opened from the SOS widget on the home or lock screen (porchlight://sos). One big button sends it.
+function Help({ senior, state, back, refresh, sos = false }) {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const send = async () => {
@@ -457,6 +459,25 @@ function Help({ senior, state, back, refresh }) {
         <View style={st.stack}>
           <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
           <Button variant="secondary" icon="house.fill" label="Back to start" onPress={back} />
+        </View>
+      </Screen>
+    );
+  }
+  if (sos) {
+    return (
+      <Screen contentStyle={st.centerPage}>
+        <View style={st.centerStack}>
+          <Press onPress={send} disabled={sending} scaleTo={0.96} accessibilityRole="button" accessibilityLabel="Send SOS" accessibilityHint="Alerts and calls your family now, with your location." style={st.sosHalo}>
+            <View style={st.sosDisc}>
+              <Text style={st.sosWord}>{sending ? '…' : 'SOS'}</Text>
+            </View>
+          </Press>
+          <T v="readTitle" center>Tap SOS to get help</T>
+          <T v="read" muted center>Porchlight alerts and calls your family right away, with where you are.</T>
+        </View>
+        <View style={st.stack}>
+          <Button variant="danger" icon="phone.fill" label="Call 911" accessibilityHint="Opens a phone call to 911." onPress={() => openLink('tel:911')} />
+          <Button variant="secondary" label="I’m okay, go back" onPress={back} />
         </View>
       </Screen>
     );
@@ -542,6 +563,9 @@ const st = StyleSheet.create({
   // Help, thanks
   helpHalo: { width: 132, height: 132, borderRadius: 66, backgroundColor: accent.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
   helpDisc: { width: 96, height: 96, borderRadius: 48, backgroundColor: accent.red, alignItems: 'center', justifyContent: 'center' },
+  sosHalo: { width: 248, height: 248, borderRadius: 124, backgroundColor: accent.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  sosDisc: { width: 196, height: 196, borderRadius: 98, backgroundColor: accent.red, alignItems: 'center', justifyContent: 'center' },
+  sosWord: { fontFamily: font.readBold, fontSize: 56, lineHeight: 64, color: '#FFFFFF', letterSpacing: 2 },
   thanksHero: { alignItems: 'center', gap: 14, paddingTop: 30, paddingBottom: 34, paddingHorizontal: 24 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, alignSelf: 'flex-start', paddingRight: 12 },
   backDisc: { width: 48, height: 48, borderRadius: 24, backgroundColor: P.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: P.line, alignItems: 'center', justifyContent: 'center', ...shadow.card },

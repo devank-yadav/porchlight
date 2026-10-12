@@ -39,6 +39,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@bacons/apple-targets": "~5.0.0",
     "@types/react": "~19.2.4",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",

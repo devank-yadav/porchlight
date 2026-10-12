@@ -57,6 +57,7 @@ The data contract between A, B and C is in TEAM_PLAN.md. Follow it exactly.
 ## Expo rules
 - Install native packages with versions from `mobile/node_modules/expo/bundledNativeModules.json` (`npx expo install <pkg>` if it can reach the network).
 - Only use modules that work in **Expo Go** (no custom native code), or the team can't run the app on their phones.
+  One exception: the SOS widget (`mobile/targets/sos`, see mobile/WIDGET.md) is native and only appears in a development build; the app itself still runs in Expo Go.
 - Voice input = the iOS keyboard's dictation mic. Speech output = expo-speech. Real phone calls = Twilio on the server.
 
 ## Team and ownership (fill in names) — full task list in TEAM_PLAN.md
