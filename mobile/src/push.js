@@ -19,9 +19,9 @@ const openFrom = async (response) => {
   if (typeof url !== 'string' || !url.startsWith('https://m.uber.com/ul/?')) return;
   if (id) handledResponses.add(id);
   try {
-    // Native app deep links open Uber directly; retain the universal link for phones without Uber.
-    await Linking.openURL(url.replace('https://m.uber.com/ul/?action=setPickup&', 'uber://riderequest?'));
-  } catch {
+    // The same universal link as the Book my Uber button: iOS opens the Uber app when it's installed
+    // (m.uber.com otherwise), with the pickup and drop-off pins filled in. A rewritten uber:// link
+    // opened Uber without the drop-off.
     await Linking.openURL(url).catch((e) => console.warn('[push] could not open Uber:', e.message));
   } finally {
     Notifications.clearLastNotificationResponseAsync().catch(() => {});

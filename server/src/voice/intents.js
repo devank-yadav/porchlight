@@ -261,6 +261,8 @@ async function rideNow(senior, text, checkin = {}) {
   ]);
   const spot = near || anywhere;
   const details = { pickupAt, from: fromHome ? 'Home' : checkin.rideFrom, to: where, uberLink: uberLink({ from: '12 Maple Ln (sample)', place: spot?.address || query, placeLatLng: spot?.latlng, ...(fromHome ? {} : { pickupPlace: fromSpot?.address || checkin.rideFrom, pickupLatLng: fromSpot?.latlng }) }) };
+  // Shows whether Uber gets a drop-off pin (dropoff[latitude]); without one Uber leaves the field empty.
+  console.log(`[ride] ${where}: drop-off ${spot ? 'pinned' : 'NOT pinned (no coordinates found)'} ${details.uberLink}`);
   const action = await store.insert('actions', {
     seniorId: senior._id, kind: 'ride', title: `Ride to ${where}`, reason: `${senior.preferredName} said: "${text}"`,
     details, appointmentId: null, approverId: null, simulated: false, status: 'APPROVED',
