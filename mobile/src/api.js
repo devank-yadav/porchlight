@@ -12,6 +12,8 @@ function resolveBase() {
 }
 export const API_BASE = resolveBase();
 
+const UNREACHABLE = 'Can’t reach Porchlight right now. Check your internet connection and try again.';
+
 async function call(method, path, body) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
@@ -23,13 +25,19 @@ async function call(method, path, body) {
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json().catch(() => null);
     if (res.status === 401 && token) sessionExpired();
+    // Every Porchlight answer is JSON. A web page instead means a gateway with the server down behind it
+    // (502-504), or the app pointed at something else, like Metro or a wrong port. Never treat it as data.
+    if (data === null || typeof data !== 'object') {
+      if ([502, 503, 504].includes(res.status)) throw new Error(UNREACHABLE);
+      throw Object.assign(new Error(`That isn’t the Porchlight server (${API_BASE}). Check the server address and try again.`), { status: res.status, wrongServer: true });
+    }
     if (!res.ok) throw Object.assign(new Error(data.error || `Something went wrong (${res.status}). Please try again.`), { status: res.status });
     return data;
   } catch (e) {
     if (e.name === 'AbortError' || /Network request failed|Failed to fetch/i.test(e.message)) {
-      throw new Error('Can’t reach Porchlight right now. Check your internet connection and try again.');
+      throw new Error(UNREACHABLE);
     }
     throw e;
   } finally {

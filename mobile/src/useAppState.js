@@ -13,10 +13,12 @@ export function useAppState(accountId = null) {
   const request = useRef(0);
   const applied = useRef(0);
   const last = useRef('');
+  const pending = useRef(0); // requests still on their way
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
     const id = ++request.current;
+    pending.current += 1;
     try {
       const s = await api.state();
       // Accept completed requests in order, even when a newer poll is pending.
@@ -34,12 +36,16 @@ export function useAppState(accountId = null) {
       if (id < applied.current) return;
       applied.current = id;
       setError(e.message);
+    } finally {
+      pending.current -= 1;
     }
   }, [enabled]);
 
   useEffect(() => {
     const initial = setTimeout(refresh, 0);
-    const t = setInterval(() => active.current && refresh(), 3000);
+    // A slow server: skip a tick while a request is still out, so polls don't pile up behind each other
+    // (and in front of the person's own taps).
+    const t = setInterval(() => active.current && !pending.current && refresh(), 3000);
     const sub = AppState.addEventListener('change', (s) => {
       active.current = s === 'active';
       if (active.current) refresh();
