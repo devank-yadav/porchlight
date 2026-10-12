@@ -1,8 +1,4 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { api, API_BASE } from './api';
-import { syncCalendarNow } from './calendar';
-import { PEOPLE } from './AppContext';
-import { sheet } from './design/Sheet';
 import { Avatar, Press, T } from './design/ui';
 import { useTheme } from './design/theme';
 import Icon from './design/Icon';
@@ -33,52 +29,6 @@ export function SheetTitle({ title, sub }) {
       {sub ? <T v="callout" muted>{sub}</T> : null}
     </View>
   );
-}
-
-// Switch who is using this phone, without going back through the start screen.
-export function openRoleSheet({ role, setRole }) {
-  sheet.open((close) => (
-    <View style={{ gap: 4 }}>
-      <SheetTitle title="Who’s using this phone?" sub="Each person sees what they need." />
-      {PEOPLE.map((p) => (
-        <MenuRow
-          key={p.who}
-          icon={p.icon}
-          avatar={p.title}
-          title={p.title}
-          sub={p.sub}
-          checked={role?.who === p.who}
-          tone={p.id === 'senior' ? 'lamp' : undefined}
-          onPress={() => { close(); if (role?.who !== p.who) setTimeout(() => setRole(p), 120); }}
-        />
-      ))}
-      <MenuRow icon="arrow.uturn.backward" title="Back to the start screen" onPress={() => { close(); setTimeout(() => setRole(null), 120); }} />
-    </View>
-  ), { theme: role?.id === 'senior' ? 'senior' : 'light' });
-}
-
-// Demo controls for presenting. Reached from the ••• button, or a long press on the Porchlight name.
-export function openDemoMenu({ state, run, role }) {
-  const cfg = state?.config;
-  const status = cfg
-    ? `AI: ${cfg.llm ? 'live model' : 'demo mode'} · Texts: ${cfg.twilio ? 'Twilio' : 'logged only'} · Data: ${cfg.mongo ? 'MongoDB' : 'in memory'}`
-    : `Server: ${API_BASE}`;
-  const go = (fn, msg) => () => { sheet.close(); run(fn, msg)(); };
-  sheet.open(() => (
-    <View style={{ gap: 4 }}>
-      <SheetTitle title="Demo controls" sub={status} />
-      <MenuRow icon="play.fill" tone="lamp" title="Play the demo call" sub="A scam call, no ride to the doctor, out of milk" onPress={go(() => api.demoCall('peggy'), ['Demo call finished', 'Peggy’s family can see what came up.'])} />
-      <MenuRow icon="hand.raised.fill" title="Peggy presses Help" sub="Texts family, then the neighbor" onPress={go(() => api.help('peggy'), 'Help alert sent')} />
-      <MenuRow icon="clock.badge.exclamationmark" title="Simulate a missed check-in" sub="Starts the follow-up ladder" onPress={go(() => api.missed('peggy'), 'Missed check-in started')} />
-      {cfg?.twilio ? (
-        <MenuRow icon="phone.fill" title="Call Peggy’s phone now" sub="A real call through Twilio" onPress={go(() => api.phoneCall('peggy'), ['Calling Peggy', 'Her phone is ringing now.'])} />
-      ) : null}
-      {role?.id === 'senior' ? (
-        <MenuRow icon="calendar" title="Sync this phone’s calendar" sub="Her events in, Porchlight’s rides and reminders out" onPress={go(() => syncCalendarNow(state?.seniors?.find((s) => s._id === 'peggy'), state), 'Calendar synced')} />
-      ) : null}
-      <MenuRow icon="arrow.counterclockwise" tone="red" title="Reset demo data" sub="Back to the start of the story" onPress={go(() => api.reset(), 'Demo data reset')} />
-    </View>
-  ), { theme: role?.id === 'senior' ? 'dark' : 'light' });
 }
 
 const st = StyleSheet.create({

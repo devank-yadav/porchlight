@@ -76,7 +76,6 @@ async function porchlightCalendar() {
 }
 
 const OPEN_RIDE = ['PENDING_APPROVAL', 'APPROVED', 'REQUESTED', 'CONFIRMED'];
-const noSample = (s) => String(s || '').replace(/\s*\(sample\)/i, '');
 
 function localDay(yyyyMmDd) {
   const [y, m, d] = yyyyMmDd.split('-').map(Number);
@@ -91,12 +90,11 @@ export function plannedEntries(state, senior) {
     const at = a.details?.pickupAt;
     if (a.seniorId !== senior._id || a.kind !== 'ride' || !OPEN_RIDE.includes(a.status) || !at) continue;
     if (new Date(at).getTime() < now - 3600000) continue;
-    const to = noSample(a.details.to) || 'your appointment';
-    const how = a.details.uberLink && !a.simulated ? 'Book it with the Book with Uber button in Porchlight.'
-      : a.status === 'CONFIRMED' ? 'Simulated booking in Porchlight, not a real ride.' : 'Your family is sorting out this ride.';
+    const to = a.details.to || 'your appointment';
+    const how = a.details.uberLink ? 'Book it with the Book my Uber button in Porchlight.' : 'Your family is sorting out this ride.';
     out.push({
       key: `ride:${a._id}`,
-      title: `Ride to ${to}${a.simulated ? ' (simulated)' : ''}`,
+      title: `Ride to ${to}`,
       startDate: new Date(at), endDate: new Date(new Date(at).getTime() + 30 * 60000),
       notes: how, alarms: [{ relativeOffset: -30 }],
     });
@@ -169,15 +167,6 @@ export function syncCalendar(senior, state) {
     return { ok: true, ...res };
   })().finally(() => { running = null; });
   return running;
-}
-
-// Demo controls: ask if needed, sync, and say plainly when access is off.
-export async function syncCalendarNow(senior, state) {
-  if (!supported) throw new Error('Calendar sync works on a phone.');
-  if ((await calendarStatus()) === 'undetermined') await askForCalendar();
-  const r = await syncCalendar(senior, state);
-  if (!r.ok) throw new Error('Allow calendar access for Expo Go in Settings → Privacy & Security → Calendars.');
-  return r;
 }
 
 // Peggy's screen: ask once, then keep her calendar in step while the app is open.

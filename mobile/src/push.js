@@ -1,4 +1,4 @@
-// Phone notifications for Peggy: "Your Uber to Target is ready". Tapping one opens Uber with the trip
+// Phone notifications: "Your Uber to Target is ready" for the older adult, alerts for family. Tapping an Uber one opens Uber with the trip
 // filled in. Remote push works in Expo Go on iPhone (projectId in app.json); if it can't register, the
 // app still shows the same notification itself while it's open (see notifyLocally).
 import { Linking, Platform } from 'react-native';
@@ -38,8 +38,8 @@ export function startPushResponseListener() {
 // True once the server can push to this phone (then the app doesn't also notify locally).
 export let pushRegistered = false;
 
-// Call once when Peggy's side opens. Returns a cleanup function.
-export function startPush(seniorId) {
+// Call once when the app opens on either side. Returns a cleanup function.
+export function startPush() {
   (async () => {
     try {
       let { status } = await Notifications.getPermissionsAsync();
@@ -47,7 +47,7 @@ export function startPush(seniorId) {
       if (status !== 'granted' || Platform.OS !== 'ios') return;
       const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
       const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-      await api.savePushToken(seniorId, token);
+      await api.savePushToken(token);
       pushRegistered = true;
     } catch (e) {
       console.warn('[push] not registered:', e.message);

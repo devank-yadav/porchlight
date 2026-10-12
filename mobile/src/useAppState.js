@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { api } from './api';
 
-// Polls the server every 2 seconds while the app is in the foreground.
-// viewer: family member id (filtered view) or null (everything: Peggy's screen).
-export function useAppState(viewer = null) {
+// Polls the server every 3 seconds while the app is in the foreground and signed in.
+// The server returns only the signed-in account's circle, filtered for what that person may see.
+// accountId: who is signed in (null = signed out). Data from a previous account is never shown.
+export function useAppState(accountId = null) {
+  const enabled = Boolean(accountId);
   const [snapshot, setSnapshot] = useState(null);
   const [error, setError] = useState(null);
   const active = useRef(true);
@@ -13,18 +15,19 @@ export function useAppState(viewer = null) {
   const last = useRef('');
 
   const refresh = useCallback(async () => {
+    if (!enabled) return;
     const id = ++request.current;
     try {
-      const s = await api.state(viewer);
+      const s = await api.state();
       // Accept completed requests in order, even when a newer poll is pending.
       // Slow connections must not starve the screen of every response.
       if (id < applied.current) return;
       applied.current = id;
       // Same as last time: skip the re-render, so the phone isn't redrawing every screen every 2 s.
-      const key = viewer + '|' + JSON.stringify(s);
+      const key = JSON.stringify(s);
       if (key !== last.current) {
         last.current = key;
-        setSnapshot({ viewer, state: s });
+        setSnapshot({ who: s.me?.id, state: s });
       }
       setError(null);
     } catch (e) {
@@ -32,11 +35,11 @@ export function useAppState(viewer = null) {
       applied.current = id;
       setError(e.message);
     }
-  }, [viewer]);
+  }, [enabled]);
 
   useEffect(() => {
     const initial = setTimeout(refresh, 0);
-    const t = setInterval(() => active.current && refresh(), 2000);
+    const t = setInterval(() => active.current && refresh(), 3000);
     const sub = AppState.addEventListener('change', (s) => {
       active.current = s === 'active';
       if (active.current) refresh();
@@ -48,8 +51,7 @@ export function useAppState(viewer = null) {
     };
   }, [refresh]);
 
-  // A profile change must never briefly show the previous viewer's private data.
-  return { state: snapshot?.viewer === viewer ? snapshot.state : null, error, setError, refresh };
+  return { state: enabled && snapshot?.who === accountId ? snapshot.state : null, error, setError, refresh };
 }
 
 export function ago(iso) {

@@ -22,9 +22,7 @@ export function isToday(iso, timezone = 'America/New_York') {
 export default function PlanRow({ plan, senior, state }) {
   const { c, isSenior } = useTheme();
   const surface = useSurface();
-  const action = (state.actions || []).find((a) => a._id === plan.actionId);
-  const simulated = action?.simulated;
-  const transport = plan.needsRide === false ? 'No ride needed' : { unknown: 'Ride not arranged', self: 'You have a ride', at_risk: 'A ride is needed', requested: 'Ride requested', confirmed: simulated ? 'Demo ride confirmed' : 'Ride confirmed' }[plan.transport] || 'Ride not arranged';
+  const transport = plan.needsRide === false ? 'No ride needed' : { unknown: 'Ride not arranged', self: 'You have a ride', at_risk: 'A ride is needed', requested: 'Ride requested', confirmed: 'Ride confirmed' }[plan.transport] || 'Ride not arranged';
   const ok = ['confirmed', 'self'].includes(plan.transport) || plan.needsRide === false;
   const risky = plan.transport === 'at_risk';
   const date = new Date(plan.startsAt);
