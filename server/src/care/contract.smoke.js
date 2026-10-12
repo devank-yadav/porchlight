@@ -118,4 +118,15 @@ assert.deepEqual(lucyAfter.seniors, [], 'Walter’s data is gone');
 await L('/api/auth/logout', 'POST');
 assert.equal((await raw('/api/state', 'GET', null, lucy.token)).status, 401, 'signed out');
 
-console.log('Contract smoke passed: access control, state fields, permissions, demo call → Uber hand-off, tasks, sign-in, circles, invites, deletion.');
+// ---- Test sign-in: a fixed code and no call; a test older adult is never dialed.
+const testStart = await raw('/api/auth/start', 'POST', { phone: '+1 555 000 0001', role: 'senior' });
+assert.deepEqual([testStart.data.channel, testStart.data.devCode], ['test', '123456']);
+const tester = await as(null)('/api/auth/verify', 'POST', { phone: '+15550000001', role: 'senior', code: '123456' });
+const T = as(tester.token);
+const testerMe = await T('/api/setup/senior', 'POST', { preferredName: 'Tess', timezone: 'America/New_York' });
+const testCall = await raw(`/api/seniors/${testerMe.seniorId}/call`, 'POST', { purpose: 'scam' }, tester.token);
+assert.equal(testCall.status, 400);
+assert.match(testCall.data.error, /test number/);
+await T('/api/me', 'DELETE');
+
+console.log('Contract smoke passed: access control, state fields, permissions, demo call → Uber hand-off, tasks, sign-in, test sign-in, circles, invites, deletion.');

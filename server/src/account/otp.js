@@ -4,6 +4,9 @@
 //    keep only its hash, and a Twilio call reads it twice.
 // 3. No Twilio (development): the code is printed in the server log and returned to the app so the
 //    flow can be tried with an empty .env. Never in production.
+// Test logins: fictional +1555 numbers with a fixed code and no call, for trying the app on a real phone
+// and for App Store review. TEST_LOGINS="+15550000001=123456,+15550000002=123456". Empty = those two in
+// development and none in production; off = none anywhere.
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 import * as store from '../store.js';
 import { twilioEnabled, sayOnCall } from '../voice/notify.js';
@@ -17,7 +20,24 @@ const production = process.env.NODE_ENV === 'production';
 const CODE_TTL_MS = 10 * 60000;
 const MAX_TRIES = 5;
 
+export function testLogins(env = process.env) {
+  const set = (env.TEST_LOGINS || '').trim();
+  if (set === 'off') return new Map();
+  const raw = set || (env.NODE_ENV === 'production' ? '' : '+15550000001=123456,+15550000002=123456');
+  const out = new Map();
+  for (const pair of raw.split(',').map((x) => x.trim()).filter(Boolean)) {
+    const [phone, code] = pair.split('=').map((x) => x.trim());
+    // Only fictional numbers (a real number could belong to someone) and 6-digit codes.
+    if (/^\+1555\d{7}$/.test(phone) && /^\d{6}$/.test(code)) out.set(phone, code);
+    else console.warn('[otp] TEST_LOGINS entry ignored (needs +1555 and a 6-digit code):', phone);
+  }
+  return out;
+}
+const TEST = testLogins();
+if (TEST.size) console.log(`[otp] Test sign-ins on: ${[...TEST.keys()].join(', ')} (fixed code, no call).`);
+
 export function codeChannel(phone) {
+  if (TEST.has(phone)) return 'test';
   const fake = phone.startsWith('+1555');
   if (verifyEnabled && !fake) return 'verify';
   if (twilioEnabled && !fake) return 'call';
@@ -55,10 +75,13 @@ async function twilioVerify(path, params) {
 
 // Returns { channel, devCode? }.
 export async function sendCode(phone, ip) {
-  checkLimit(`phone:${phone}`, 5, 3600000, 30000);
-  checkLimit(`ip:${ip}`, 30, 3600000);
   const channel = codeChannel(phone);
+  // A test number places no call, so several testers can share it without the per-number limit.
+  if (channel !== 'test') checkLimit(`phone:${phone}`, 5, 3600000, 30000);
+  checkLimit(`ip:${ip}`, 30, 3600000);
   if (!channel) throw new HttpError(503, 'Sign-in calls aren’t set up on this server yet.');
+  // A test number: no call. Development shows the code; production expects it from whoever was given it.
+  if (channel === 'test') return production ? { channel } : { channel, devCode: TEST.get(phone) };
   if (channel === 'verify') {
     const r = await twilioVerify('Verifications', { To: phone, Channel: 'call' });
     if (!r.ok) {
@@ -89,6 +112,13 @@ export async function sendCode(phone, ip) {
 export async function checkCode(phone, code) {
   const clean = String(code || '').replace(/\D/g, '');
   if (clean.length !== 6) throw new HttpError(400, 'Enter the 6-digit code.');
+  if (TEST.has(phone)) {
+    checkLimit(`check:${phone}`, 10, 600000);
+    const a = Buffer.from(TEST.get(phone));
+    const b = Buffer.from(clean);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) throw new HttpError(400, 'That code isn’t right. Check it and try again.');
+    return true;
+  }
   if (codeChannel(phone) === 'verify') {
     checkLimit(`check:${phone}`, 10, 600000);
     const r = await twilioVerify('VerificationCheck', { To: phone, Code: clean });

@@ -7,6 +7,7 @@ Kept up to date by whoever closes an item.
 
 ### Accounts and sharing
 - **Sign in by phone.** Enter a number, Porchlight calls it and reads a 6-digit code. Twilio Verify (call channel) when `TWILIO_VERIFY_SERVICE_SID` is set, otherwise a Twilio call reads a code we generate (stored hashed, 10 minutes, 5 tries). Without Twilio, development mode shows the code in the app; never with `NODE_ENV=production`.
+- **Test sign-ins.** Fictional +1555 numbers with a fixed code and no call, for testers and App Store review. In development +1 555 000 0001 (older adult) and +1 555 000 0002 (family) work with 123456. In production only the numbers in `TEST_LOGINS` work, so set your own codes there. Porchlight never calls a test number, so the call buttons on a test account say so instead of ringing.
 - **Rate limits** on code requests (per number and per IP, with a 30 s gap) and on checks, invites and joins.
 - **Sessions**: a random token, stored hashed on the server and in the iOS keychain on the phone (expo-secure-store). 180-day sliding expiry. A 401 signs the app out.
 - **One role per phone.** Chosen at sign-up (older adult or family) and tied to the number. There's no switch; signing out is the only way back.
@@ -47,6 +48,7 @@ Kept up to date by whoever closes an item.
 - [ ] **A production server** with HTTPS (Render, Fly, Railway…). Set `PUBLIC_URL`, `NODE_ENV=production`, and the app's `EXPO_PUBLIC_API_URL` to it.
 - [ ] **Twilio**: create a Verify service and set `TWILIO_VERIFY_SERVICE_SID` (best deliverability for codes). Buy a Twilio number for `TWILIO_FROM_NUMBER`; calls currently go out from a verified cell, and texts need a real number.
 - [ ] **Apple**: developer account and team ID (`ios.appleTeamId`), EAS build (`eas build -p ios`), TestFlight. The app can't ship through Expo Go, and the SOS widget only exists in a real build.
+- [ ] **App Store review account**: set `TEST_LOGINS` on the production server (e.g. `+15550000001=<code>,+15550000002=<code>`) and give Apple both numbers and codes in the review notes. Calls can't reach a test number, so add a short screen recording of a real scam-check call and an "I need help" call.
 - [ ] **Privacy policy and terms** URLs (required by the App Store), and a support email. Link them from sign-in and Settings.
 
 ### Code
