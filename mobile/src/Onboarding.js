@@ -31,15 +31,15 @@ export default function Onboarding() {
   const role = session?.role ?? picked;
   const step = session ? 'setup' : chosenStep === 'setup' ? 'role' : chosenStep;
   const [phone, setPhone] = useState(null); // E.164 from the server
-  const [devCode, setDevCode] = useState(null);
+  const [delivery, setDelivery] = useState(null); // { channel, devCode? }: how the code came
 
   const back = step === 'phone' ? () => setStep('role') : step === 'code' ? () => setStep('phone') : null;
 
   let page;
   if (session && !me) page = <Reconnect account={account} />;
   else if (step === 'role') page = <ChooseRole onPick={(r) => { setRole(r); setStep('phone'); }} />;
-  else if (step === 'phone') page = <PhoneStep role={role} onSent={(r) => { setPhone(r.phone); setDevCode(r.devCode || null); setStep('code'); }} />;
-  else if (step === 'code') page = <CodeStep role={role} phone={phone} devCode={devCode} onResent={(r) => setDevCode(r.devCode || null)} onDone={async (r) => { await account.signedIn({ token: r.token, role, me: r.me }); if (r.me.setupDone) finish(role); }} />;
+  else if (step === 'phone') page = <PhoneStep role={role} onSent={(r) => { setPhone(r.phone); setDelivery(r); setStep('code'); }} />;
+  else if (step === 'code') page = <CodeStep role={role} phone={phone} delivery={delivery} onResent={setDelivery} onDone={async (r) => { await account.signedIn({ token: r.token, role, me: r.me }); if (r.me.setupDone) finish(role); }} />;
   else if (role === 'senior') page = <SeniorSetup me={me} account={account} />;
   else page = <FamilySetup me={me} account={account} />;
 
@@ -98,7 +98,9 @@ function PhoneStep({ role, onSent }) {
 }
 
 // ── The code from the call ─────────────────────────────────────────────────
-function CodeStep({ role, phone, devCode, onDone, onResent }) {
+function CodeStep({ role, phone, delivery, onDone, onResent }) {
+  const { channel, devCode } = delivery || {};
+  const test = channel === 'test'; // a test number: no call, a fixed code
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(30);
@@ -116,10 +118,12 @@ function CodeStep({ role, phone, devCode, onDone, onResent }) {
     try { onResent(await api.startSignIn(phone, role)); setWait(30); toast.success('Calling you again'); } catch (e) { toast.error('We couldn’t call you', { description: e.message }); }
   };
   return <View style={st.stack}>
-    <Head icon="phone.connection.fill" title="Answer the call" sub={`We’re calling ${pretty(phone)}. Type the 6-digit code you hear.`} />
-    {devCode ? <Card style={st.devNote} accessible accessibilityLabel={`Test server. Your code is ${devCode.split('').join(' ')}`}>
+    {test
+      ? <Head icon="lock.fill" title="Enter the test code" sub={`${pretty(phone)} is a test number, so there’s no call. Type its 6-digit test code.`} />
+      : <Head icon="phone.connection.fill" title="Answer the call" sub={`We’re calling ${pretty(phone)}. Type the 6-digit code you hear.`} />}
+    {devCode ? <Card style={st.devNote} accessible accessibilityLabel={`${test ? 'Test number' : 'Test server'}. Your code is ${devCode.split('').join(' ')}`}>
       <Icon name="wrench.and.screwdriver.fill" size={20} color={P.muted} />
-      <T v="readSmall" muted style={{ flex: 1 }}>Test server, so no call: your code is {devCode}.</T>
+      <T v="readSmall" muted style={{ flex: 1 }}>{test ? 'Test number' : 'Test server'}, so no call: your code is {devCode}.</T>
     </Card> : null}
     <Field
       value={code}
@@ -128,7 +132,7 @@ function CodeStep({ role, phone, devCode, onDone, onResent }) {
       style={st.code} accessibilityLabel="The 6-digit code"
     />
     <Button variant="primary" icon="checkmark" label="Sign in" onPress={() => check()} busy={busy} disabled={code.length !== 6} />
-    <Button label={wait ? `Call me again in ${wait} s` : 'Call me again'} icon="arrow.clockwise" onPress={again} disabled={wait > 0} />
+    {test ? null : <Button label={wait ? `Call me again in ${wait} s` : 'Call me again'} icon="arrow.clockwise" onPress={again} disabled={wait > 0} />}
   </View>;
 }
 

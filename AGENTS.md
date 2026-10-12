@@ -18,6 +18,7 @@ On your iPhone: install **Expo Go** from the App Store, scan the QR code in the 
 The app finds the server on the laptop automatically (same Wi-Fi). If campus Wi-Fi blocks it:
 `ngrok http 3001`, put the https URL in `mobile/.env` as EXPO_PUBLIC_API_URL, and run `npm run app:tunnel`.
 Works with an empty .env (development mode: rule-based AI, data saved to server/data/porchlight.json, sign-in codes shown in the app instead of called, texts logged not sent).
+Test sign-in (no call): +1 555 000 0001 (older adult) or +1 555 000 0002 (family), code 123456. Development only; production uses `TEST_LOGINS` (.env.example).
 Test data: `SEED_DEMO=1` loads the fictional Hollis family (sign in as +1 555 010 0009 for the older adult, +1 555 010 0001 for Anne). Never in production.
 
 ## Layout

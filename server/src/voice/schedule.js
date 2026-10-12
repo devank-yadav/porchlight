@@ -18,12 +18,18 @@ export const RETRY_MS = Number(process.env.CALL_RETRY_MS || 120000);
 export const MAX_ATTEMPTS = Number(process.env.CALL_ATTEMPTS || 2);
 
 export async function callSenior(seniorId, reason = 'now', attempt = 1, { purpose = 'checkin' } = {}) {
+  const senior = await store.get('seniors', seniorId);
+  // +1555 numbers are fictional (test sign-ins); never dial them.
+  if (!senior?.phone || senior.phone.startsWith('+1555')) {
+    const err = new Error('This is a test number, so Porchlight can’t call it. Sign in with a real phone number to try the calls.');
+    err.status = 400;
+    throw err;
+  }
   if (!canCall()) {
     const err = new Error('Phone calls need TWILIO_* and PUBLIC_URL in .env. Phone calls aren’t set up on this server yet.');
     err.status = 400;
     throw err;
   }
-  const senior = await store.get('seniors', seniorId);
   const { checkin } = await startCheckin(senior._id, 'phone', { purpose });
   await store.update('checkins', checkin._id, { trigger: reason, attempt });
   const base = process.env.PUBLIC_URL.replace(/\/$/, '');
