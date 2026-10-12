@@ -64,7 +64,7 @@ function nextCallLabel(senior) {
 // Ring her phone now (the call happens on her phone, not this one).
 const callNow = (senior, run) => run(
   () => api.phoneCall(senior._id),
-  [`Calling ${senior.preferredName}`, 'The call was requested. Her update will appear when the call ends.'],
+  [`Calling ${senior.preferredName}`, 'Their phone will ring. The update shows here when the call ends.'],
 );
 
 // Ride steps shown on the approval card.
@@ -79,7 +79,7 @@ const STEP_INDEX = { PENDING_APPROVAL: 0, APPROVED: 1, REQUESTED: 2, CONFIRMED: 
 const AUTO_STEPS = [
   ['REQUESTED', 'Requested'],
   ['CONFIRMED', 'Booked'],
-  ['COMPLETED', 'She got there'],
+  ['COMPLETED', 'Arrived'],
 ];
 const AUTO_INDEX = { APPROVED: 0, REQUESTED: 0, CONFIRMED: 1, COMPLETED: 2 };
 const ENDED = { REJECTED: 'Not approved', FAILED: 'Booking failed', CANCELLED: 'Cancelled' };
@@ -278,13 +278,13 @@ function PorchHero({ senior, state, viewer, latest, escalation, checkedIn }) {
   const name = senior.preferredName;
   const help = escalation?.reason === 'help';
   const [label, tone, icon] = help ? ['Asked for help', 'red', 'hand.raised.fill']
-    : escalation ? ['Check-in unresolved', 'lamp', 'exclamationmark.circle.fill']
+    : escalation ? ['Not heard from yet', 'lamp', 'exclamationmark.circle.fill']
     : senior.status === 'talking' ? ['On a call now', 'lamp', 'phone.fill']
     : checkedIn ? [`Checked in · ${timeIn(senior.lastCheckinAt, tz)}`, 'green', 'checkmark']
-    : ['Waiting for a check-in', 'night', 'clock'];
-  const summary = help ? `${name} pressed her help button. Please reach her now.`
-    : escalation ? 'We haven’t heard from her yet today. She may be out or asleep.'
-    : latest?.summary || 'Her next check-in will appear here.';
+    : ['Waiting for today’s call', 'night', 'clock'];
+  const summary = help ? `${name} pressed the help button. Please reach them now.`
+    : escalation ? `We haven’t heard from ${name} yet today. They may be out or asleep.`
+    : latest?.summary || (senior.autoCall ? 'How today’s call went will show here.' : 'Turn on the daily call in Settings, or tap Call to start one now.');
   const med = viewer?.seesMeds === false ? 'Private' : medLabel(latest);
   const pills = pillsLabel(state, senior);
   const call = () => Linking.openURL('tel:' + senior.phone).catch((e) => toast.error('Couldn’t open the phone', { description: e.message }));
@@ -323,7 +323,7 @@ function EscalationCard({ escalation, senior, me, run }) {
         <IconTile icon={help ? 'hand.raised.fill' : 'phone.arrow.up.right'} tone={help ? 'red' : 'lamp'} size={44} />
         <View style={{ flex: 1, gap: 2 }}>
           <T v="headline">{help ? name + ' needs someone to contact her' : 'Let’s get in touch'}</T>
-          <T v="callout" muted>{help ? 'She pressed her help button. If there is an emergency, call 911.' : 'A missed call doesn’t tell us why. She may be out or asleep.'}</T>
+          <T v="callout" muted>{help ? `${name} pressed the help button. If there is an emergency, call 911.` : `A missed call doesn’t tell us why. ${name} may be out or asleep.`}</T>
         </View>
       </View>
       <View style={st.ladder}>
@@ -340,7 +340,7 @@ function EscalationCard({ escalation, senior, me, run }) {
           </View>
         ))}
       </View>
-      <Button variant="primary" icon="checkmark" label={'I reached ' + name + ', she’s okay'} onPress={run(() => api.resolve(senior._id), 'Thanks. Her status is updated.')} />
+      <Button variant="primary" icon="checkmark" label={'I reached ' + name + ', all okay'} onPress={run(() => api.resolve(senior._id), 'Thanks. The status is updated.')} />
     </Card>
   );
 }

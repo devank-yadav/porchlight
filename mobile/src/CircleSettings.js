@@ -9,6 +9,7 @@ import { haptic } from './design/haptics';
 import { useTheme } from './design/theme';
 import { Button, ListGroup, ListRow, T } from './design/ui';
 import { accent, radius } from './design/tokens';
+import { pretty } from './Onboarding';
 
 const first = (name) => String(name || '').split(' ')[0];
 const failed = (e) => toast.error('That didn’t go through', { description: e.message });
@@ -145,7 +146,7 @@ export function AccountGroup({ account }) {
     { text: 'Delete', style: 'destructive', onPress: () => account.deleteAccount().catch(failed) },
   ]);
   return <ListGroup>
-    <ListRow avatar={me.name} title={me.name || 'You'} sub={me.phone} />
+    <ListRow avatar={me.name} title={me.name || 'You'} sub={me.phone ? pretty(me.phone) : null} />
     <ListRow icon="rectangle.portrait.and.arrow.right" title="Sign out" onPress={account.signOut} chevron={false} />
     <ListRow icon="trash" title="Delete my account" onPress={confirmDelete} chevron={false} />
   </ListGroup>;

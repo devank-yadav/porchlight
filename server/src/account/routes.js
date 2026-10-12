@@ -85,11 +85,13 @@ export async function syncPrimary(circleId) {
   if (senior) await store.update('seniors', senior._id, { primaryContactName: primary ? firstName(primary.name) : 'your family' });
 }
 
+// The daily call starts on (10 AM their time) when the older adult signs up with their own verified
+// number. When family sets it up, it stays off until they choose a time, so nobody is called unasked.
 async function newSenior({ circleId, preferredName, name, phone, timezone, home, accountId = null, createdBy = null }) {
   const homeLatLng = home ? (await geocode(home).catch(() => null))?.latlng || null : null;
   return store.insert('seniors', {
     circleId, name: name || preferredName, preferredName, phone, timezone, home: home || '', homeLatLng,
-    accountId, createdBy, about: [], meds: [], status: 'waiting', checkinTime: '10:00', autoCall: false,
+    accountId, createdBy, about: [], meds: [], status: 'waiting', checkinTime: '10:00', autoCall: Boolean(accountId),
     primaryContactName: 'your family',
   });
 }

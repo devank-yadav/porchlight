@@ -66,8 +66,8 @@ npm run dev            # starts the server on :3001 and the Expo dev server
 ```
 1. Install **Expo Go** from the App Store.
 2. Scan the QR code in the terminal with your iPhone camera.
-3. Pick who the phone is for: Peggy or a family member. Use two phones to see live updates.
+3. Pick who the phone is for (the older adult, or family), enter your number and type the code Porchlight reads out on a call. Each phone has one role. Use two phones to see live updates.
 
 Phone and laptop need the same Wi-Fi. If that doesn't work (campus networks often block it), run `ngrok http 3001`, set `EXPO_PUBLIC_API_URL` in `mobile/.env`, and use `npm run app:tunnel`.
 
-With an empty `.env` it runs in demo mode (rule-based AI, in-memory data, texts logged, not sent). Add keys in `.env` for an AI model (Claude or any OpenAI-compatible endpoint), MongoDB Atlas and Twilio. All people and organizations in the demo are fictional samples.
+With an empty `.env` it runs in development mode: rule-based AI, data saved to `server/data/porchlight.json`, and sign-in codes shown in the app instead of called. Add keys in `.env` for an AI model (Claude or any OpenAI-compatible endpoint), MongoDB Atlas and Twilio (sign-in calls, daily calls). `SEED_DEMO=1` loads a fictional test family. What's left before an App Store release is in [SHIPPING.md](SHIPPING.md).

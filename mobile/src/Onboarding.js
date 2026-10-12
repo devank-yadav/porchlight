@@ -15,7 +15,7 @@ import { accent, font, radius, seniorPalette as P, shadow } from './design/token
 // First run on a phone: who is it for → phone number → a call reads a code → a little setup → the app.
 // The role picked here stays with this phone; only signing out (or deleting the account) starts over.
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York'; } catch { return 'America/New_York'; } };
-const pretty = (e164) => {
+export const pretty = (e164) => {
   const m = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(e164 || '');
   return m ? `(${m[1]}) ${m[2]}-${m[3]}` : e164;
 };

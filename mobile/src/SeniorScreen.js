@@ -11,6 +11,7 @@ import { useMedReminders } from './meds/reminders';
 import PillsCard from './meds/PillsCard';
 import MedsList from './meds/MedsList';
 import { useAppContext } from './AppContext';
+import { pretty } from './Onboarding';
 import Lamp, { lampState } from './Lamp';
 import { Appear, Avatar, BigButton, Button, Card, HeroCard, IconTile, ListGroup, Press, Screen, Section, T, Tile, useSettled } from './design/ui';
 import PlanRow, { upcomingPlans, isToday, dayLabel } from './design/PlanRow';
@@ -302,7 +303,7 @@ function Family({ senior, members, account }) {
       <HelpButton />
     </Section>
     <Section title="My account" style={{ gap: 14 }}>
-      <T v="readSmall" muted>Signed in as {senior.preferredName}{account.me?.phone ? ` · ${account.me.phone}` : ''}</T>
+      <T v="readSmall" muted>Signed in as {senior.preferredName}{account.me?.phone ? ` · ${pretty(account.me.phone)}` : ''}</T>
       <Button label="Sign out" icon="rectangle.portrait.and.arrow.right" onPress={account.signOut} />
       <Button variant="ghost" label="Delete my account" onPress={confirmDelete} />
     </Section>
