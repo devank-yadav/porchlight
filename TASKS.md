@@ -1,5 +1,9 @@
 # TASKS
 
+## README refresh — October 12, 2026
+
+- [ ] R-README — Devank (Claude Code), `claude/project-thread-0ximr2`; claimed. Owner notice: README.md only (A owns it). Rewrite README to match the Porchlight page on devank.me (same sections, wording and screenshots), keeping the run instructions accurate.
+
 ## App UI v3 ("evening porch") — October 11, 2026
 
 - [x] U3 — Devank (Claude Code), `claude/project-thread-cwsvbd`; implemented, merged to main via [PR #84](https://github.com/devank-yadav/porchlight/pull/84). Owner notice: `mobile/*` only, no server, API or route-contract changes. Warm paper palette, night porch-light hero card, floating tab bar, slim header, new ui.js components (HeroCard, Tile, ListGroup/ListRow, Avatar, SectionHeader, LargeTitle, Chip, IconTile, Screen). Every Peggy and family screen rebuilt with all features kept. The volunteer desk is removed from the app at Devank's request (server endpoints untouched). Medications (M1) and the Uber tap fix (N1) mounted in the new layout; the family hero shows today's pills from the reminders. Checked: lint, iOS export, every route loads with no errors at 390x844 on the web preview. Next: phone check in Expo Go (Devank reviewing).
