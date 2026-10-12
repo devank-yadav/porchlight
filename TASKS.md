@@ -1,5 +1,9 @@
 # TASKS
 
+## Call-in number (inbound calls) — October 12, 2026
+
+- [ ] I1 — Devank (Claude Code), `claude/inbound-call-number-2kwkwi`; claimed, in progress. Owner notice: new `server/src/voice/inbound.js` plus small hook-ins in voice/routes.js, voice/checkins.js, voice/intents.js and .env.example. No mobile/ changes. Peggy, family or anyone can call Porchlight's own Twilio number: Peggy gets the live call with her full context, family hears a short status, unknown numbers hear how to sign up. Ships OFF (`INBOUND_CALLS_ENABLED`) and hidden in the app until Devank buys the number.
+
 ## README refresh — October 12, 2026
 
 - [x] R-README — Devank (Claude Code), `claude/project-thread-0ximr2`; implemented, merging to main. Owner notice: README.md only (A owns it). Rewrite README to match the Porchlight page on devank.me (same sections, wording and screenshots), keeping the run instructions accurate.
