@@ -299,6 +299,16 @@ export async function handleIntent(senior, checkin, text) {
       return { reply: `Thank you. I've marked your ${list} as taken for ${marked[0].label}. What else is going on today?` };
     }
   }
+  // A call she made IN to Porchlight's number: caller ID can be faked, so a ride or a message to family
+  // waits for a call back to her own verified number (voice/inbound.js). Connecting her to family still works.
+  if (checkin.inbound) {
+    const members = senior.circleId ? await store.list('members', { circleId: senior.circleId }) : [];
+    const what = rideTurn(text, checkin) ? 'set up that ride' : detectIntent(text, members)?.kind === 'message' ? 'send that message' : null;
+    if (what) {
+      await store.update('checkins', checkin._id, { ringBack: what });
+      return { reply: `I can do that. To keep your account safe, I'll ${what} on a call to your own number, so I'll ring you straight back once we hang up. Just ask me again then.`, end: true };
+    }
+  }
   if (rideTurn(text, checkin)) {
     const ride = await rideNow(senior, text, checkin);
     if (ride) return ride;
