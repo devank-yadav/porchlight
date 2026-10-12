@@ -364,6 +364,13 @@ function Talk({ senior, done }) {
   const voiceRef = useRef(true);
   const scroller = useRef(null);
   const started = useRef(false);
+  // Follow the conversation, but show a long new message from its first word, not its last line.
+  const room = useRef({ view: 0, content: 0, lastTop: 0 });
+  const follow = () => {
+    const { view, content, lastTop } = room.current;
+    const y = Math.max(0, Math.min(lastTop - 12, content - view));
+    scroller.current?.scrollTo({ y, animated: !reduced });
+  };
 
   useEffect(() => { voiceRef.current = voiceOn; if (!voiceOn) Speech.stop(); }, [voiceOn]);
 
@@ -443,9 +450,12 @@ function Talk({ senior, done }) {
         contentContainerStyle={st.transcript}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: true })}
+        onLayout={(e) => { room.current.view = e.nativeEvent.layout.height; }}
+        onContentSizeChange={(w, h) => { room.current.content = h; follow(); }}
       >
-        {lines.map((l, i) => <Bubble key={i} line={l} reduced={reduced} />)}
+        {lines.map((l, i) => <View key={i} onLayout={i === lines.length - 1 ? (e) => { room.current.lastTop = e.nativeEvent.layout.y; follow(); } : undefined}>
+          <Bubble line={l} reduced={reduced} />
+        </View>)}
         {waiting && <Typing reduced={reduced} />}
       </ScrollView>
 
