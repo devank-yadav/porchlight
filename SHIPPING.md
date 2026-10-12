@@ -27,6 +27,8 @@ Kept up to date by whoever closes an item.
 - Removed the in-app chat (Talk). Talking happens on phone calls.
 - Removed the "I'm okay today" button and its thanks screen. "Call me now" is the main button.
 - "Is this a scam?" is a phone call: Porchlight asks what happened, gives a verdict and what to do, and tells the family if it sounds risky. The verdict also shows in the app.
+- "Help with my phone" is a phone call too: Porchlight asks what the screen says and walks through it one step at a time, flagging fake warnings. The photo form, its camera and photo permissions, and expo-image-picker are gone.
+- Removed the "Call Anne" button and the per-person call buttons; "connect me to Anne" on a call still works.
 - Removed every Sample label, sample note, simulated ride booking and the demo controls. Rides are always a real Uber hand-off the older adult confirms.
 - Seeded people load only with `SEED_DEMO=1` (tests). A fresh server starts empty.
 - Without MongoDB, data is saved to `server/data/porchlight.json`, so a restart no longer wipes it.
@@ -34,7 +36,7 @@ Kept up to date by whoever closes an item.
 - Family phones get push alerts too (there's no Twilio texting number).
 - The daily call starts on at 10 AM when the older adult signs up themselves; family-made profiles start with it off until someone picks a time.
 - Weather, rides and times use each person's own home and time zone.
-- App: photo and camera permission strings; iPad off until it has a layout.
+- App: iPad off until it has a layout.
 
 ## Open
 

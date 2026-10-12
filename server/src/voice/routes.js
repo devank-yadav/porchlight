@@ -2,8 +2,7 @@
 // Phone check-ins (Twilio webhooks), call scheduling, family questions, the scam check and phone help.
 import { Router } from 'express';
 import * as store from '../store.js';
-import { techHelp } from './llm.js';
-import { sms, VOICE } from './notify.js';
+import { VOICE } from './notify.js';
 import { callSenior, setSchedule, scheduleOf, startScheduler, scheduleRetry } from './schedule.js';
 import { relayEnabled, relayTwiml } from './relay.js';
 import { transcribeRecording } from './stt.js';
@@ -32,20 +31,7 @@ if (process.env.SEED_DEMO === '1') {
   }));
 }
 
-// ---------- Tech help: a picture of her screen → what it is + one next step ----------
-voiceRoutes.post('/api/tech-help', wrap(async (req, res) => {
-  const senior = await store.get('seniors', seniorIdOf(req));
-  const image = String(req.body.image || '').replace(/^data:[^,]+,/, '');
-  if (!image) return res.status(400).json({ error: 'Take a picture of the screen first.' });
-  const result = await techHelp(senior, { image, mime: req.body.mime || 'image/jpeg', question: String(req.body.question || '').slice(0, 500), history: Array.isArray(req.body.history) ? req.body.history : [] });
-  if (result.scam && senior.circleId) {
-    const family = (await store.list('members', { circleId: senior.circleId })).filter((m) => m.role === 'family');
-    for (const m of family) await sms(m, `${senior.preferredName} showed Porchlight a screen that looks like a scam: "${result.says}". We told her to close it and not call or pay. Worth a quick call.`);
-  }
-  res.json(result);
-}));
-
-// The scam check is a phone call now: POST /api/seniors/:id/call { purpose: 'scam' } (checkins.js).
+// The scam check and tech help are phone calls: POST /api/seniors/:id/call { purpose: 'scam' | 'tech' } (checkins.js).
 
 // ---------- Real phone calls (Twilio + a public URL) ----------
 const xml = (s) => String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
@@ -65,8 +51,8 @@ const ask = (say, checkinId, silent = 0) => (recordMode() ? listen(say, checkinI
 // "Call now" in the app.
 voiceRoutes.post('/api/seniors/:id/call', wrap(async (req, res) => {
   assertSenior(req, req.params.id);
-  const purpose = req.body?.purpose === 'scam' ? 'scam' : 'checkin';
-  if (purpose === 'scam' && req.account.role !== 'senior') throw Object.assign(new Error('Only the older adult can ask for a scam-check call.'), { status: 403 });
+  const purpose = ['scam', 'tech'].includes(req.body?.purpose) ? req.body.purpose : 'checkin';
+  if (purpose !== 'checkin' && req.account.role !== 'senior') throw Object.assign(new Error('Only the older adult can ask for this call.'), { status: 403 });
   res.json(await callSenior(req.params.id, 'now', 1, { purpose }));
 }));
 
@@ -166,7 +152,7 @@ voiceRoutes.post('/twilio/status', wrap(async (req, res) => {
   const checkin = await store.get('checkins', req.query.checkinId);
   if (!checkin) return res.sendStatus(204);
   const answered = checkin.transcript.some((t) => t.who === 'senior');
-  if (!answered && checkin.purpose === 'scam') { // she asked for this call; a missed one isn't a missed check-in
+  if (!answered && ['scam', 'tech'].includes(checkin.purpose)) { // she asked for this call; a missed one isn't a missed check-in
     await store.update('checkins', checkin._id, { status: 'missed', endedAt: new Date().toISOString() });
     await store.update('seniors', checkin.seniorId, { status: checkin.statusBefore || 'waiting' });
   } else if (!answered && ['no-answer', 'busy', 'failed', 'completed'].includes(req.body.CallStatus)) {

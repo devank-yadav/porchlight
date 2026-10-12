@@ -23,3 +23,19 @@ test('a scam-check call judges what she says and tells her family', async () => 
   const bye = await addTurn(checkin._id, "No, that's all, thank you");
   assert.equal(bye.ended, true);
 });
+
+test('"Help with my phone" by phone: one step at a time, fake warnings flagged once', async () => {
+  await store.insert('seniors', { _id: 's2', circleId: 'c2', preferredName: 'Walt', primaryContactName: 'Lucy', about: [], meds: [], timezone: 'America/New_York', status: 'ok' });
+  await store.insert('members', { _id: 'm2', circleId: 'c2', name: 'Lucy Park', role: 'family', phone: '+15550300002', primary: true });
+  const { checkin } = await startCheckin('s2', 'phone', { purpose: 'tech' });
+  assert.match(checkin.transcript[0].text, /screen/i);
+  assert.match(checkin.transcript[0].text, /speaker/i, 'tells him to use the speaker to see the screen');
+  const first = await addTurn(checkin._id, 'It says software update available');
+  assert.match(first.reply, /\?/, 'asks what the screen shows');
+  const fake = await addTurn(checkin._id, 'Now a red box says my phone is infected with a virus, call this number');
+  assert.match(fake.reply, /don’t call|don't call/i);
+  await addTurn(checkin._id, 'It says virus again');
+  const checks = await store.list('scamChecks', { seniorId: 's2' });
+  assert.equal(checks.length, 1, 'saved once per call');
+  assert.equal(checks[0].verdict, 'likely scam');
+});

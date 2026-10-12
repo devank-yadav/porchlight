@@ -35,13 +35,6 @@
         {
           "calendarPermission": "Porchlight reads your upcoming appointments so your calls and rides use them, and adds the rides, reminders and call-backs it sets up for you."
         }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Porchlight looks at a screenshot you choose so it can explain what's on your phone screen.",
-          "cameraPermission": "Porchlight looks at a photo you take so it can explain what's on your phone screen."
-        }
       ]
     ],
     "scheme": "porchlight",

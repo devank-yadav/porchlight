@@ -1,7 +1,7 @@
 // OWNER: Person A (voice & AI).
 // A check-in conversation: start → turns → finish (analyze, then hand off to care/outcomes.js).
 import * as store from '../store.js';
-import { reply, analyze, greeting, scamCheck, URGENT_WORDS } from './llm.js';
+import { reply, analyze, greeting, scamCheck, techTalk, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
 import { medsDueNow, doseLine } from '../care/meds.js';
@@ -66,13 +66,16 @@ async function newNoticesFor(senior) {
 }
 
 // purpose 'scam': she tapped "Is this a scam?". The call asks what happened, judges it, and says what to do.
+// purpose 'tech': she tapped "Help with my phone". The call asks what's on the screen and goes one step at a time.
 export async function startCheckin(seniorId, channel, { purpose = 'checkin' } = {}) {
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
   forecast(senior.timezone, senior.homeLatLng).catch(() => {}); // warm the weather cache so the first question about it is instant
   const text = purpose === 'scam'
     ? `Hi ${senior.preferredName}, it's Porchlight, your AI helper. You asked me to check something that might be a scam. Tell me what happened: who contacted you, and what did they want?`
-    : greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
+    : purpose === 'tech'
+      ? `Hi ${senior.preferredName}, it's Porchlight, your AI helper. Let's sort out your screen together. If it's this phone, tap the speaker button so you can see it while we talk. What does the screen say?`
+      : greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
   const checkin = await store.insert('checkins', {
     seniorId, channel, purpose, statusBefore: senior.status || 'waiting', status: 'in-progress', startedAt: new Date().toISOString(),
     transcript: [{ who: 'porchlight', text, at: new Date().toISOString() }],
@@ -174,6 +177,7 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
     memory.askNow = memory.questions[0];
     await store.update('checkins', checkinId, { askedQuestion: memory.askNow.text });
   }
+  if (checkin.purpose === 'tech' && !intent && !urgent) return techTurn(senior, checkin, transcript);
   const answer = intent?.reply ?? await reply(senior, transcript, { appointments: await appointmentsFor(senior._id), memory, onSentence });
   await followUps(senior, checkin, text, answer);
   // Porchlight just told her "I'm letting Anne know right now", so do it now, not after the call.
@@ -184,6 +188,31 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   transcript.push({ who: 'porchlight', text: answer, at: new Date().toISOString() });
   await store.update('checkins', checkinId, { transcript });
   return { reply: answer, ended: false, streamed };
+}
+
+// "Help with my phone": one step at a time. A fake warning on the screen is saved as a scam check
+// (so it shows in the app) and the family hears about it, once per call. When it's solved, ask before hanging up.
+async function techTurn(senior, checkin, transcript) {
+  const result = await techTalk(senior, transcript);
+  const patch = {};
+  if (result.scam && !checkin.scamCheckId) {
+    const said = transcript.filter((t) => t.who === 'senior').map((t) => t.text).join(' ').slice(0, 2000);
+    const saved = await store.insert('scamChecks', {
+      seniorId: senior._id, description: said, channel: 'call', checkinId: checkin._id, verdict: 'likely scam',
+      redFlags: ['A warning on the screen asking to call, pay or let someone in'], advice: 'Don’t call the number or pay anything. Close it, and call family if it comes back.',
+    });
+    patch.scamCheckId = saved._id;
+    const family = senior.circleId ? (await store.list('members', { circleId: senior.circleId })).filter((m) => m.role === 'family') : [];
+    for (const m of family) await sms(m, `${senior.preferredName} asked Porchlight for help with a screen that sounds like a scam: "${said.slice(0, 140)}". Porchlight told them not to call or pay anyone. Worth a call today.`);
+  }
+  let say = result.say;
+  if (result.done) {
+    say = `${say} Is there anything else on your screen I can help with, or shall we say goodbye?`;
+    patch.askedToEnd = true;
+  }
+  transcript.push({ who: 'porchlight', text: say, at: new Date().toISOString() });
+  await store.update('checkins', checkin._id, { transcript, ...patch });
+  return { reply: say, ended: false };
 }
 
 // Promises Porchlight just made out loud are kept: a check-back call when she's unwell, and a

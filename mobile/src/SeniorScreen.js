@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Linking, Platform, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Share, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import Animated from 'react-native-reanimated';
 import * as Speech from 'expo-speech';
 import { api } from './api';
@@ -175,7 +174,7 @@ function Home({ senior, plans, state, refresh, notices }) {
 
     <Appear on index={3} style={st.grid}>
       <BigButton icon="shield.lefthalf.filled" title="Is this a scam?" sub="Porchlight calls you to check" chevron onPress={() => go('scam')} />
-      <BigButton icon="iphone" title="Help with my phone" sub="Show me the screen" hint="Take a picture of a screen and Porchlight explains what to do next." chevron onPress={() => go('tech')} />
+      <BigButton icon="iphone" title="Help with my phone" sub="Porchlight calls you to help" hint="Porchlight calls you and walks you through your screen, one step at a time." chevron onPress={() => go('tech')} />
     </Appear>
 
     <Notices notices={notices} settled={settled} />
@@ -322,75 +321,30 @@ function PageHead({ icon, tone = 'lamp', title, sub }) {
 }
 
 // ── Help with my phone ──────────────────────────────────────────────────────
-// A picture of the screen (camera or screenshot) → what it is + ONE next step, read aloud.
-// "I did it" asks for the next step; a new picture shows where she is now. Scams are called out.
+// A phone call: Porchlight rings, asks what the screen says, and goes one step at a time.
 function TechHelp({ senior, back }) {
-  const [shot, setShot] = useState(null); // { base64, uri }
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [asked, setAsked] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const ask = async (img, q) => {
+  const call = async () => {
+    if (busy) return;
     setBusy(true);
     try {
-      const r = await api.techHelp(senior._id, img.base64, q, history);
-      setAnswer(r);
-      setHistory((h) => [...h, { who: 'senior', text: q || 'What is this, and what should I do?' }, { who: 'porchlight', text: `${r.says} ${r.step}` }]);
-      if (r.scam) haptic.warn(); else haptic.success();
-      say(`${r.says} ${r.step}`);
-    } catch (e) {
-      onError(e);
-    } finally {
-      setBusy(false);
-    }
+      await api.phoneCall(senior._id, 'tech');
+      haptic.success();
+      setAsked(true);
+      say('Your phone will ring. Tell Porchlight what the screen says.');
+    } catch (e) { onError(e); } finally { setBusy(false); }
   };
-
-  const pick = async (camera) => {
-    try {
-      const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return toast.info('Porchlight needs permission', { description: camera ? 'Allow the camera in Settings to take a picture of the screen.' : 'Allow Photos in Settings to choose a screenshot.' });
-      const opts = { base64: true, quality: 0.4, mediaTypes: ['images'] };
-      const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-      if (res.canceled || !res.assets?.[0]?.base64) return;
-      const img = { base64: res.assets[0].base64, uri: res.assets[0].uri };
-      setShot(img);
-      setAnswer(null);
-      await ask(img, question.trim());
-    } catch (e) {
-      onError(e);
-    }
-  };
-
-  const V = answer?.scam ? VERDICT.danger : answer?.done ? VERDICT.safe : VERDICT.step;
   return (
     <Screen>
       <BackLink onPress={back} />
-      <PageHead icon="iphone" title="Help with my phone" sub={answer ? null : 'Show me the screen. I’ll tell you what to do, one step at a time.'} />
-      <TextInput
-        style={st.textarea}
-        multiline
-        value={question}
-        onChangeText={setQuestion}
-        placeholder="What would you like to do? (optional)"
-        placeholderTextColor={P.muted}
-        accessibilityLabel="Your question, optional"
-      />
-      {answer && (
-        <Animated.View style={[st.verdict, { backgroundColor: V.bg, borderColor: V.border }]} accessibilityLiveRegion="polite">
-          <View style={[st.verdictIcon, { backgroundColor: V.solid }]}><Icon name={answer.scam ? V.icon : answer.done ? V.icon : 'lightbulb.fill'} size={40} color={V.on} /></View>
-          <Text style={[st.verdictWord, { color: V.fg }]}>{answer.scam ? 'This looks like a scam.' : answer.done ? 'All done.' : 'Next step'}</Text>
-          <Text style={[st.verdictText, { textAlign: 'center' }]}>{answer.says}</Text>
-          <View style={st.verdictPanel}><Text style={[st.verdictText, { fontFamily: font.readBold }]}>{answer.step}</Text></View>
-          {answer.scam && <Notified />}
-        </Animated.View>
-      )}
-      <View style={st.stack}>
-        {answer && !answer.done && !answer.scam && <BigButton tone="lamp" icon="checkmark.circle.fill" title={busy ? 'Looking…' : 'I did it. What’s next?'} sub="Take a new picture if the screen changed" onPress={() => ask(shot, 'I did that. What do I do next?')} disabled={busy} />}
-        <BigButton tone={answer ? 'plain' : 'lamp'} icon="camera.fill" title={busy ? 'Looking…' : answer ? 'Take a new picture' : 'Take a picture of the screen'} sub="Use this phone’s camera" onPress={() => pick(true)} disabled={busy} />
-        <BigButton icon="photo" title="Choose a screenshot" sub="From your photos" onPress={() => pick(false)} disabled={busy} />
-        {answer && <Button variant="primary" icon="house.fill" label="Back to start" onPress={back} />}
-      </View>
+      <PageHead icon="iphone" title="Help with my phone" sub={asked ? 'Your phone will ring. Tell Porchlight what the screen says.' : 'Porchlight will call you. Tell it what you see on the screen, and it will walk you through, one step at a time.'} />
+      {asked
+        ? <Card style={st.notice} accessibilityLiveRegion="polite"><Lamp state="lit" size={52} still /><T v="read" style={{ flex: 1 }}>Calling you now.</T></Card>
+        : <BigButton tone="lamp" icon="phone.arrow.down.left" title={busy ? 'Calling…' : 'Call me about it'} sub="Your phone will ring" onPress={call} disabled={busy} />}
+      <T v="readSmall" muted>If you need help with this phone, tap the speaker button when you answer, so you can see the screen while you talk.</T>
+      <T v="readSmall" muted>Porchlight will never ask you to say a password or code.</T>
+      {asked && <Button variant="secondary" icon="house.fill" label="Back to start" onPress={back} />}
     </Screen>
   );
 }
