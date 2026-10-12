@@ -116,6 +116,6 @@ const st = StyleSheet.create({
   offline: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'center', marginHorizontal: 20, marginBottom: 6, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: accent.lampSoft, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(224,138,18,0.25)' },
   offlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: accent.lamp },
   offlineText: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: accent.lampText, flexShrink: 1 },
-  fade: { position: 'absolute', left: 0, right: 0, top: '100%' },
+  fade: { position: 'absolute', left: 0, right: 0, bottom: -18 }, // not top: '100%': on iPhone that ignores the safe-area padding
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 22, padding: 24 },
 });

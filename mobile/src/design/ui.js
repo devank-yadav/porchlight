@@ -184,15 +184,19 @@ export function BigButton({ title, sub, icon, hint, onPress, tone = 'plain', dis
       style={[st.big, { backgroundColor: T_.bg, borderColor: T_.border }, tone === 'plain' && !isNight && shadow.card, tone === 'lamp' && st.lampLift, style]}
     >
       {tone === 'lamp' ? (
-        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-          <Defs>
-            <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#FFBD4A" />
-              <Stop offset="1" stopColor="#F29A15" />
-            </LinearGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" rx={radius.lg} ry={radius.lg} fill={`url(#${gid})`} />
-        </Svg>
+        // A padding-free layer for the gradient: on iPhone, '100%' on an absolute child of a padded view is
+        // measured inside the padding, so the gradient covered only the upper left of the button.
+        <View style={st.bigFill} pointerEvents="none">
+          <Svg width="100%" height="100%">
+            <Defs>
+              <LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#FFBD4A" />
+                <Stop offset="1" stopColor="#F29A15" />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gid})`} />
+          </Svg>
+        </View>
       ) : null}
       {icon ? <IconTile icon={icon} tone={T_.tile} size={60} iconSize={30} style={{ borderRadius: 18 }} /> : null}
       <View style={{ flex: 1, gap: 3 }}>
@@ -562,6 +566,7 @@ const st = StyleSheet.create({
   hero: { backgroundColor: night.bg, borderRadius: radius.xl, padding: 22, gap: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,247,236,0.08)', shadowColor: '#2A1A0C', shadowOpacity: 0.22, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
   // Spelled out: React Native 0.86 dropped StyleSheet.absoluteFillObject (the web preview still has it),
   // and without it the glow sat in the layout and pushed the card's content out of sight on iPhone.
+  bigFill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.lg, overflow: 'hidden' },
   heroClip: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, borderRadius: radius.xl, overflow: 'hidden' },
   tileSlot: { flexGrow: 1, flexBasis: '40%', minWidth: 0 },
   tile: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, gap: 14, alignItems: 'flex-start' },

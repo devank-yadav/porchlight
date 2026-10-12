@@ -140,7 +140,7 @@ const st = StyleSheet.create({
   backdrop: { backgroundColor: 'rgba(27,22,19,0.42)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: light.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: 20, shadowColor: '#3B2A1A', shadowOpacity: 0.16, shadowRadius: 30, shadowOffset: { width: 0, height: -6 } },
   sheetDark: { backgroundColor: dark.surface },
-  underfill: { position: 'absolute', left: 0, right: 0, top: '100%', height: 400, backgroundColor: light.surface },
+  underfill: { position: 'absolute', left: 0, right: 0, bottom: -400, height: 400, backgroundColor: light.surface },
   handleZone: { alignItems: 'center', paddingTop: 10, paddingBottom: 14 },
   handle: { width: 40, height: 5, borderRadius: 3, backgroundColor: 'rgba(30,25,21,0.16)' },
 });
