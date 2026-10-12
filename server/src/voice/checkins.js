@@ -1,7 +1,7 @@
 // OWNER: Person A (voice & AI).
 // A check-in conversation: start → turns → finish (analyze, then hand off to care/outcomes.js).
 import * as store from '../store.js';
-import { reply, analyze, greeting, URGENT_WORDS } from './llm.js';
+import { reply, analyze, greeting, scamCheck, URGENT_WORDS } from './llm.js';
 import { sms } from './notify.js';
 import { handleCheckinOutcome } from '../care/outcomes.js';
 import { medsDueNow, doseLine } from '../care/meds.js';
@@ -65,13 +65,16 @@ async function newNoticesFor(senior) {
   } catch { return []; }
 }
 
-export async function startCheckin(seniorId, channel) {
+// purpose 'scam': she tapped "Is this a scam?". The call asks what happened, judges it, and says what to do.
+export async function startCheckin(seniorId, channel, { purpose = 'checkin' } = {}) {
   const senior = await store.get('seniors', seniorId);
   if (!senior) throw new Error('Senior not found');
   forecast(senior.timezone, senior.homeLatLng).catch(() => {}); // warm the weather cache so the first question about it is instant
-  const text = greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
+  const text = purpose === 'scam'
+    ? `Hi ${senior.preferredName}, it's Porchlight, your AI helper. You asked me to check something that might be a scam. Tell me what happened: who contacted you, and what did they want?`
+    : greeting(senior, senior.opener, await newNoticesFor(senior), { phone: channel === 'phone', reminders: await dueReminders(senior) });
   const checkin = await store.insert('checkins', {
-    seniorId, channel, status: 'in-progress', startedAt: new Date().toISOString(),
+    seniorId, channel, purpose, statusBefore: senior.status || 'waiting', status: 'in-progress', startedAt: new Date().toISOString(),
     transcript: [{ who: 'porchlight', text, at: new Date().toISOString() }],
   });
   await store.update('seniors', seniorId, { status: 'talking' });
@@ -85,6 +88,29 @@ export async function addTurn(checkinId, text, { onSentence } = {}) {
   const senior = await store.get('seniors', checkin.seniorId);
   const transcript = [...checkin.transcript, { who: 'senior', text, at: new Date().toISOString() }];
   const urgent = URGENT_WORDS.test(text);
+  // A scam-check call: her first full answer is judged, then she hears the verdict and what to do.
+  if (checkin.purpose === 'scam' && !checkin.scamCheckId && !urgent) {
+    const said = transcript.filter((t) => t.who === 'senior').map((t) => t.text).join(' ');
+    // A very short first answer ("hello?", "yes") gets one more question before judging.
+    if (said.split(/\s+/).length < 6 && transcript.filter((t) => t.who === 'senior').length < 2) {
+      const ask = 'Take your time. Who was it, and what did they ask you to do?';
+      transcript.push({ who: 'porchlight', text: ask, at: new Date().toISOString() });
+      await store.update('checkins', checkinId, { transcript });
+      return { reply: ask, ended: false };
+    }
+    const result = await scamCheck(said.slice(0, 2000));
+    const saved = await store.insert('scamChecks', { seniorId: senior._id, description: said.slice(0, 2000), channel: 'call', checkinId, ...result });
+    const family = senior.circleId ? (await store.list('members', { circleId: senior.circleId })).filter((m) => m.role === 'family') : [];
+    if (result.verdict !== 'probably fine') {
+      for (const m of family) await sms(m, `${senior.preferredName} asked Porchlight about a suspicious contact (${result.verdict}): "${said.slice(0, 140)}". Worth a call today.`);
+    }
+    const head = result.verdict === 'likely scam' ? 'That sounds like a scam.' : result.verdict === 'be careful' ? 'Please be careful with this one.' : 'That sounds okay to me.';
+    const told = result.verdict !== 'probably fine' && family.length ? ` I've let ${senior.primaryContactName || 'your family'} know.` : '';
+    const say = `${head} ${result.advice}${told} Is there anything else about it you'd like to ask, or shall we say goodbye?`;
+    transcript.push({ who: 'porchlight', text: say, at: new Date().toISOString() });
+    await store.update('checkins', checkinId, { transcript, scamCheckId: saved._id, askedToEnd: true });
+    return { reply: say, ended: false };
+  }
   // Voice actions ("tell Mark…", "put me through to Anne") run before the chat reply; never on an emergency.
   // "Yes" to Porchlight's own offer ("Would you like me to connect you to Anne?") is a real request to connect.
   const lastQuestion = ([...checkin.transcript].reverse().find((t) => t.who === 'porchlight')?.text.match(/[^.?!]*\?/g) || []).at(-1) || '';
